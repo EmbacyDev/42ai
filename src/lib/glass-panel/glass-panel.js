@@ -166,6 +166,14 @@ function updateGlassFilter(panel, options) {
     panel.style.setProperty("--glass-filter-url", "none");
     window.requestAnimationFrame(() => {
       panel.style.setProperty("--glass-filter-url", `url(#${filterId})`);
+      if (panel.dataset.glassSurface === "true") {
+        panel.style.setProperty("filter", "none");
+        panel.style.setProperty("-webkit-filter", "none");
+        window.requestAnimationFrame(() => {
+          panel.style.removeProperty("filter");
+          panel.style.removeProperty("-webkit-filter");
+        });
+      }
     });
   }
 }

@@ -85,9 +85,9 @@
   inset: -24px;
   z-index: 0;
   background-repeat: no-repeat;
-  filter: blur(16px) saturate(1.35);
   transform: scale(1.08);
   pointer-events: none;
+  border-radius: inherit;
 }
 
 .pillGlass::after {
@@ -97,7 +97,5 @@
   border-radius: inherit;
   pointer-events: none;
   z-index: 1;
-  background:
-    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 42%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 52%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
 }

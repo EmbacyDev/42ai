@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
+import { GlassPanel } from './glass-panel.js'
 
 function findBackdropImage(el: HTMLElement): HTMLImageElement | null {
   const root = el.closest('article, section, [class*="banner"]')
@@ -20,17 +21,25 @@ function syncFrostedBackdrop(
   backdrop.style.backgroundImage = `url("${src}")`
   backdrop.style.backgroundSize = `${imageRect.width}px ${imageRect.height}px`
   backdrop.style.backgroundPosition = `${imageRect.left - hostRect.left}px ${imageRect.top - hostRect.top}px`
+
+  if (backdrop.dataset.glassReady === 'true') {
+    GlassPanel.refreshPanel(backdrop)
+  }
 }
 
-export function useFrostedBackdrop<T extends HTMLElement>(enabled = true) {
+export function useFrostedBackdrop<T extends HTMLElement>(
+  enabled = true,
+  backdropRef?: RefObject<HTMLSpanElement | null>,
+) {
   const hostRef = useRef<T | null>(null)
-  const backdropRef = useRef<HTMLSpanElement | null>(null)
+  const internalBackdropRef = useRef<HTMLSpanElement | null>(null)
+  const surfaceRef = backdropRef ?? internalBackdropRef
 
   useEffect(() => {
     if (!enabled) return
 
     const host = hostRef.current
-    const backdrop = backdropRef.current
+    const backdrop = surfaceRef.current
     if (!host || !backdrop) return
 
     const source = findBackdropImage(host)
@@ -59,7 +68,7 @@ export function useFrostedBackdrop<T extends HTMLElement>(enabled = true) {
       window.removeEventListener('scroll', refresh)
       source.removeEventListener('load', onSourceReady)
     }
-  }, [enabled])
+  }, [enabled, surfaceRef])
 
-  return { hostRef, backdropRef }
+  return { hostRef, backdropRef: surfaceRef }
 }
