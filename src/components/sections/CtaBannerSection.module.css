@@ -1,0 +1,24 @@
+.section {
+  padding: clamp(40px, 5.56vw, 80px) var(--section-padding-x);
+  background: var(--color-white);
+}
+
+.banner {
+  width: min(100%, var(--page-max));
+  margin: 0 auto;
+  aspect-ratio: 1280 / 350;
+  border-radius: var(--radius-banner);
+  overflow: hidden;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 767px) {
+  .banner {
+    aspect-ratio: 16 / 11;
+  }
+}

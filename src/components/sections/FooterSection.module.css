@@ -1,0 +1,40 @@
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 40px;
+  min-height: 350px;
+  padding: clamp(40px, 2.78vw, 62px) clamp(24px, 2.78vw, 40px);
+  background: var(--color-footer);
+  color: var(--color-text-white-muted);
+}
+
+.logo {
+  font-size: clamp(36px, 3.33vw, 48px);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: var(--text-body);
+  line-height: 1.4;
+}
+
+.nav a {
+  transition: color 0.2s ease;
+}
+
+.nav a:hover {
+  color: var(--color-white);
+}
+
+@media (max-width: 767px) {
+  .footer {
+    flex-direction: column;
+    min-height: auto;
+    padding-bottom: 48px;
+  }
+}

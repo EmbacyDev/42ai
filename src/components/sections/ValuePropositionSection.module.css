@@ -1,0 +1,21 @@
+.section {
+  display: flex;
+  justify-content: center;
+  padding: var(--section-padding-y-lg) var(--section-padding-x);
+  background: var(--color-white);
+}
+
+.text {
+  max-width: 726px;
+  font-size: var(--text-h2);
+  line-height: 1.2;
+  letter-spacing: var(--text-h2-tracking);
+  text-align: center;
+  text-wrap: balance;
+}
+
+@media (max-width: 767px) {
+  .text {
+    text-align: left;
+  }
+}
