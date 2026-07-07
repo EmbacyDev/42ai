@@ -8,10 +8,10 @@
   font-weight: 500;
   line-height: 1.4;
   white-space: nowrap;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.22s ease;
 }
 
-.pill:hover {
+.pill:not(.pillGlass):hover {
   opacity: 0.92;
 }
 
@@ -78,6 +78,10 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
     0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.pillGlass:hover {
+  transform: scale(var(--glass-hover-scale, 1.05));
 }
 
 .glassBackdrop {

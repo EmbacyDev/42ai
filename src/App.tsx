@@ -8,21 +8,25 @@ import { ProductsSection } from './components/sections/ProductsSection'
 import { ProofSection } from './components/sections/ProofSection'
 import { UseCasesSection } from './components/sections/UseCasesSection'
 import { ValuePropositionSection } from './components/sections/ValuePropositionSection'
+import { GlassControls } from './components/GlassControls'
 
 function App() {
   return (
-    <main>
-      <HeroSection />
-      <ValuePropositionSection />
-      <UseCasesSection />
-      <PredictionSection />
-      <LandscapeSection />
-      <BehaviorLayersSection />
-      <ProductsSection />
-      <ProofSection />
-      <CtaBannerSection />
-      <FooterSection />
-    </main>
+    <>
+      <main>
+        <HeroSection />
+        <ValuePropositionSection />
+        <UseCasesSection />
+        <PredictionSection />
+        <LandscapeSection />
+        <BehaviorLayersSection />
+        <ProductsSection />
+        <ProofSection />
+        <CtaBannerSection />
+        <FooterSection />
+      </main>
+      <GlassControls />
+    </>
   )
 }
 
