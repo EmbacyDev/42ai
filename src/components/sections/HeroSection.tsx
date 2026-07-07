@@ -24,7 +24,7 @@ export function HeroSection() {
           <h1 className={styles.title}>{HERO.title}</h1>
           <p className={styles.subtitle}>{HERO.subtitle}</p>
         </div>
-        <PillButton variant="light">{HERO.cta}</PillButton>
+        <PillButton variant="hero">{HERO.cta}</PillButton>
       </div>
     </section>
   )
