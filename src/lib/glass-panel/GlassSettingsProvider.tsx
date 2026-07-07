@@ -15,6 +15,10 @@ export function GlassSettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.style.setProperty('--glass-hover-scale', String(settings.hoverScale))
+    document.documentElement.style.setProperty('--glass-blur', `${settings.blur}px`)
+    document.documentElement.style.setProperty('--glass-saturation', String(settings.saturation))
+    document.documentElement.style.setProperty('--glass-specular', String(settings.specular))
+    document.documentElement.style.setProperty('--glass-warmth', String(settings.warmth))
     GlassPanel.refreshAll()
   }, [settings])
 

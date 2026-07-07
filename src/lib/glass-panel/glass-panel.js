@@ -116,6 +116,15 @@ function setImageHref(image, href) {
   image.setAttributeNS(XLINK_NS, "href", href);
 }
 
+function applySurfaceFilter(panel, filterId) {
+  if (!filterId || panel.dataset.glassSurface !== "true") return;
+
+  const filterUrl = `url(#${filterId})`;
+  panel.style.setProperty("--glass-filter-url", filterUrl);
+  panel.style.setProperty("filter", filterUrl);
+  panel.style.setProperty("-webkit-filter", filterUrl);
+}
+
 function updateGlassFilter(panel, options) {
   const opts = options || {};
   const filterId = panel.dataset.glassFilterId;
@@ -163,17 +172,16 @@ function updateGlassFilter(panel, options) {
   }
 
   if (panel.dataset.glassReady === "true" && !opts.skipForceRefresh) {
+    const filterUrl = `url(#${filterId})`;
+
+    if (panel.dataset.glassSurface === "true") {
+      applySurfaceFilter(panel, filterId);
+      return;
+    }
+
     panel.style.setProperty("--glass-filter-url", "none");
     window.requestAnimationFrame(() => {
-      panel.style.setProperty("--glass-filter-url", `url(#${filterId})`);
-      if (panel.dataset.glassSurface === "true") {
-        panel.style.setProperty("filter", "none");
-        panel.style.setProperty("-webkit-filter", "none");
-        window.requestAnimationFrame(() => {
-          panel.style.removeProperty("filter");
-          panel.style.removeProperty("-webkit-filter");
-        });
-      }
+      panel.style.setProperty("--glass-filter-url", filterUrl);
     });
   }
 }
@@ -289,6 +297,7 @@ function initGlassPanel(panel, canUseFilterUrl = supportsBackdropFilterUrl()) {
 
   panel.style.setProperty("--glass-filter-url", `url(#${filterId})`);
   panel.dataset.glassReady = "true";
+  applySurfaceFilter(panel, filterId);
 }
 
 function initGlassPanels(root = document) {

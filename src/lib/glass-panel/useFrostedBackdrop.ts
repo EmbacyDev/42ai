@@ -29,25 +29,30 @@ function syncFrostedBackdrop(
 
 export function useFrostedBackdrop<T extends HTMLElement>(
   enabled = true,
-  backdropRef?: RefObject<HTMLSpanElement | null>,
+  blurRef?: RefObject<HTMLSpanElement | null>,
+  refractRef?: RefObject<HTMLSpanElement | null>,
 ) {
   const hostRef = useRef<T | null>(null)
-  const internalBackdropRef = useRef<HTMLSpanElement | null>(null)
-  const surfaceRef = backdropRef ?? internalBackdropRef
+  const internalBlurRef = useRef<HTMLSpanElement | null>(null)
+  const internalRefractRef = useRef<HTMLSpanElement | null>(null)
+  const blurLayerRef = blurRef ?? internalBlurRef
+  const refractLayerRef = refractRef ?? internalRefractRef
 
   useEffect(() => {
     if (!enabled) return
 
     const host = hostRef.current
-    const backdrop = surfaceRef.current
-    if (!host || !backdrop) return
+    const blurLayer = blurLayerRef.current
+    const refractLayer = refractLayerRef.current
+    if (!host || !blurLayer || !refractLayer) return
 
     const source = findBackdropImage(host)
     if (!source) return
 
     const refresh = () => {
       if (!host.isConnected || !source.isConnected) return
-      syncFrostedBackdrop(host, backdrop, source)
+      syncFrostedBackdrop(host, blurLayer, source)
+      syncFrostedBackdrop(host, refractLayer, source)
     }
 
     const onSourceReady = () => refresh()
@@ -68,7 +73,7 @@ export function useFrostedBackdrop<T extends HTMLElement>(
       window.removeEventListener('scroll', refresh)
       source.removeEventListener('load', onSourceReady)
     }
-  }, [enabled, surfaceRef])
+  }, [enabled, blurLayerRef, refractLayerRef])
 
-  return { hostRef, backdropRef: surfaceRef }
+  return { hostRef, blurLayerRef, refractLayerRef }
 }

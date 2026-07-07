@@ -41,8 +41,9 @@ export function PillButton({
   ...props
 }: PillButtonProps) {
   const { settings } = useGlassSettings()
-  const surfaceRef = useRef<HTMLSpanElement>(null)
-  const { hostRef } = useFrostedBackdrop<HTMLButtonElement>(glass, surfaceRef)
+  const blurLayerRef = useRef<HTMLSpanElement>(null)
+  const refractLayerRef = useRef<HTMLSpanElement>(null)
+  const { hostRef } = useFrostedBackdrop<HTMLButtonElement>(glass, blurLayerRef, refractLayerRef)
 
   useGlassPanel(
     glass,
@@ -61,7 +62,7 @@ export function PillButton({
       settings.shadow,
       settings.burn,
     ],
-    surfaceRef,
+    refractLayerRef,
   )
 
   const glassDataset = glass ? glassSettingsToDataset(settings) : {}
@@ -80,14 +81,17 @@ export function PillButton({
       {...props}
     >
       {glass ? (
-        <span
-          ref={surfaceRef}
-          className={styles.glassBackdrop}
-          aria-hidden="true"
-          data-glass-panel
-          data-glass-surface="true"
-          {...glassDataset}
-        />
+        <>
+          <span ref={blurLayerRef} className={styles.glassBackdropBlur} aria-hidden="true" />
+          <span
+            ref={refractLayerRef}
+            className={styles.glassBackdropRefract}
+            aria-hidden="true"
+            data-glass-panel
+            data-glass-surface="true"
+            {...glassDataset}
+          />
+        </>
       ) : null}
       <span className={[styles.label, labelVariantClass[variant]].filter(Boolean).join(' ')}>
         {children}
