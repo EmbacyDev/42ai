@@ -6,22 +6,30 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 20px var(--section-padding-x);
+  height: 75px;
+  padding: 20px 80px;
   color: var(--color-white);
 }
 
 .logo {
-  font-size: clamp(24px, 2.22vw, 32px);
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  width: 86px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.logo svg {
+  display: block;
+  width: 86px;
+  height: 32px;
 }
 
 .nav {
   display: flex;
   align-items: center;
-  gap: clamp(20px, 2.92vw, 42px);
-  font-size: var(--text-body);
+  gap: 42px;
+  font-size: 16px;
   line-height: 1.4;
   letter-spacing: -0.02em;
 }
@@ -39,7 +47,9 @@
   .header {
     flex-direction: column;
     align-items: flex-start;
+    height: auto;
     padding-block: 16px;
+    padding-inline: var(--section-padding-x);
   }
 
   .nav {
