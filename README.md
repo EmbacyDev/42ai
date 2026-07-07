@@ -2,6 +2,10 @@
 
 Marketing landing page for 42AI.
 
+## Glass effect
+
+Стеклянный эффект с рефракцией: `src/lib/glass-panel/`. Инструкция — [GLASS-EFFECT.md](src/lib/glass-panel/GLASS-EFFECT.md).
+
 ## Development
 
 ```bash

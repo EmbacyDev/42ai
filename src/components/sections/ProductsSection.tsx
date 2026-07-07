@@ -19,7 +19,7 @@ export function ProductsSection() {
             <div className={styles.cardContent}>
               <h3 className={styles.cardTitle}>{product.title}</h3>
               <p className={styles.cardDescription}>{product.description}</p>
-              <PillButton className={styles.cardCta} variant="light">
+              <PillButton className={styles.cardCta} variant="light" glass>
                 {product.cta}
               </PillButton>
             </div>

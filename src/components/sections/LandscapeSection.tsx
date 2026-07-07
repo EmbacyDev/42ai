@@ -20,7 +20,9 @@ export function LandscapeSection() {
             </h2>
             <p className={`${styles.subtitle} gradientText`}>{LANDSCAPE.subtitle}</p>
           </div>
-          <PillButton variant="ghost">{LANDSCAPE.cta}</PillButton>
+          <PillButton variant="ghost" glass>
+            {LANDSCAPE.cta}
+          </PillButton>
         </div>
       </div>
     </section>

@@ -21,8 +21,12 @@ export function CtaBannerSection() {
           <div className={styles.side}>
             <p className={styles.subtitle}>{CTA_BANNER.subtitle}</p>
             <div className={styles.actions}>
-              <PillButton variant="light">{CTA_BANNER.primaryCta}</PillButton>
-              <PillButton variant="outline">{CTA_BANNER.secondaryCta}</PillButton>
+              <PillButton variant="light" glass>
+                {CTA_BANNER.primaryCta}
+              </PillButton>
+              <PillButton variant="outline" glass>
+                {CTA_BANNER.secondaryCta}
+              </PillButton>
             </div>
           </div>
         </div>

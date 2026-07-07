@@ -36,3 +36,12 @@
   color: var(--color-white);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
+
+.pillGlass.pillLight,
+.pillGlass.pillGhost,
+.pillGlass.pillOutline {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
