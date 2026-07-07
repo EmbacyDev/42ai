@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "42ai",
+  "name": "42ai-build",
   "compatibility_date": "2026-07-07",
   "assets": {
     "not_found_handling": "single-page-application"
