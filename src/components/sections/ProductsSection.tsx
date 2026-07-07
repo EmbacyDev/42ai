@@ -1,4 +1,5 @@
-import { PillButton } from '../PillButton'
+import { LiquidGlassButton } from '../LiquidGlassButton'
+import { LiquidGlassRoot } from '../LiquidGlassRoot'
 import { PRODUCTS } from '../../data/content'
 import styles from './ProductsSection.module.css'
 
@@ -17,21 +18,25 @@ export function ProductsSection() {
           const isFirstCard = index === 0
 
           return (
-          <article className={`${styles.card} ${isFirstCard ? styles.cardDarkText : ''}`} key={product.id}>
-            <img className={styles.cardImage} src={product.image} alt={product.alt} loading="lazy" />
-            {index === 1 ? <div className={styles.cardTopOverlay} aria-hidden="true" /> : null}
-            <div className={styles.cardContent}>
-              <h3 className={`${styles.cardTitle} ${isFirstCard ? styles.blackGradientText : 'gradientText'}`}>{product.title}</h3>
-              <p className={styles.cardDescription}>{product.description}</p>
-              <PillButton
+            <LiquidGlassRoot
+              key={product.id}
+              className={`${styles.card} ${isFirstCard ? styles.cardDarkText : ''}`}
+            >
+              <img className={styles.cardImage} src={product.image} alt={product.alt} loading="lazy" />
+              {index === 1 ? <div className={styles.cardTopOverlay} aria-hidden="true" /> : null}
+              <div className={styles.cardContent}>
+                <h3 className={`${styles.cardTitle} ${isFirstCard ? styles.blackGradientText : 'gradientText'}`}>
+                  {product.title}
+                </h3>
+                <p className={styles.cardDescription}>{product.description}</p>
+              </div>
+              <LiquidGlassButton
                 className={styles.cardCta}
                 variant={isFirstCard ? 'darkText' : 'light'}
-                glass
               >
                 {product.cta}
-              </PillButton>
-            </div>
-          </article>
+              </LiquidGlassButton>
+            </LiquidGlassRoot>
           )
         })}
       </div>

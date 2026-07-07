@@ -4,7 +4,7 @@ Marketing landing page for 42AI.
 
 ## Glass effect
 
-Стеклянный эффект с рефракцией: `src/lib/glass-panel/`. Инструкция — [GLASS-EFFECT.md](src/lib/glass-panel/GLASS-EFFECT.md).
+CTA-кнопки используют [@ybouane/liquidglass](https://liquid-glass.ybouane.com/) (MIT). Обёртки: `LiquidGlassRoot`, `LiquidGlassButton` в `src/components/`.
 
 ## Development
 

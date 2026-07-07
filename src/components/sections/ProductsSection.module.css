@@ -116,8 +116,11 @@
 }
 
 .cardCta {
-  margin-top: 12px;
-  align-self: center;
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  z-index: 3;
 }
 
 @media (max-width: 900px) {
@@ -148,6 +151,7 @@
   }
 
   .cardCta {
-    align-self: flex-start;
+    left: 24px;
+    transform: none;
   }
 }
