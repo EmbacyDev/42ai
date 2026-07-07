@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(32px, 3.33vw, 48px);
+  gap: 0;
   padding: var(--section-padding-y) var(--section-padding-x);
   background: var(--color-white);
 }
@@ -25,6 +25,7 @@
   border-radius: var(--radius-pill);
   background: var(--color-pill);
   max-width: 100%;
+  margin-top: clamp(48px, 5.97vw, 86px);
 }
 
 .tab {
@@ -48,6 +49,7 @@
   aspect-ratio: 846 / 348;
   border-radius: var(--radius-card);
   overflow: hidden;
+  margin-top: clamp(32px, 3.33vw, 48px);
 }
 
 .previewImage {

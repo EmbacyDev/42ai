@@ -1,7 +1,7 @@
 .section {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: clamp(40px, 4.86vw, 70px);
+  gap: 20px;
   padding: var(--section-padding-y) var(--section-padding-x);
   background: var(--color-white);
 }
