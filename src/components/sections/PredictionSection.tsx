@@ -26,11 +26,23 @@ export function PredictionSection() {
         ))}
       </div>
 
-      <div className={styles.preview} role="tabpanel">
+      <div className={styles.preview} role="tabpanel" aria-label={`Prediction preview for ${PREDICTION_TABS[activeTab]}`}>
         <img
-          className={styles.previewImage}
-          src="/assets/images/prediction-preview.jpg"
-          alt={`Prediction preview for ${PREDICTION_TABS[activeTab]}`}
+          className={styles.previewBackground}
+          src="/assets/images/prediction-background.jpg"
+          alt=""
+          loading="lazy"
+        />
+
+        <div className={styles.previewTitles}>
+          <p>Gold suffers its sharpest one-day drop in more than a decade.</p>
+          <p>Next action: close, reduce, hold, add, or flip?</p>
+        </div>
+
+        <img
+          className={styles.interfaceImage}
+          src="/assets/images/prediction-interface.png"
+          alt="Ranked options interface showing Add Long Exposure as the top prediction with 81% confidence"
           loading="lazy"
         />
       </div>

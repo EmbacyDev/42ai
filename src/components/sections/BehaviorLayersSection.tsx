@@ -16,7 +16,7 @@ export function BehaviorLayersSection() {
       <div className={styles.diagram}>
         <img
           className={styles.diagramImage}
-          src="/assets/images/behavior-layers.jpg"
+          src="/assets/images/behavior-layers.png"
           alt="Diagram showing four stacked behavioral layers: The Event, Personal Context, Personal Interpretation, and Foundational Traits"
           loading="lazy"
         />

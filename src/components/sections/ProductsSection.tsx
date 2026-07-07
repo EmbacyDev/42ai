@@ -13,18 +13,23 @@ export function ProductsSection() {
       </div>
 
       <div className={styles.grid}>
-        {PRODUCTS.map((product) => (
-          <article className={styles.card} key={product.id}>
+        {PRODUCTS.map((product, index) => {
+          const isFirstCard = index === 0
+
+          return (
+          <article className={`${styles.card} ${isFirstCard ? styles.cardDarkText : ''}`} key={product.id}>
             <img className={styles.cardImage} src={product.image} alt={product.alt} loading="lazy" />
+            {index === 1 ? <div className={styles.cardTopOverlay} aria-hidden="true" /> : null}
             <div className={styles.cardContent}>
-              <h3 className={styles.cardTitle}>{product.title}</h3>
+              <h3 className={`${styles.cardTitle} ${isFirstCard ? styles.blackGradientText : 'gradientText'}`}>{product.title}</h3>
               <p className={styles.cardDescription}>{product.description}</p>
-              <PillButton className={styles.cardCta} variant="light">
+              <PillButton className={styles.cardCta} variant={isFirstCard ? 'darkText' : 'light'}>
                 {product.cta}
               </PillButton>
             </div>
           </article>
-        ))}
+          )
+        })}
       </div>
     </section>
   )

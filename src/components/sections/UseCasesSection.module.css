@@ -1,15 +1,17 @@
 .section {
-  padding: var(--section-padding-y) var(--section-padding-x);
+  height: 701px;
+  padding: 120px 0 120px 80px;
   background: var(--color-white);
+  overflow: hidden;
 }
 
 .label {
   font-family: var(--font-mono);
-  font-size: var(--text-label);
+  font-size: 16px;
   line-height: 1.2;
   letter-spacing: -0.02em;
   text-transform: uppercase;
-  margin-bottom: clamp(40px, 4.1vw, 59px);
+  margin-bottom: 40px;
 }
 
 .track {
@@ -19,7 +21,8 @@
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding-bottom: 4px;
+  width: 1712px;
+  padding-bottom: 0;
 }
 
 .track::-webkit-scrollbar {
@@ -27,9 +30,9 @@
 }
 
 .card {
-  flex: 0 0 clamp(280px, 28.68vw, 413px);
+  flex: 0 0 413px;
   position: relative;
-  height: clamp(300px, 27.92vw, 402px);
+  height: 402px;
   border-radius: var(--radius-card);
   overflow: hidden;
   background: var(--color-card);
@@ -42,6 +45,10 @@
   object-fit: cover;
 }
 
+.card:nth-child(4) .cardImage {
+  object-position: center;
+}
+
 .cardOverlayTop,
 .cardOverlayBottom {
   position: absolute;
@@ -52,13 +59,13 @@
 
 .cardOverlayTop {
   top: 0;
-  height: 32%;
+  height: 130px;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 100%);
 }
 
 .cardOverlayBottom {
   bottom: 0;
-  height: 36%;
+  height: 130px;
   background: linear-gradient(0deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0) 100%);
 }
 
@@ -74,7 +81,7 @@
 }
 
 .cardTitle {
-  font-size: clamp(24px, 2.64vw, 38px);
+  font-size: 32px;
   line-height: 1;
   letter-spacing: -0.03em;
   text-wrap: balance;
@@ -82,7 +89,7 @@
 
 .cardDescription {
   max-width: 302px;
-  font-size: var(--text-body);
+  font-size: 16px;
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.92);
   text-wrap: balance;
@@ -100,8 +107,23 @@
     margin-bottom: 24px;
   }
 
+  .section {
+    height: auto;
+    padding: 80px 0 80px var(--section-padding-x);
+  }
+
   .track {
+    width: auto;
     margin-inline: calc(-1 * var(--section-padding-x));
     padding-inline: var(--section-padding-x);
+  }
+
+  .card {
+    flex-basis: 320px;
+    height: 312px;
+  }
+
+  .cardTitle {
+    font-size: 30px;
   }
 }
