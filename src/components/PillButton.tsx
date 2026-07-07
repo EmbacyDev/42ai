@@ -19,6 +19,15 @@ const variantClass: Record<PillVariant, string> = {
   darkText: styles.pillDarkText,
 }
 
+const labelVariantClass: Record<PillVariant, string | undefined> = {
+  hero: undefined,
+  light: styles.labelLight,
+  ghost: styles.labelGhost,
+  dark: styles.labelDark,
+  outline: styles.labelOutline,
+  darkText: styles.labelDarkText,
+}
+
 export function PillButton({
   children,
   variant = 'light',
@@ -35,8 +44,7 @@ export function PillButton({
       type={type}
       className={[
         styles.pill,
-        variantClass[variant],
-        glass && styles.pillGlass,
+        glass ? styles.pillGlass : variantClass[variant],
         className,
       ]
         .filter(Boolean)
@@ -52,7 +60,9 @@ export function PillButton({
         : {})}
       {...props}
     >
-      <span className={styles.label}>{children}</span>
+      <span className={[styles.label, labelVariantClass[variant]].filter(Boolean).join(' ')}>
+        {children}
+      </span>
     </button>
   )
 }
