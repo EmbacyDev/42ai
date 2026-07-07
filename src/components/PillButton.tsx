@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
-import { useGlassPanel } from '../lib/glass-panel/useGlassPanel'
+import { useFrostedBackdrop } from '../lib/glass-panel/useFrostedBackdrop'
 import styles from './PillButton.module.css'
 
 type PillVariant = 'hero' | 'light' | 'ghost' | 'dark' | 'outline' | 'darkText'
@@ -36,11 +36,11 @@ export function PillButton({
   type = 'button',
   ...props
 }: PillButtonProps) {
-  const glassRef = useGlassPanel<HTMLButtonElement>(glass, [variant, glass])
+  const { hostRef, backdropRef } = useFrostedBackdrop<HTMLButtonElement>(glass)
 
   return (
     <button
-      ref={glassRef}
+      ref={hostRef}
       type={type}
       className={[
         styles.pill,
@@ -49,16 +49,9 @@ export function PillButton({
       ]
         .filter(Boolean)
         .join(' ')}
-      {...(glass
-        ? {
-            'data-glass-panel': true,
-            'data-glass-blur': '8px',
-            'data-glass-no-svg': 'true',
-            'data-glass-saturation': '1.3',
-          }
-        : {})}
       {...props}
     >
+      {glass ? <span ref={backdropRef} className={styles.glassBackdrop} aria-hidden="true" /> : null}
       <span className={[styles.label, labelVariantClass[variant]].filter(Boolean).join(' ')}>
         {children}
       </span>
