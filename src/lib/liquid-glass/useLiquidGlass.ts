@@ -17,8 +17,11 @@ export function useLiquidGlass(
     let cancelled = false
 
     const setup = async () => {
+      // The library only supports glass elements that are direct children
+      // of the root — pass every marked element through so nested ones
+      // trigger the library's console warning instead of failing silently.
       const glassElements = Array.from(
-        root.querySelectorAll<HTMLElement>(':scope > [data-liquid-glass]'),
+        root.querySelectorAll<HTMLElement>('[data-liquid-glass]'),
       )
       if (glassElements.length === 0) return
 

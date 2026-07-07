@@ -16,20 +16,14 @@ export function LandscapeSection() {
 
         <div className={styles.bottomShade} aria-hidden="true" />
 
-        <div className={styles.overlay}>
-          <div className={styles.content}>
-            <div className={styles.copy}>
-              <h2 className={`${styles.title} gradientText`} id="landscape-heading">
-                {LANDSCAPE.title}
-              </h2>
-              <p className={`${styles.subtitle} gradientText`}>{LANDSCAPE.subtitle}</p>
-            </div>
-          </div>
+        <div className={styles.copy}>
+          <h2 className={`${styles.title} gradientText`} id="landscape-heading">
+            {LANDSCAPE.title}
+          </h2>
+          <p className={`${styles.subtitle} gradientText`}>{LANDSCAPE.subtitle}</p>
         </div>
 
-        <LiquidGlassButton variant="ghost" className={styles.cta}>
-          {LANDSCAPE.cta}
-        </LiquidGlassButton>
+        <LiquidGlassButton variant="ghost">{LANDSCAPE.cta}</LiquidGlassButton>
       </LiquidGlassRoot>
     </section>
   )

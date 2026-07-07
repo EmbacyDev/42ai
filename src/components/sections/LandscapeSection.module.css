@@ -6,13 +6,23 @@
   overflow: hidden;
 }
 
+/* The glass library requires glass buttons to be direct children of the
+   root, so the root itself lays out the copy + CTA column while the image
+   and shade sit behind as absolutely positioned layers. */
 .glassRoot {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
   width: 100%;
   height: 100%;
+  padding: 100px var(--section-padding-x) 0;
 }
 
 .image {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -30,36 +40,13 @@
   pointer-events: none;
 }
 
-.overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 100px var(--section-padding-x) 0;
-}
-
-.content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  max-width: 588px;
-  text-align: center;
-}
-
-.cta {
-  position: absolute;
-  left: 50%;
-  top: calc(100px + 12rem);
-  transform: translateX(-50%);
-  z-index: 3;
-}
-
 .copy {
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-width: 588px;
+  text-align: center;
 }
 
 .title {
@@ -82,8 +69,9 @@
     min-height: 640px;
   }
 
-  .overlay {
-    align-items: center;
+  .glassRoot {
+    align-items: flex-start;
+    justify-content: center;
     padding-top: 0;
   }
 
@@ -91,15 +79,7 @@
     font-size: 36px;
   }
 
-  .content {
-    align-items: flex-start;
+  .copy {
     text-align: left;
-  }
-
-  .cta {
-    left: var(--section-padding-x);
-    transform: none;
-    top: auto;
-    bottom: 48px;
   }
 }
