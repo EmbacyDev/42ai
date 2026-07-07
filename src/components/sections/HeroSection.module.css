@@ -12,3 +12,63 @@
   object-fit: cover;
   object-position: center;
 }
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.18) 0%,
+    rgba(0, 0, 0, 0.05) 35%,
+    rgba(0, 0, 0, 0.28) 100%
+  );
+  pointer-events: none;
+}
+
+.content {
+  position: absolute;
+  inset: auto 0 clamp(48px, 8.33vw, 80px);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding-inline: var(--section-padding-x);
+  color: var(--color-white);
+  text-align: center;
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 754px;
+}
+
+.title {
+  font-size: clamp(36px, 3.89vw, 56px);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.subtitle {
+  max-width: 560px;
+  font-size: var(--text-body);
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.92);
+  text-wrap: balance;
+}
+
+@media (max-width: 767px) {
+  .content {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .copy {
+    align-items: flex-start;
+  }
+}

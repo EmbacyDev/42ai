@@ -1,0 +1,38 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: 30px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.pill:hover {
+  opacity: 0.92;
+}
+
+.pillLight {
+  background: var(--color-white);
+  color: var(--color-black);
+}
+
+.pillGhost {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-white);
+  backdrop-filter: blur(8px);
+}
+
+.pillDark {
+  background: var(--color-white);
+  color: var(--color-black);
+}
+
+.pillOutline {
+  background: transparent;
+  color: var(--color-white);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}

@@ -1,3 +1,5 @@
+import { PillButton } from '../PillButton'
+import { PRODUCTS } from '../../data/content'
 import styles from './ProductsSection.module.css'
 
 export function ProductsSection() {
@@ -11,22 +13,18 @@ export function ProductsSection() {
       </div>
 
       <div className={styles.grid}>
-        <article className={styles.card}>
-          <img
-            className={styles.cardImage}
-            src="/assets/images/product-1.jpg"
-            alt="Person using a smartphone against a blue sky"
-            loading="lazy"
-          />
-        </article>
-        <article className={styles.card}>
-          <img
-            className={styles.cardImage}
-            src="/assets/images/product-2.jpg"
-            alt="Crowd in motion from above"
-            loading="lazy"
-          />
-        </article>
+        {PRODUCTS.map((product) => (
+          <article className={styles.card} key={product.id}>
+            <img className={styles.cardImage} src={product.image} alt={product.alt} loading="lazy" />
+            <div className={styles.cardContent}>
+              <h3 className={styles.cardTitle}>{product.title}</h3>
+              <p className={styles.cardDescription}>{product.description}</p>
+              <PillButton className={styles.cardCta} variant="light">
+                {product.cta}
+              </PillButton>
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   )

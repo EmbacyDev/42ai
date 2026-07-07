@@ -52,6 +52,38 @@
   object-fit: cover;
 }
 
+.cardContent {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: clamp(24px, 2.78vw, 40px) clamp(24px, 6.04vw, 87px);
+  color: var(--color-white);
+}
+
+.cardTitle {
+  max-width: 456px;
+  font-size: clamp(28px, 2.43vw, 35px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.cardDescription {
+  max-width: 456px;
+  font-size: var(--text-body);
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.92);
+  text-wrap: balance;
+}
+
+.cardCta {
+  margin-top: auto;
+  align-self: flex-start;
+}
+
 @media (max-width: 900px) {
   .grid {
     grid-template-columns: 1fr;
@@ -62,5 +94,9 @@
   .header {
     align-items: flex-start;
     text-align: left;
+  }
+
+  .cardContent {
+    padding-inline: 24px;
   }
 }

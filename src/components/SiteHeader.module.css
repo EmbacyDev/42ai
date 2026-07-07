@@ -1,0 +1,49 @@
+.header {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px var(--section-padding-x);
+  color: var(--color-white);
+}
+
+.logo {
+  font-size: clamp(24px, 2.22vw, 32px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 2.92vw, 42px);
+  font-size: var(--text-body);
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+}
+
+.nav a {
+  white-space: nowrap;
+  transition: opacity 0.2s ease;
+}
+
+.nav a:hover {
+  opacity: 0.75;
+}
+
+@media (max-width: 767px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-block: 16px;
+  }
+
+  .nav {
+    flex-wrap: wrap;
+    gap: 12px 20px;
+  }
+}

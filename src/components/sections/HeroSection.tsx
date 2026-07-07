@@ -1,8 +1,11 @@
+import { PillButton } from '../PillButton'
+import { SiteHeader } from '../SiteHeader'
+import { HERO } from '../../data/content'
 import styles from './HeroSection.module.css'
 
 export function HeroSection() {
   return (
-    <section className={styles.section} aria-label="Hero">
+    <section className={styles.section} id="top" aria-label="Hero">
       <img
         className={styles.image}
         src="/assets/images/hero.jpg"
@@ -11,6 +14,18 @@ export function HeroSection() {
         height={1600}
         fetchPriority="high"
       />
+
+      <div className={styles.overlay} aria-hidden="true" />
+
+      <SiteHeader />
+
+      <div className={styles.content}>
+        <div className={styles.copy}>
+          <h1 className={styles.title}>{HERO.title}</h1>
+          <p className={styles.subtitle}>{HERO.subtitle}</p>
+        </div>
+        <PillButton variant="light">{HERO.cta}</PillButton>
+      </div>
     </section>
   )
 }
