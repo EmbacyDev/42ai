@@ -1,7 +1,8 @@
 .section {
   position: relative;
   width: 100%;
-  height: clamp(480px, 55.56vw, 800px);
+  height: 100svh;
+  min-height: 800px;
   overflow: hidden;
 }
 
@@ -12,13 +13,25 @@
   object-position: center;
 }
 
+.bottomShade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  height: 163px;
+  background: linear-gradient(0deg, #0d0d09 0%, rgba(13, 13, 9, 0) 100%);
+  pointer-events: none;
+}
+
 .overlay {
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: clamp(64px, 6.94vw, 100px) var(--section-padding-x) 0;
+  padding: 100px var(--section-padding-x) 0;
 }
 
 .content {
@@ -37,7 +50,7 @@
 }
 
 .title {
-  font-size: clamp(32px, 3.33vw, 48px);
+  font-size: 48px;
   line-height: 1.1;
   letter-spacing: -0.03em;
   text-wrap: balance;
@@ -45,15 +58,24 @@
 
 .subtitle {
   max-width: 560px;
-  font-size: var(--text-body);
+  font-size: 16px;
   line-height: 1.4;
   text-wrap: balance;
 }
 
 @media (max-width: 767px) {
+  .section {
+    height: 640px;
+    min-height: 640px;
+  }
+
   .overlay {
     align-items: center;
     padding-top: 0;
+  }
+
+  .title {
+    font-size: 36px;
   }
 
   .content {

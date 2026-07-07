@@ -1,8 +1,9 @@
 .section {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: 630px 629px;
   gap: 20px;
-  padding: var(--section-padding-y) var(--section-padding-x);
+  height: 708px;
+  padding: 120px 80px;
   background: var(--color-white);
 }
 
@@ -14,7 +15,7 @@
 
 .label {
   font-family: var(--font-mono);
-  font-size: var(--text-label);
+  font-size: 16px;
   line-height: 1.2;
   letter-spacing: -0.02em;
   text-transform: uppercase;
@@ -22,7 +23,7 @@
 
 .title {
   max-width: 518px;
-  font-size: var(--text-h2);
+  font-size: 32px;
   line-height: 1.2;
   letter-spacing: var(--text-h2-tracking);
   text-wrap: balance;
@@ -65,6 +66,8 @@
 @media (max-width: 900px) {
   .section {
     grid-template-columns: 1fr;
+    height: auto;
+    padding: var(--section-padding-y) var(--section-padding-x);
   }
 
   .description {

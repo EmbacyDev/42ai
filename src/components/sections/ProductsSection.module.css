@@ -2,8 +2,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(48px, 5.56vw, 80px);
-  padding: var(--section-padding-y) var(--section-padding-x);
+  gap: 80px;
+  padding: 120px var(--section-padding-x);
   background: var(--color-white);
 }
 
@@ -17,7 +17,7 @@
 
 .label {
   font-family: var(--font-mono);
-  font-size: var(--text-label);
+  font-size: 16px;
   line-height: 1.2;
   letter-spacing: -0.02em;
   text-transform: uppercase;
@@ -25,7 +25,7 @@
 
 .title {
   max-width: 526px;
-  font-size: var(--text-h2);
+  font-size: 32px;
   line-height: 1.2;
   letter-spacing: var(--text-h2-tracking);
   text-wrap: balance;
@@ -40,32 +40,49 @@
 
 .card {
   position: relative;
-  min-height: clamp(320px, 41.94vw, 604px);
+  height: 604px;
   border-radius: var(--radius-card-lg);
   overflow: hidden;
   background: var(--color-card);
 }
 
 .cardImage {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+.cardTopOverlay {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 1;
+  width: 633px;
+  max-width: 100%;
+  height: 276px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 100%);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
 .cardContent {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: clamp(24px, 2.78vw, 40px) clamp(24px, 6.04vw, 87px);
+  align-items: center;
+  padding: 40px 87px;
+  text-align: center;
   color: var(--color-white);
 }
 
 .cardTitle {
   max-width: 456px;
-  font-size: clamp(28px, 2.43vw, 35px);
+  font-size: 35px;
   line-height: 1;
   letter-spacing: -0.03em;
   text-wrap: balance;
@@ -73,15 +90,34 @@
 
 .cardDescription {
   max-width: 456px;
-  font-size: var(--text-body);
+  font-size: 16px;
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.92);
   text-wrap: balance;
 }
 
+.cardDarkText .cardContent {
+  color: var(--color-black);
+}
+
+.cardDarkText .cardDescription {
+  color: rgba(0, 0, 0, 0.92);
+}
+
+.blackGradientText {
+  background-image: linear-gradient(
+    172deg,
+    rgb(0, 0, 0) 27.17%,
+    rgba(0, 0, 0, 0) 129.46%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
 .cardCta {
-  margin-top: auto;
-  align-self: flex-start;
+  margin-top: 12px;
+  align-self: center;
 }
 
 @media (max-width: 900px) {
@@ -91,12 +127,27 @@
 }
 
 @media (max-width: 767px) {
+  .section {
+    gap: 48px;
+    padding-block: 80px;
+  }
+
   .header {
     align-items: flex-start;
     text-align: left;
   }
 
   .cardContent {
+    align-items: flex-start;
     padding-inline: 24px;
+    text-align: left;
+  }
+
+  .card {
+    height: 460px;
+  }
+
+  .cardCta {
+    align-self: flex-start;
   }
 }

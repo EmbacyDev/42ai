@@ -1,5 +1,7 @@
 .section {
-  padding: clamp(40px, 5.56vw, 80px) var(--section-padding-x);
+  height: 510px;
+  min-height: 510px;
+  padding: 80px var(--section-padding-x);
   background: var(--color-white);
 }
 
@@ -7,7 +9,7 @@
   position: relative;
   width: min(100%, var(--page-max));
   margin: 0 auto;
-  aspect-ratio: 1280 / 350;
+  height: 350px;
   border-radius: var(--radius-banner);
   overflow: hidden;
 }
@@ -24,14 +26,14 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 24px;
-  align-items: center;
-  padding: clamp(32px, 4.31vw, 62px) clamp(24px, 3.13vw, 40px);
+  align-items: flex-start;
+  padding: 62px 40px;
   color: var(--color-white);
 }
 
 .title {
   max-width: 482px;
-  font-size: clamp(32px, 3.33vw, 48px);
+  font-size: 48px;
   line-height: 1.1;
   letter-spacing: -0.03em;
   text-wrap: balance;
@@ -42,12 +44,12 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 20px;
-  margin-left: auto;
+  margin-left: 5px;
   max-width: 354px;
 }
 
 .subtitle {
-  font-size: var(--text-body);
+  font-size: 14px;
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.92);
   text-wrap: balance;
@@ -72,6 +74,12 @@
 
 @media (max-width: 767px) {
   .banner {
+    height: auto;
     aspect-ratio: 16 / 11;
+  }
+
+  .section {
+    height: auto;
+    min-height: auto;
   }
 }

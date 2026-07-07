@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { useGlassPanel } from '../lib/glass-panel/useGlassPanel'
 import styles from './PillButton.module.css'
 
-type PillVariant = 'light' | 'ghost' | 'dark' | 'outline'
+type PillVariant = 'hero' | 'light' | 'ghost' | 'dark' | 'outline' | 'darkText'
 
 type PillButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode
@@ -11,10 +11,12 @@ type PillButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 }
 
 const variantClass: Record<PillVariant, string> = {
+  hero: styles.pillHero,
   light: styles.pillLight,
   ghost: styles.pillGhost,
   dark: styles.pillDark,
   outline: styles.pillOutline,
+  darkText: styles.pillDarkText,
 }
 
 export function PillButton({
@@ -50,7 +52,7 @@ export function PillButton({
         : {})}
       {...props}
     >
-      {children}
+      <span className={styles.label}>{children}</span>
     </button>
   )
 }

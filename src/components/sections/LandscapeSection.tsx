@@ -12,6 +12,8 @@ export function LandscapeSection() {
         loading="lazy"
       />
 
+      <div className={styles.bottomShade} aria-hidden="true" />
+
       <div className={styles.overlay}>
         <div className={styles.content}>
           <div className={styles.copy}>

@@ -1,13 +1,16 @@
 .section {
   display: flex;
   justify-content: center;
-  padding: var(--section-padding-y-lg) var(--section-padding-x);
+  align-items: center;
+  height: 50svh;
+  min-height: 434px;
+  padding: 0 var(--section-padding-x);
   background: var(--color-white);
 }
 
 .text {
   max-width: 726px;
-  font-size: var(--text-h2);
+  font-size: 32px;
   line-height: 1.2;
   letter-spacing: var(--text-h2-tracking);
   text-align: center;
@@ -15,7 +18,14 @@
 }
 
 @media (max-width: 767px) {
+  .section {
+    height: auto;
+    min-height: 50svh;
+    padding-block: 96px;
+  }
+
   .text {
+    font-size: 28px;
     text-align: left;
   }
 }

@@ -15,7 +15,9 @@ export function CtaBannerSection() {
 
         <div className={styles.overlay}>
           <h2 className={`${styles.title} gradientText`} id="cta-heading">
-            {CTA_BANNER.title}
+            Bring your data.
+            <br />
+            See what it predicts.
           </h2>
 
           <div className={styles.side}>

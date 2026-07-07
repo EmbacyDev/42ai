@@ -1,7 +1,8 @@
 .section {
   position: relative;
-  min-height: clamp(640px, 55.56vw, 800px);
-  padding: clamp(80px, 9.72vw, 140px) var(--section-padding-x) clamp(60px, 6.94vw, 100px);
+  height: 100svh;
+  min-height: 800px;
+  padding: 0;
   background: var(--color-dark);
   overflow: hidden;
 }
@@ -11,27 +12,35 @@
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  max-width: 585px;
-  margin: 0 auto clamp(48px, 6.94vw, 96px);
+  position: absolute;
+  top: calc(50% - 269px);
+  left: 50%;
+  width: 585px;
+  max-width: calc(100% - 48px);
+  transform: translateX(-50%);
   text-align: center;
 }
 
 .title {
-  font-size: var(--text-h2);
+  font-size: 32px;
   line-height: 1.1;
   letter-spacing: var(--text-h2-tracking);
 }
 
 .subtitle {
   max-width: 409px;
-  font-size: var(--text-body);
+  font-size: 16px;
   line-height: 1.4;
   color: var(--color-text-white-muted);
 }
 
 .diagram {
-  width: min(100%, 1042px);
-  margin: 0 auto;
+  position: absolute;
+  top: calc(50% - 73px);
+  left: 50%;
+  width: 1146px;
+  max-width: calc(100% - 48px);
+  transform: translateX(-50%);
 }
 
 .diagramImage {
@@ -40,8 +49,20 @@
 }
 
 @media (max-width: 767px) {
+  .section {
+    height: 720px;
+    min-height: 640px;
+  }
+
   .header {
+    top: 96px;
     align-items: flex-start;
     text-align: left;
+  }
+
+  .diagram {
+    top: 280px;
+    width: 792px;
+    max-width: none;
   }
 }
