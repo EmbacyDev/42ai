@@ -23,9 +23,11 @@ function ensureGlassSvgHost() {
   host = document.createElementNS(SVG_NS, "svg");
   host.setAttribute("id", "glass-filter-host");
   host.setAttribute("aria-hidden", "true");
+  host.setAttribute("width", "1");
+  host.setAttribute("height", "1");
   host.setAttribute(
     "style",
-    "position:absolute;width:0;height:0;overflow:hidden;pointer-events:none"
+    "position:fixed;left:-999px;top:-999px;width:1px;height:1px;overflow:hidden;pointer-events:none;"
   );
   const defs = document.createElementNS(SVG_NS, "defs");
   host.appendChild(defs);
@@ -260,6 +262,11 @@ function initGlassPanel(panel, canUseFilterUrl = supportsBackdropFilterUrl()) {
   if (!panel || panel.dataset.glassReady === "true") return;
 
   applyGlassStyles(panel);
+
+  if (panel.dataset.glassNoSvg === "true") {
+    panel.dataset.glassReady = "true";
+    return;
+  }
 
   if (!canUseFilterUrl) {
     panel.dataset.glassFallback = "true";

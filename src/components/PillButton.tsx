@@ -52,9 +52,8 @@ export function PillButton({
       {...(glass
         ? {
             'data-glass-panel': true,
-            'data-glass-blur': '2px',
-            'data-glass-distortion': '55',
-            'data-glass-bezel': '0.19',
+            'data-glass-blur': '8px',
+            'data-glass-no-svg': 'true',
             'data-glass-saturation': '1.3',
           }
         : {})}

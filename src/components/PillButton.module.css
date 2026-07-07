@@ -18,6 +18,8 @@
 .label {
   display: inline-block;
   font-weight: 500;
+  position: relative;
+  z-index: 2;
 }
 
 .pillHero {
