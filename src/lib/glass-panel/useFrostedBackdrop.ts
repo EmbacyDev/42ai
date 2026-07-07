@@ -9,7 +9,7 @@ function findBackdropImage(el: HTMLElement): HTMLImageElement | null {
 
 function syncFrostedBackdrop(
   host: HTMLElement,
-  backdrop: HTMLElement,
+  surface: HTMLImageElement,
   source: HTMLImageElement,
 ) {
   const hostRect = host.getBoundingClientRect()
@@ -18,44 +18,47 @@ function syncFrostedBackdrop(
 
   if (!src || imageRect.width === 0 || imageRect.height === 0) return
 
-  backdrop.style.backgroundImage = `url("${src}")`
-  backdrop.style.backgroundSize = `${imageRect.width}px ${imageRect.height}px`
-  backdrop.style.backgroundPosition = `${imageRect.left - hostRect.left}px ${imageRect.top - hostRect.top}px`
+  if (surface.src !== src) {
+    surface.src = src
+  }
 
-  if (backdrop.dataset.glassReady === 'true') {
-    GlassPanel.refreshPanel(backdrop)
+  surface.style.width = `${imageRect.width}px`
+  surface.style.height = `${imageRect.height}px`
+  surface.style.left = `${imageRect.left - hostRect.left}px`
+  surface.style.top = `${imageRect.top - hostRect.top}px`
+
+  if (surface.dataset.glassReady === 'true') {
+    GlassPanel.refreshPanel(surface)
   }
 }
 
 export function useFrostedBackdrop<T extends HTMLElement>(
   enabled = true,
-  blurRef?: RefObject<HTMLSpanElement | null>,
-  refractRef?: RefObject<HTMLSpanElement | null>,
+  surfaceRef?: RefObject<HTMLImageElement | null>,
 ) {
   const hostRef = useRef<T | null>(null)
-  const internalBlurRef = useRef<HTMLSpanElement | null>(null)
-  const internalRefractRef = useRef<HTMLSpanElement | null>(null)
-  const blurLayerRef = blurRef ?? internalBlurRef
-  const refractLayerRef = refractRef ?? internalRefractRef
+  const internalSurfaceRef = useRef<HTMLImageElement | null>(null)
+  const layerRef = surfaceRef ?? internalSurfaceRef
 
   useEffect(() => {
     if (!enabled) return
 
     const host = hostRef.current
-    const blurLayer = blurLayerRef.current
-    const refractLayer = refractLayerRef.current
-    if (!host || !blurLayer || !refractLayer) return
+    const surface = layerRef.current
+    if (!host || !surface) return
 
     const source = findBackdropImage(host)
     if (!source) return
 
     const refresh = () => {
       if (!host.isConnected || !source.isConnected) return
-      syncFrostedBackdrop(host, blurLayer, source)
-      syncFrostedBackdrop(host, refractLayer, source)
+      syncFrostedBackdrop(host, surface, source)
     }
 
     const onSourceReady = () => refresh()
+    const onTransitionEnd = (event: TransitionEvent) => {
+      if (event.propertyName === 'padding') refresh()
+    }
 
     refresh()
 
@@ -66,14 +69,16 @@ export function useFrostedBackdrop<T extends HTMLElement>(
     window.addEventListener('resize', refresh, { passive: true })
     window.addEventListener('scroll', refresh, { passive: true })
     source.addEventListener('load', onSourceReady)
+    host.addEventListener('transitionend', onTransitionEnd)
 
     return () => {
       resizeObserver.disconnect()
       window.removeEventListener('resize', refresh)
       window.removeEventListener('scroll', refresh)
       source.removeEventListener('load', onSourceReady)
+      host.removeEventListener('transitionend', onTransitionEnd)
     }
-  }, [enabled, blurLayerRef, refractLayerRef])
+  }, [enabled, layerRef])
 
-  return { hostRef, blurLayerRef, refractLayerRef }
+  return { hostRef, surfaceRef: layerRef }
 }

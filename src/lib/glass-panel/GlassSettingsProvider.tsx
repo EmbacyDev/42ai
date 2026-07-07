@@ -19,6 +19,22 @@ export function GlassSettingsProvider({ children }: { children: ReactNode }) {
     document.documentElement.style.setProperty('--glass-saturation', String(settings.saturation))
     document.documentElement.style.setProperty('--glass-specular', String(settings.specular))
     document.documentElement.style.setProperty('--glass-warmth', String(settings.warmth))
+
+    document.querySelectorAll('[data-glass-panel][data-glass-surface="true"]').forEach((panel) => {
+      if (!(panel instanceof HTMLElement)) return
+      panel.dataset.glassBlur = `${settings.blur}px`
+      panel.dataset.glassDistortion = String(settings.distortion)
+      panel.dataset.glassBezel = String(settings.bezel)
+      panel.dataset.glassSaturation = String(settings.saturation)
+      panel.dataset.glassSpecular = String(settings.specular)
+      panel.dataset.glassWarmth = String(settings.warmth)
+      panel.dataset.glassFillTop = String(settings.fillTop)
+      panel.dataset.glassFillBottom = String(settings.fillBottom)
+      panel.dataset.glassEdge = String(settings.edge)
+      panel.dataset.glassShadow = String(settings.shadow)
+      panel.dataset.glassBurn = String(settings.burn)
+    })
+
     GlassPanel.refreshAll()
   }, [settings])
 

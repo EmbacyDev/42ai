@@ -39,6 +39,15 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+function parseBlurPx(panel) {
+  const raw = panel.dataset.glassBlur || panel.style.getPropertyValue("--glass-blur") || "2px";
+  return clamp(parseFloat(raw) || 2, 0, 40);
+}
+
+function parseSaturation(panel) {
+  return clamp(Number(panel.dataset.glassSaturation || 1.3), 0.5, 3);
+}
+
 function roundedRectSdf(x, y, width, height, radius) {
   const qx = Math.abs(x - width / 2) - (width / 2 - radius);
   const qy = Math.abs(y - height / 2) - (height / 2 - radius);
@@ -120,9 +129,13 @@ function applySurfaceFilter(panel, filterId) {
   if (!filterId || panel.dataset.glassSurface !== "true") return;
 
   const filterUrl = `url(#${filterId})`;
+  const saturation = parseSaturation(panel);
+  const combined = `${filterUrl} saturate(${saturation})`;
+
   panel.style.setProperty("--glass-filter-url", filterUrl);
-  panel.style.setProperty("filter", filterUrl);
-  panel.style.setProperty("-webkit-filter", filterUrl);
+  panel.style.setProperty("--glass-saturation", String(saturation));
+  panel.style.setProperty("filter", combined);
+  panel.style.setProperty("-webkit-filter", combined);
 }
 
 function updateGlassFilter(panel, options) {
@@ -161,8 +174,13 @@ function updateGlassFilter(panel, options) {
   const burn = Math.max(0, Math.min(2, Number(panel.dataset.glassBurn || 0)));
   const saturate = filter.querySelector('feColorMatrix[data-role="burn-saturate"]');
   const componentTransfer = filter.querySelector('feComponentTransfer[data-role="burn-gamma"]');
+  const surfaceBlur = filter.querySelector('feGaussianBlur[data-role="surface-blur"]');
+
   if (saturate) {
-    saturate.setAttribute("values", `${1 + burn * 0.9}`);
+    const saturation = panel.dataset.glassSurface === "true"
+      ? parseSaturation(panel)
+      : 1 + burn * 0.9;
+    saturate.setAttribute("values", `${saturation}`);
   }
   if (componentTransfer) {
     const exponent = `${1 + burn * 1.4}`;
@@ -170,12 +188,18 @@ function updateGlassFilter(panel, options) {
       node.setAttribute("exponent", exponent);
     });
   }
+  if (surfaceBlur) {
+    surfaceBlur.setAttribute("stdDeviation", String(parseBlurPx(panel)));
+  }
+
+  if (panel.dataset.glassSurface === "true" && panel.dataset.glassReady === "true") {
+    applySurfaceFilter(panel, filterId);
+  }
 
   if (panel.dataset.glassReady === "true" && !opts.skipForceRefresh) {
     const filterUrl = `url(#${filterId})`;
 
     if (panel.dataset.glassSurface === "true") {
-      applySurfaceFilter(panel, filterId);
       return;
     }
 
@@ -255,6 +279,15 @@ function createGlassFilter(panel) {
   filter.appendChild(displacement);
   filter.appendChild(burnSaturate);
   filter.appendChild(burnGamma);
+
+  if (panel.dataset.glassSurface === "true") {
+    const surfaceBlur = document.createElementNS(SVG_NS, "feGaussianBlur");
+    surfaceBlur.setAttribute("data-role", "surface-blur");
+    surfaceBlur.setAttribute("in", "burnGamma");
+    surfaceBlur.setAttribute("stdDeviation", String(parseBlurPx(panel)));
+    filter.appendChild(surfaceBlur);
+  }
+
   defs.appendChild(filter);
 
   panel.dataset.glassFilterId = filterId;

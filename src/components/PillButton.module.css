@@ -76,30 +76,23 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
     0 10px 24px rgba(0, 0, 0, 0.12);
+  transition: padding 0.22s ease, box-shadow 0.22s ease;
 }
 
 .pillGlass:hover {
-  transform: scale(var(--glass-hover-scale, 1.05));
+  padding: calc(12px * var(--glass-hover-scale, 1.05)) calc(24px * var(--glass-hover-scale, 1.05));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 14px 28px rgba(0, 0, 0, 0.16);
 }
 
-.glassBackdropBlur,
-.glassBackdropRefract {
+.glassBackdropImage {
   position: absolute;
-  inset: -24px;
-  background-repeat: no-repeat;
-  transform: scale(1.08);
-  pointer-events: none;
-  border-radius: inherit;
-}
-
-.glassBackdropBlur {
   z-index: 0;
-  filter: blur(var(--glass-blur, 2px)) saturate(var(--glass-saturation, 1.3));
-  -webkit-filter: blur(var(--glass-blur, 2px)) saturate(var(--glass-saturation, 1.3));
-}
-
-.glassBackdropRefract {
-  z-index: 1;
+  max-width: none;
+  pointer-events: none;
+  transform: scale(1.08);
+  transform-origin: center;
 }
 
 .pillGlass::after {
