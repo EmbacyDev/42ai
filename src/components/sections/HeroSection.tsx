@@ -1,9 +1,14 @@
 import { PillButton } from '../PillButton'
 import { SiteHeader } from '../SiteHeader'
+import { useHomePageVariant } from '../../context/HomePageVariantContext'
 import { HERO } from '../../data/content'
+import { HeroBackgroundVideo } from './HeroBackgroundVideo'
 import styles from './HeroSection.module.css'
 
 export function HeroSection() {
+  const { variant } = useHomePageVariant()
+  const showHeroVideo = variant === 'shader-preview'
+
   return (
     <section className={styles.section} id="top" aria-label="Hero">
       <img
@@ -14,6 +19,8 @@ export function HeroSection() {
         height={1600}
         fetchPriority="high"
       />
+
+      {showHeroVideo ? <HeroBackgroundVideo /> : null}
 
       <div className={styles.overlay} aria-hidden="true" />
 

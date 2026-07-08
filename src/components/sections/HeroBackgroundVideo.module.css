@@ -1,0 +1,26 @@
+.video,
+.videoHidden {
+  position: absolute;
+  left: -12px;
+  top: -22px;
+  z-index: 1;
+  width: calc(100% + 28px);
+  height: calc(100% + 22px);
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+}
+
+.videoHidden {
+  opacity: 0;
+}
+
+@media (max-width: 767px) {
+  .video,
+  .videoHidden {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
