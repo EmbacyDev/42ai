@@ -4,6 +4,8 @@ import {
   CRYSTAL_SHADER_CONTROL_GROUPS,
   CrystalFieldShader,
   DEFAULT_CRYSTAL_SHADER_SETTINGS,
+  DEFAULT_SHADER_LAB_SETTINGS,
+  SHADER_LAB_BACKDROP_CONTROLS,
   type ShaderSettings,
 } from '../components/CrystalFieldShader'
 import styles from './ShaderLabPage.module.css'
@@ -12,8 +14,10 @@ function formatValue(value: number) {
   return Number.isInteger(value) ? value.toString() : value.toFixed(2)
 }
 
+const SHADER_LAB_BACKDROP = '/assets/images/shader-lab-backdrop.png'
+
 export function ShaderLabPage() {
-  const [settings, setSettings] = useState<ShaderSettings>(DEFAULT_CRYSTAL_SHADER_SETTINGS)
+  const [settings, setSettings] = useState<ShaderSettings>(DEFAULT_SHADER_LAB_SETTINGS)
   const [controlsOpen, setControlsOpen] = useState(true)
   const [showMask, setShowMask] = useState(false)
   const [glError, setGlError] = useState<string | null>(null)
@@ -38,6 +42,7 @@ export function ShaderLabPage() {
           settings={settings}
           showMask={showMask}
           onGlError={setGlError}
+          backgroundImage={SHADER_LAB_BACKDROP}
         />
         {glError ? (
           <div className={styles.error} role="alert">
@@ -82,11 +87,29 @@ export function ShaderLabPage() {
             </label>
           ))}
 
+          {SHADER_LAB_BACKDROP_CONTROLS.map((control) => (
+            <label className={styles.control} key={control.key}>
+              <span className={styles.labelRow}>
+                <span>{control.label}</span>
+                <span className={styles.value}>{formatValue(settings[control.key])}</span>
+              </span>
+              <input
+                className={styles.range}
+                type="range"
+                min={control.min}
+                max={control.max}
+                step={control.step}
+                value={settings[control.key]}
+                onChange={handleChange(control.key)}
+              />
+            </label>
+          ))}
+
           <div className={styles.actions}>
             <button
               type="button"
               className={styles.button}
-              onClick={() => setSettings(DEFAULT_CRYSTAL_SHADER_SETTINGS)}
+              onClick={() => setSettings(DEFAULT_SHADER_LAB_SETTINGS)}
             >
               Reset
             </button>

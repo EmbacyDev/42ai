@@ -42,6 +42,7 @@ export type ShaderSettings = {
   refractionStrength: number
   refractionChroma: number
   refractionGlow: number
+  backdropAnchorY: number
 }
 
 type ControlConfig = {
@@ -93,6 +94,7 @@ export const DEFAULT_CRYSTAL_SHADER_SETTINGS: ShaderSettings = {
   refractionStrength: 0.12,
   refractionChroma: 0,
   refractionGlow: 0,
+  backdropAnchorY: 0.5,
 }
 
 export const CRYSTAL_SHADER_CONTROL_GROUPS: ControlConfig[] = [
@@ -137,6 +139,16 @@ export const CRYSTAL_SHADER_CONTROL_GROUPS: ControlConfig[] = [
   { key: 'refractionChroma', label: 'Refraction prism', min: 0, max: 1.5, step: 0.01 },
   { key: 'refractionGlow', label: 'Crystal edge glow', min: 0, max: 1.4, step: 0.01 },
 ]
+
+export const SHADER_LAB_BACKDROP_CONTROLS: ControlConfig[] = [
+  { key: 'backdropAnchorY', label: 'Backdrop vertical position', min: 0, max: 1, step: 0.01 },
+]
+
+export const DEFAULT_SHADER_LAB_SETTINGS: ShaderSettings = {
+  ...DEFAULT_CRYSTAL_SHADER_SETTINGS,
+  sphereRadius: 0.22,
+  backdropAnchorY: 0.44,
+}
 
 const VIDEO_SOURCE = '/assets/videos/shader-overlay.mp4'
 const BLOCK_EDGES = 12
@@ -558,13 +570,17 @@ precision highp float;
 uniform sampler2D uSceneTexture;
 uniform sampler2D uVideoTexture;
 uniform sampler2D uMaskTexture;
+uniform sampler2D uBackgroundTexture;
 uniform vec2 uResolution;
 uniform vec2 uVideoResolution;
+uniform vec2 uBackgroundResolution;
 uniform float uTime;
 uniform float uVideoOpacity;
 uniform float uVideoScale;
 uniform float uSphereRadius;
 uniform float uReferenceSphereRadius;
+uniform float uHasBackground;
+uniform float uBackgroundAnchorY;
 uniform float uVideoContrast;
 uniform float uVideoDodge;
 uniform float uFacetFeather;
@@ -655,7 +671,24 @@ vec2 coverUv(vec2 uv, vec2 resolution, vec2 videoResolution, float scale, float 
   return centered / max(vec2(0.001), planeSize * max(0.01, unifiedScale)) + 0.5;
 }
 
+vec2 coverBackgroundUv(vec2 uv, vec2 resolution, vec2 imageResolution, float anchorY) {
+  vec2 safeImage = max(imageResolution, vec2(1.0));
+  float canvasAspect = resolution.x / max(1.0, resolution.y);
+  float imageAspect = safeImage.x / safeImage.y;
+  vec2 planeSize = canvasAspect > imageAspect
+    ? vec2(imageAspect / canvasAspect, 1.0)
+    : vec2(1.0, canvasAspect / imageAspect);
+  vec2 centered = uv - vec2(0.5, anchorY);
+  return centered / max(vec2(0.001), planeSize) + 0.5;
+}
+
 void main() {
+  vec3 backdrop = vec3(0.0);
+  if (uHasBackground > 0.5) {
+    vec2 backgroundUv = coverBackgroundUv(vUv, uResolution, uBackgroundResolution, uBackgroundAnchorY);
+    backdrop = texture(uBackgroundTexture, clamp(backgroundUv, vec2(0.0), vec2(1.0))).rgb;
+  }
+
   vec2 videoUv = coverUv(vUv, uResolution, uVideoResolution, uVideoScale, uSphereRadius, uReferenceSphereRadius);
   float mask = texture(uMaskTexture, vUv).r;
 
@@ -686,7 +719,8 @@ void main() {
     uRefractionStrength;
 
   float chroma = uRefractionChroma * 0.34;
-  vec3 baseScene = texture(uSceneTexture, vUv).rgb;
+  vec3 points = texture(uSceneTexture, vUv).rgb;
+  vec3 baseScene = backdrop + points;
   vec3 refractedScene;
   refractedScene.r = texture(uSceneTexture, clamp(vUv + bend * (1.0 + chroma), vec2(0.0), vec2(1.0))).r;
   refractedScene.g = texture(uSceneTexture, clamp(vUv + bend, vec2(0.0), vec2(1.0))).g;
@@ -977,6 +1011,7 @@ type CrystalFieldShaderProps = {
   backgroundColor?: string
   followPointer?: boolean
   blockEdgeFade?: boolean
+  backgroundImage?: string
 }
 
 export function CrystalFieldShader({
@@ -988,9 +1023,12 @@ export function CrystalFieldShader({
   backgroundColor = '#020303',
   followPointer = false,
   blockEdgeFade = false,
+  backgroundImage,
 }: CrystalFieldShaderProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const backgroundImageRef = useRef<HTMLImageElement | null>(null)
+  const backgroundReadyRef = useRef(false)
   const settingsRef = useRef(settings)
   const showMaskRef = useRef(showMask)
   const contentScaleRef = useRef(contentScale)
@@ -1027,6 +1065,31 @@ export function CrystalFieldShader({
   useEffect(() => {
     blockEdgeFadeRef.current = blockEdgeFade ? 1 : 0
   }, [blockEdgeFade])
+
+  useEffect(() => {
+    backgroundReadyRef.current = false
+    backgroundImageRef.current = null
+
+    if (!backgroundImage) {
+      return
+    }
+
+    const image = new Image()
+    image.decoding = 'async'
+    image.onload = () => {
+      backgroundReadyRef.current = true
+    }
+    image.onerror = () => {
+      backgroundReadyRef.current = false
+    }
+    image.src = backgroundImage
+    backgroundImageRef.current = image
+
+    return () => {
+      backgroundReadyRef.current = false
+      backgroundImageRef.current = null
+    }
+  }, [backgroundImage])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1093,6 +1156,7 @@ export function CrystalFieldShader({
     const maskTarget = createSceneTarget(gl)
     const crystalTarget = createSceneTarget(gl)
     const videoTexture = createVideoTexture(gl)
+    const backgroundTexture = createVideoTexture(gl)
     const vertexArray = gl.createVertexArray()
     const video = videoRef.current
     let frameId = 0
@@ -1250,6 +1314,35 @@ export function CrystalFieldShader({
       gl.activeTexture(gl.TEXTURE2)
       gl.bindTexture(gl.TEXTURE_2D, maskTarget.texture)
       gl.uniform1i(gl.getUniformLocation(postProgram, 'uMaskTexture'), 2)
+      gl.activeTexture(gl.TEXTURE3)
+      gl.bindTexture(gl.TEXTURE_2D, backgroundTexture)
+      gl.uniform1i(gl.getUniformLocation(postProgram, 'uBackgroundTexture'), 3)
+
+      const backgroundImageElement = backgroundImageRef.current
+      const hasBackground =
+        backgroundReadyRef.current &&
+        backgroundImageElement &&
+        backgroundImageElement.complete &&
+        backgroundImageElement.naturalWidth > 0
+
+      if (hasBackground) {
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          backgroundImageElement,
+        )
+      }
+
+      gl.uniform1f(gl.getUniformLocation(postProgram, 'uHasBackground'), hasBackground ? 1 : 0)
+      gl.uniform1f(gl.getUniformLocation(postProgram, 'uBackgroundAnchorY'), liveSettings.backdropAnchorY)
+      gl.uniform2f(
+        gl.getUniformLocation(postProgram, 'uBackgroundResolution'),
+        hasBackground ? backgroundImageElement.naturalWidth : 1,
+        hasBackground ? backgroundImageElement.naturalHeight : 1,
+      )
       gl.uniform2f(gl.getUniformLocation(postProgram, 'uResolution'), width, height)
       gl.uniform1f(gl.getUniformLocation(postProgram, 'uTime'), elapsed)
       gl.uniform2f(
@@ -1318,6 +1411,7 @@ export function CrystalFieldShader({
       gl.deleteFramebuffer(crystalTarget.framebuffer)
       gl.deleteTexture(crystalTarget.texture)
       gl.deleteTexture(videoTexture)
+      gl.deleteTexture(backgroundTexture)
       gl.deleteVertexArray(vertexArray)
     }
     } catch (error) {
