@@ -14,7 +14,12 @@ export function LandscapeSection({ background = 'image' }: LandscapeSectionProps
       <LiquidGlassRoot className={styles.glassRoot}>
         {background === 'shader' ? (
           <div className={styles.shaderStage} aria-hidden="true">
-            <CrystalFieldShader className={styles.shaderCanvas} />
+            <CrystalFieldShader
+              className={styles.shaderCanvas}
+              contentScale={0.8}
+              backgroundColor="#0d0d09"
+              followPointer
+            />
           </div>
         ) : (
           <img

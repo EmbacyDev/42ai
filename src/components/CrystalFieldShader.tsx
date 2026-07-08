@@ -141,6 +141,21 @@ export const CRYSTAL_SHADER_CONTROL_GROUPS: ControlConfig[] = [
 const VIDEO_SOURCE = '/assets/videos/shader-overlay.mp4'
 const BLOCK_EDGES = 12
 const RAY_POINTS_PER_BLOCK = 20
+const DEFAULT_CAMERA_DISTANCE = 4.35
+const DEFAULT_CLEAR_COLOR: [number, number, number] = [0.004, 0.006, 0.006]
+
+function parseBackgroundColor(color: string): [number, number, number] {
+  if (color.startsWith('#') && color.length >= 7) {
+    const hex = color.slice(1)
+    return [
+      parseInt(hex.slice(0, 2), 16) / 255,
+      parseInt(hex.slice(2, 4), 16) / 255,
+      parseInt(hex.slice(4, 6), 16) / 255,
+    ]
+  }
+
+  return DEFAULT_CLEAR_COLOR
+}
 
 const POST_VERTEX_SHADER = `#version 300 es
 precision highp float;
@@ -944,6 +959,9 @@ type CrystalFieldShaderProps = {
   settings?: ShaderSettings
   showMask?: boolean
   onGlError?: (message: string | null) => void
+  contentScale?: number
+  backgroundColor?: string
+  followPointer?: boolean
 }
 
 export function CrystalFieldShader({
@@ -951,11 +969,19 @@ export function CrystalFieldShader({
   settings = DEFAULT_CRYSTAL_SHADER_SETTINGS,
   showMask = false,
   onGlError,
+  contentScale = 1,
+  backgroundColor = '#020303',
+  followPointer = false,
 }: CrystalFieldShaderProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const settingsRef = useRef(settings)
   const showMaskRef = useRef(showMask)
+  const contentScaleRef = useRef(contentScale)
+  const backgroundColorRef = useRef(backgroundColor)
+  const followPointerRef = useRef(followPointer)
+  const pointerTargetRef = useRef({ x: 0, y: 0 })
+  const pointerCurrentRef = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
     settingsRef.current = settings
@@ -964,6 +990,53 @@ export function CrystalFieldShader({
   useEffect(() => {
     showMaskRef.current = showMask
   }, [showMask])
+
+  useEffect(() => {
+    contentScaleRef.current = contentScale
+  }, [contentScale])
+
+  useEffect(() => {
+    backgroundColorRef.current = backgroundColor
+  }, [backgroundColor])
+
+  useEffect(() => {
+    followPointerRef.current = followPointer
+    if (!followPointer) {
+      pointerTargetRef.current = { x: 0, y: 0 }
+      pointerCurrentRef.current = { x: 0, y: 0 }
+    }
+  }, [followPointer])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+
+    if (!canvas || !followPointer) {
+      return
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) {
+        return
+      }
+
+      pointerTargetRef.current = {
+        x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        y: ((event.clientY - rect.top) / rect.height) * 2 - 1,
+      }
+    }
+
+    const handlePointerLeave = () => {
+      pointerTargetRef.current = { x: 0, y: 0 }
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerleave', handlePointerLeave)
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerleave', handlePointerLeave)
+    }
+  }, [followPointer])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1078,17 +1151,34 @@ export function CrystalFieldShader({
         Math.round(liveSettings.blockCount) * BLOCK_EDGES * Math.round(liveSettings.blockPointDensity)
       const rayPointCount = Math.round(liveSettings.blockCount) * RAY_POINTS_PER_BLOCK
       const blockMotion = liveSettings.blockSpeed
+      const clearColor = parseBackgroundColor(backgroundColorRef.current)
+      const cameraDistance = DEFAULT_CAMERA_DISTANCE / Math.max(0.1, contentScaleRef.current)
+
+      if (followPointerRef.current) {
+        const target = pointerTargetRef.current
+        const current = pointerCurrentRef.current
+        current.x += (target.x - current.x) * 0.07
+        current.y += (target.y - current.y) * 0.07
+      } else {
+        pointerCurrentRef.current.x = 0
+        pointerCurrentRef.current.y = 0
+      }
+
+      const pointerX = pointerCurrentRef.current.x
+      const pointerY = pointerCurrentRef.current.y
+      const sceneTilt = liveSettings.tilt - 4 + pointerY * -11
+      const sceneRotation = liveSettings.rotation + pointerX * 16
 
       let baseMatrix = perspective((42 * Math.PI) / 180, aspect, 0.1, 20)
-      baseMatrix = translate(baseMatrix, 0, 0, -4.35)
-      baseMatrix = rotateX(baseMatrix, ((liveSettings.tilt - 4) * Math.PI) / 180)
+      baseMatrix = translate(baseMatrix, 0, 0, -cameraDistance)
+      baseMatrix = rotateX(baseMatrix, (sceneTilt * Math.PI) / 180)
       const sphereMatrix = rotateY(
         baseMatrix,
-        ((liveSettings.rotation + elapsed * 9) * Math.PI) / 180,
+        ((sceneRotation + elapsed * 9) * Math.PI) / 180,
       )
       const blockMatrix = rotateY(
         baseMatrix,
-        ((liveSettings.rotation + elapsed * 9 * blockMotion) * Math.PI) / 180,
+        ((sceneRotation + elapsed * 9 * blockMotion) * Math.PI) / 180,
       )
       const blockElapsed = elapsed * blockMotion
 
@@ -1100,7 +1190,7 @@ export function CrystalFieldShader({
 
       gl.bindFramebuffer(gl.FRAMEBUFFER, backTarget.framebuffer)
       gl.viewport(0, 0, width, height)
-      gl.clearColor(0.004, 0.006, 0.006, 1)
+      gl.clearColor(clearColor[0], clearColor[1], clearColor[2], 1)
       gl.clear(gl.COLOR_BUFFER_BIT)
       renderStructure(
         -1,
@@ -1165,6 +1255,8 @@ export function CrystalFieldShader({
 
       gl.bindFramebuffer(gl.FRAMEBUFFER, null)
       gl.viewport(0, 0, width, height)
+      gl.clearColor(clearColor[0], clearColor[1], clearColor[2], 1)
+      gl.clear(gl.COLOR_BUFFER_BIT)
       gl.disable(gl.BLEND)
       gl.useProgram(blitProgram)
       gl.activeTexture(gl.TEXTURE0)
