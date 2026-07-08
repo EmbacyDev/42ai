@@ -61,6 +61,16 @@
   object-fit: cover;
 }
 
+.cardDarkText .cardImage {
+  inset: auto auto auto -15.873%;
+  top: 0;
+  width: 117.937%;
+  height: auto;
+  max-width: none;
+  object-fit: contain;
+  object-position: bottom;
+}
+
 .cardTopOverlay {
   position: absolute;
   top: 0;

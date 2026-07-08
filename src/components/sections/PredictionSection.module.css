@@ -9,13 +9,13 @@
 }
 
 .title {
-  width: 660px;
+  width: 912px;
   max-width: 100%;
   font-size: 32px;
   line-height: 1.2;
   letter-spacing: -0.03em;
   text-align: center;
-  text-wrap: balance;
+  white-space: nowrap;
 }
 
 .tabs {
@@ -42,7 +42,10 @@
   line-height: 1.4;
   white-space: nowrap;
   color: var(--color-text-faint);
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 520ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .tab:nth-child(1) {
@@ -95,6 +98,7 @@
   gap: 8px;
   width: calc(100% - 64px);
   text-align: center;
+  animation: predictionContentIn 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .previewTitles p:first-child {
@@ -117,12 +121,44 @@
   position: absolute;
   z-index: 2;
   left: 50%;
-  top: 122px;
+  top: 112px;
   width: 288.719px;
   max-width: none;
   height: auto;
   border-radius: 21px 21px 0 0;
   transform: translateX(-50%);
+  animation: predictionInterfaceIn 880ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes predictionContentIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes predictionInterfaceIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(22px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .previewTitles,
+  .interfaceImage {
+    animation: none;
+  }
 }
 
 @media (max-width: 767px) {
@@ -134,6 +170,7 @@
   .title {
     width: auto;
     font-size: 28px;
+    white-space: normal;
   }
 
   .tabs {
@@ -163,5 +200,9 @@
 
   .preview {
     height: 348px;
+  }
+
+  .interfaceImage {
+    width: 288px;
   }
 }

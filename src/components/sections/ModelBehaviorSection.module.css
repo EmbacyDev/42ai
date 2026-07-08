@@ -164,9 +164,14 @@
   position: absolute;
   top: calc(50% - 73px);
   left: 50%;
-  width: 1146px;
+  width: 1042px;
   max-width: calc(100% - 48px);
   transform: translateX(-50%);
+}
+
+.diagramImage {
+  width: 100%;
+  height: auto;
 }
 
 @media (max-width: 767px) {

@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { PREDICTION_TABS } from '../../data/content'
+import { PREDICTION_SCENARIOS } from '../../data/content'
 import styles from './PredictionSection.module.css'
 
 export function PredictionSection() {
   const [activeTab, setActiveTab] = useState(0)
+  const activeScenario = PREDICTION_SCENARIOS[activeTab]
 
   return (
     <section className={styles.section} id="features" aria-labelledby="prediction-heading">
@@ -12,21 +13,21 @@ export function PredictionSection() {
       </h2>
 
       <div className={styles.tabs} role="tablist" aria-label="Prediction scenarios">
-        {PREDICTION_TABS.map((tab, index) => (
+        {PREDICTION_SCENARIOS.map((scenario, index) => (
           <button
-            key={tab}
+            key={scenario.tab}
             type="button"
             role="tab"
             aria-selected={activeTab === index}
             className={`${styles.tab} ${activeTab === index ? styles.tabActive : ''}`}
             onClick={() => setActiveTab(index)}
           >
-            {tab}
+            {scenario.tab}
           </button>
         ))}
       </div>
 
-      <div className={styles.preview} role="tabpanel" aria-label={`Prediction preview for ${PREDICTION_TABS[activeTab]}`}>
+      <div className={styles.preview} role="tabpanel" aria-label={`Prediction preview for ${activeScenario.tab}`}>
         <img
           className={styles.previewBackground}
           src="/assets/images/prediction-background.jpg"
@@ -34,15 +35,16 @@ export function PredictionSection() {
           loading="lazy"
         />
 
-        <div className={styles.previewTitles}>
-          <p>Gold suffers its sharpest one-day drop in more than a decade.</p>
-          <p>Next action: close, reduce, hold, add, or flip?</p>
+        <div className={styles.previewTitles} key={`${activeScenario.tab}-titles`}>
+          <p>{activeScenario.event}</p>
+          <p>{activeScenario.question}</p>
         </div>
 
         <img
+          key={`${activeScenario.tab}-interface`}
           className={styles.interfaceImage}
-          src="/assets/images/prediction-interface.png"
-          alt="Ranked options interface showing Add Long Exposure as the top prediction with 81% confidence"
+          src={activeScenario.interfaceImage}
+          alt={`${activeScenario.tab} ranked prediction interface`}
           loading="lazy"
         />
       </div>

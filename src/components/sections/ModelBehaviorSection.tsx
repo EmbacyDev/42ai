@@ -8,7 +8,6 @@ import { LiquidGlassRoot } from '../LiquidGlassRoot'
 import { PillButton } from '../PillButton'
 import { useHomePageVariant } from '../../context/HomePageVariantContext'
 import { LANDSCAPE } from '../../data/content'
-import { BehaviorLayersDiagram } from './BehaviorLayersDiagram'
 import styles from './ModelBehaviorSection.module.css'
 
 export function ModelBehaviorSection() {
@@ -94,7 +93,12 @@ export function ModelBehaviorSection() {
         </div>
 
         <div className={styles.diagram}>
-          <BehaviorLayersDiagram />
+          <img
+            className={styles.diagramImage}
+            src="/assets/images/behavior-layers-figma.png"
+            alt="Diagram showing four stacked behavioral layers: The Event, Personal Interpretation, Personal Context, and Foundational Traits"
+            loading="lazy"
+          />
         </div>
       </div>
     </section>

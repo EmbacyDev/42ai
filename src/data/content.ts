@@ -49,6 +49,33 @@ export const PREDICTION_TABS = [
   'Capital Markets',
 ] as const
 
+export const PREDICTION_SCENARIOS = [
+  {
+    tab: 'Banking',
+    interfaceImage: '/assets/images/prediction-interface-banking.png',
+    event: 'Rates rise and a monthly payment jumps 23%.',
+    question: 'Who pays, who restructures, who defaults?',
+  },
+  {
+    tab: 'Brokerages',
+    interfaceImage: '/assets/images/prediction-interface-brokerages.png',
+    event: 'Volatility spikes across the book overnight.',
+    question: 'Which clients need hedging and which can be left alone?',
+  },
+  {
+    tab: 'Gaming',
+    interfaceImage: '/assets/images/prediction-interface-gaming.png',
+    event: 'A player hits a six loss streak in ranked',
+    question: 'Keep playing, spend, or churn this week?',
+  },
+  {
+    tab: 'Capital Markets',
+    interfaceImage: '/assets/images/prediction-interface-capital-markets.png',
+    event: '21 Oct 2025. Gold books its sharpest drop in a decade.',
+    question: 'Who sells into the panic and who adds?',
+  },
+] as const
+
 export const LANDSCAPE = {
   title: "There's a model behind this.",
   subtitle:
@@ -72,7 +99,7 @@ export const PRODUCTS = [
     alt: 'Crowd in motion from above',
     title: 'World Model',
     description:
-      'Give it a change. Watch how the system reacts. A simulated environment on the same core. Model how a population responds to a shock — before you make it.',
+      'Describe a change and watch what happens. The same core simulates a whole population, so you see the reaction before the market does.',
     cta: 'Explore the Product',
   },
 ] as const

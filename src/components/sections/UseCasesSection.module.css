@@ -40,13 +40,15 @@
 }
 
 .cardImage {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.card:nth-child(4) .cardImage {
-  object-position: center;
+.card:nth-child(3) .cardOverlayTop,
+.card:nth-child(3) .cardOverlayBottom {
+  height: 103px;
 }
 
 .cardOverlayTop,
