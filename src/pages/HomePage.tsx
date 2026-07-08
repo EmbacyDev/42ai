@@ -1,3 +1,4 @@
+import { HomePageVariantProvider, type HomePageVariant } from '../context/HomePageVariantContext'
 import { BehaviorLayersSection } from '../components/sections/BehaviorLayersSection'
 import { CtaBannerSection } from '../components/sections/CtaBannerSection'
 import { FooterSection } from '../components/sections/FooterSection'
@@ -9,7 +10,11 @@ import { ProofSection } from '../components/sections/ProofSection'
 import { UseCasesSection } from '../components/sections/UseCasesSection'
 import { ValuePropositionSection } from '../components/sections/ValuePropositionSection'
 
-export function HomePage() {
+type HomePageProps = {
+  variant?: HomePageVariant
+}
+
+function HomePageContent() {
   return (
     <main>
       <HeroSection />
@@ -23,5 +28,13 @@ export function HomePage() {
       <CtaBannerSection />
       <FooterSection />
     </main>
+  )
+}
+
+export function HomePage({ variant = 'production' }: HomePageProps) {
+  return (
+    <HomePageVariantProvider variant={variant}>
+      <HomePageContent />
+    </HomePageVariantProvider>
   )
 }

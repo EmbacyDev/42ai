@@ -56,10 +56,6 @@
 }
 
 .actions {
-  position: absolute;
-  right: 40px;
-  bottom: 62px;
-  z-index: 3;
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
@@ -73,12 +69,6 @@
   .side {
     margin-left: 0;
     max-width: none;
-  }
-
-  .actions {
-    left: 40px;
-    right: auto;
-    bottom: 24px;
   }
 }
 

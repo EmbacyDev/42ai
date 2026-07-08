@@ -1,20 +1,41 @@
-import { LiquidGlassButton } from '../LiquidGlassButton'
-import { LiquidGlassRoot } from '../LiquidGlassRoot'
+import { CrystalFieldShader, DEFAULT_CRYSTAL_SHADER_SETTINGS } from '../CrystalFieldShader'
+import { GlassButton } from '../GlassButton'
+import { GlassSurface } from '../GlassSurface'
+import { useHomePageVariant } from '../../context/HomePageVariantContext'
 import { LANDSCAPE } from '../../data/content'
 import styles from './LandscapeSection.module.css'
 
+const SHADER_HOME_SETTINGS = {
+  ...DEFAULT_CRYSTAL_SHADER_SETTINGS,
+  videoScale: DEFAULT_CRYSTAL_SHADER_SETTINGS.videoScale * 0.6,
+}
+
 export function LandscapeSection() {
+  const { landscapeBackground } = useHomePageVariant()
+  const isShader = landscapeBackground === 'shader'
+
   return (
     <section className={styles.section} aria-labelledby="landscape-heading">
-      <LiquidGlassRoot className={styles.glassRoot}>
-        <img
-          className={styles.image}
-          src="/assets/images/landscape.jpg"
-          alt="Desert landscape with a glowing structure at twilight"
-          loading="lazy"
-        />
+      <GlassSurface className={styles.glassRoot}>
+        {isShader ? (
+          <div className={styles.shaderStage} aria-hidden="true">
+            <CrystalFieldShader
+              className={styles.shaderCanvas}
+              settings={SHADER_HOME_SETTINGS}
+              followPointer
+              blockEdgeFade
+            />
+          </div>
+        ) : (
+          <img
+            className={styles.image}
+            src="/assets/images/landscape.jpg"
+            alt="Desert landscape with a glowing structure at twilight"
+            loading="lazy"
+          />
+        )}
 
-        <div className={styles.bottomShade} aria-hidden="true" />
+        {!isShader ? <div className={styles.bottomShade} aria-hidden="true" /> : null}
 
         <div className={styles.overlay}>
           <div className={styles.content}>
@@ -27,10 +48,10 @@ export function LandscapeSection() {
           </div>
         </div>
 
-        <LiquidGlassButton variant="ghost" className={styles.cta}>
+        <GlassButton variant="ghost" className={styles.cta}>
           {LANDSCAPE.cta}
-        </LiquidGlassButton>
-      </LiquidGlassRoot>
+        </GlassButton>
+      </GlassSurface>
     </section>
   )
 }

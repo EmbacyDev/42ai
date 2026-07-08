@@ -7,6 +7,10 @@
   overflow: hidden;
 }
 
+.shaderPreview {
+  background: #020303;
+}
+
 .header {
   display: flex;
   flex-direction: column;

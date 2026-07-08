@@ -117,9 +117,10 @@
 
 .cardCta {
   position: absolute;
-  left: 50%;
+  inset-inline: 0;
   bottom: 40px;
-  transform: translateX(-50%);
+  width: fit-content;
+  margin-inline: auto;
   z-index: 3;
 }
 
@@ -151,7 +152,8 @@
   }
 
   .cardCta {
-    left: 24px;
-    transform: none;
+    inset-inline-start: 24px;
+    inset-inline-end: auto;
+    margin-inline: 0;
   }
 }

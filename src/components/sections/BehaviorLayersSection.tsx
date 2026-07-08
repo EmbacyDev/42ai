@@ -1,13 +1,13 @@
+import { useHomePageVariant } from '../../context/HomePageVariantContext'
 import styles from './BehaviorLayersSection.module.css'
 
-type BehaviorLayersSectionProps = {
-  className?: string
-}
+export function BehaviorLayersSection() {
+  const { variant } = useHomePageVariant()
+  const isShaderPreview = variant === 'shader-preview'
 
-export function BehaviorLayersSection({ className }: BehaviorLayersSectionProps) {
   return (
     <section
-      className={className ? `${styles.section} ${className}` : styles.section}
+      className={isShaderPreview ? `${styles.section} ${styles.shaderPreview}` : styles.section}
       id="how-it-works"
       aria-labelledby="behavior-heading"
     >

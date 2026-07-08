@@ -1,5 +1,4 @@
 import { HomePage } from './pages/HomePage'
-import { ShaderHomePage } from './pages/ShaderHomePage'
 import { ShaderLabPage } from './pages/ShaderLabPage'
 
 function App() {
@@ -10,7 +9,7 @@ function App() {
   }
 
   if (pathname === '/shader-home') {
-    return <ShaderHomePage />
+    return <HomePage variant="shader-preview" />
   }
 
   return <HomePage />

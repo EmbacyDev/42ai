@@ -1,12 +1,12 @@
-import { LiquidGlassButton } from '../LiquidGlassButton'
-import { LiquidGlassRoot } from '../LiquidGlassRoot'
+import { GlassButton } from '../GlassButton'
+import { GlassSurface } from '../GlassSurface'
 import { CTA_BANNER } from '../../data/content'
 import styles from './CtaBannerSection.module.css'
 
 export function CtaBannerSection() {
   return (
     <section className={styles.section} aria-labelledby="cta-heading">
-      <LiquidGlassRoot className={styles.banner}>
+      <GlassSurface className={styles.banner}>
         <img className={styles.image} src="/assets/images/cta-banner.jpg" alt="" loading="lazy" />
 
         <div className={styles.overlay}>
@@ -18,14 +18,14 @@ export function CtaBannerSection() {
 
           <div className={styles.side}>
             <p className={styles.subtitle}>{CTA_BANNER.subtitle}</p>
+
+            <div className={styles.actions}>
+              <GlassButton variant="light">{CTA_BANNER.primaryCta}</GlassButton>
+              <GlassButton variant="outline">{CTA_BANNER.secondaryCta}</GlassButton>
+            </div>
           </div>
         </div>
-
-        <div className={styles.actions}>
-          <LiquidGlassButton variant="light">{CTA_BANNER.primaryCta}</LiquidGlassButton>
-          <LiquidGlassButton variant="outline">{CTA_BANNER.secondaryCta}</LiquidGlassButton>
-        </div>
-      </LiquidGlassRoot>
+      </GlassSurface>
     </section>
   )
 }
