@@ -1,4 +1,8 @@
-import { CrystalFieldShader, DEFAULT_CRYSTAL_SHADER_SETTINGS } from '../CrystalFieldShader'
+import {
+  CrystalFieldShader,
+  DEFAULT_SHADER_LAB_SETTINGS,
+  SHADER_LAB_BACKDROP,
+} from '../CrystalFieldShader'
 import { LiquidGlassButton } from '../LiquidGlassButton'
 import { LiquidGlassRoot } from '../LiquidGlassRoot'
 import { PillButton } from '../PillButton'
@@ -18,7 +22,8 @@ export function ModelBehaviorSection() {
         <div className={styles.shaderStage} aria-hidden="true">
           <CrystalFieldShader
             className={styles.shaderCanvas}
-            settings={DEFAULT_CRYSTAL_SHADER_SETTINGS}
+            settings={DEFAULT_SHADER_LAB_SETTINGS}
+            backgroundImage={SHADER_LAB_BACKDROP}
             followPointer
             blockEdgeFade
           />

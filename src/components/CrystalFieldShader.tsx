@@ -140,6 +140,8 @@ export const CRYSTAL_SHADER_CONTROL_GROUPS: ControlConfig[] = [
   { key: 'refractionGlow', label: 'Crystal edge glow', min: 0, max: 1.4, step: 0.01 },
 ]
 
+export const SHADER_LAB_BACKDROP = '/assets/images/shader-lab-backdrop.png'
+
 export const SHADER_LAB_BACKDROP_CONTROLS: ControlConfig[] = [
   { key: 'backdropAnchorY', label: 'Backdrop vertical position', min: 0, max: 1, step: 0.01 },
 ]

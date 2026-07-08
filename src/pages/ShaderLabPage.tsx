@@ -5,6 +5,7 @@ import {
   CrystalFieldShader,
   DEFAULT_CRYSTAL_SHADER_SETTINGS,
   DEFAULT_SHADER_LAB_SETTINGS,
+  SHADER_LAB_BACKDROP,
   SHADER_LAB_BACKDROP_CONTROLS,
   type ShaderSettings,
 } from '../components/CrystalFieldShader'
@@ -13,8 +14,6 @@ import styles from './ShaderLabPage.module.css'
 function formatValue(value: number) {
   return Number.isInteger(value) ? value.toString() : value.toFixed(2)
 }
-
-const SHADER_LAB_BACKDROP = '/assets/images/shader-lab-backdrop.png'
 
 export function ShaderLabPage() {
   const [settings, setSettings] = useState<ShaderSettings>(DEFAULT_SHADER_LAB_SETTINGS)
