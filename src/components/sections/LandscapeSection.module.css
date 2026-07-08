@@ -8,15 +8,36 @@
 
 .glassRoot {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
   width: 100%;
   height: 100%;
+  padding: 100px var(--section-padding-x) 0;
 }
 
 .image {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
+  z-index: 0;
+}
+
+.shaderStage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.shaderCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .bottomShade {
@@ -30,36 +51,19 @@
   pointer-events: none;
 }
 
-.overlay {
-  position: absolute;
-  inset: 0;
+.copy {
+  position: relative;
   z-index: 2;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 100px var(--section-padding-x) 0;
-}
-
-.content {
-  display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 12px;
   max-width: 588px;
   text-align: center;
 }
 
 .cta {
-  position: absolute;
-  left: 50%;
-  top: calc(100px + 12rem);
-  transform: translateX(-50%);
+  position: relative;
   z-index: 3;
-}
-
-.copy {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
 .title {
@@ -82,8 +86,8 @@
     min-height: 640px;
   }
 
-  .overlay {
-    align-items: center;
+  .glassRoot {
+    justify-content: center;
     padding-top: 0;
   }
 
@@ -91,15 +95,8 @@
     font-size: 36px;
   }
 
-  .content {
+  .copy {
     align-items: flex-start;
     text-align: left;
-  }
-
-  .cta {
-    left: var(--section-padding-x);
-    transform: none;
-    top: auto;
-    bottom: 48px;
   }
 }

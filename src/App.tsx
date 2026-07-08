@@ -1,29 +1,18 @@
-import { BehaviorLayersSection } from './components/sections/BehaviorLayersSection'
-import { CtaBannerSection } from './components/sections/CtaBannerSection'
-import { FooterSection } from './components/sections/FooterSection'
-import { HeroSection } from './components/sections/HeroSection'
-import { LandscapeSection } from './components/sections/LandscapeSection'
-import { PredictionSection } from './components/sections/PredictionSection'
-import { ProductsSection } from './components/sections/ProductsSection'
-import { ProofSection } from './components/sections/ProofSection'
-import { UseCasesSection } from './components/sections/UseCasesSection'
-import { ValuePropositionSection } from './components/sections/ValuePropositionSection'
+import { HomePage } from './pages/HomePage'
+import { ShaderLabPage } from './pages/ShaderLabPage'
 
 function App() {
-  return (
-    <main>
-      <HeroSection />
-      <ValuePropositionSection />
-      <UseCasesSection />
-      <PredictionSection />
-      <LandscapeSection />
-      <BehaviorLayersSection />
-      <ProductsSection />
-      <ProofSection />
-      <CtaBannerSection />
-      <FooterSection />
-    </main>
-  )
+  const { pathname } = window.location
+
+  if (pathname === '/shader-lab') {
+    return <ShaderLabPage />
+  }
+
+  if (pathname === '/shader-home') {
+    return <HomePage landscapeBackground="shader" />
+  }
+
+  return <HomePage />
 }
 
 export default App
