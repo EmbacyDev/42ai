@@ -34,11 +34,6 @@
   height: 100%;
 }
 
-.sectionShader .shaderStage {
-  height: calc(100% + 14svh);
-  z-index: 0;
-}
-
 .shaderStage {
   overflow: hidden;
   background: #020303;
