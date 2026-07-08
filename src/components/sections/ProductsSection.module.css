@@ -40,16 +40,10 @@
 
 .card {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   height: 604px;
-  padding: 40px 87px;
   border-radius: var(--radius-card-lg);
   overflow: hidden;
   background: var(--color-card);
-  text-align: center;
-  color: var(--color-white);
 }
 
 .cardImage {
@@ -58,7 +52,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: 0;
 }
 
 .cardTopOverlay {
@@ -75,16 +68,20 @@
 }
 
 .cardContent {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 20px;
   align-items: center;
-  max-width: 456px;
+  padding: 40px 87px;
+  text-align: center;
+  color: var(--color-white);
 }
 
 .cardTitle {
+  max-width: 456px;
   font-size: 35px;
   line-height: 1;
   letter-spacing: -0.03em;
@@ -92,13 +89,14 @@
 }
 
 .cardDescription {
+  max-width: 456px;
   font-size: 16px;
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.92);
   text-wrap: balance;
 }
 
-.cardDarkText {
+.cardDarkText .cardContent {
   color: var(--color-black);
 }
 
@@ -118,9 +116,11 @@
 }
 
 .cardCta {
-  position: relative;
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
   z-index: 3;
-  margin-top: 12px;
 }
 
 @media (max-width: 900px) {
@@ -140,14 +140,18 @@
     text-align: left;
   }
 
-  .card {
+  .cardContent {
     align-items: flex-start;
-    height: 460px;
     padding-inline: 24px;
     text-align: left;
   }
 
-  .cardContent {
-    align-items: flex-start;
+  .card {
+    height: 460px;
+  }
+
+  .cardCta {
+    left: 24px;
+    transform: none;
   }
 }

@@ -7,33 +7,31 @@
 
 .banner {
   position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  align-items: flex-start;
-  gap: 20px 24px;
   width: min(100%, var(--page-max));
   margin: 0 auto;
   height: 350px;
-  padding: 62px 40px;
   border-radius: var(--radius-banner);
   overflow: hidden;
-  color: var(--color-white);
 }
 
 .image {
-  position: absolute;
-  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: 0;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: flex-start;
+  padding: 62px 40px;
+  color: var(--color-white);
 }
 
 .title {
-  position: relative;
-  z-index: 2;
-  flex: 0 0 calc(50% - 12px);
   max-width: 482px;
   font-size: 48px;
   line-height: 1.1;
@@ -41,39 +39,46 @@
   text-wrap: balance;
 }
 
-.subtitle {
-  position: relative;
-  z-index: 2;
-  flex: 0 0 calc(50% - 12px);
-  max-width: 354px;
+.side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
   margin-left: 5px;
+  max-width: 354px;
+}
+
+.subtitle {
   font-size: 14px;
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.92);
   text-wrap: balance;
 }
 
-.ctaPrimary,
-.ctaSecondary {
-  position: relative;
+.actions {
+  position: absolute;
+  right: 40px;
+  bottom: 62px;
   z-index: 3;
-  flex: 0 0 auto;
-}
-
-.ctaPrimary {
-  margin-left: calc(50% + 5px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 @media (max-width: 900px) {
-  .title,
-  .subtitle {
-    flex: 1 1 100%;
-    max-width: none;
-    margin-left: 0;
+  .overlay {
+    grid-template-columns: 1fr;
   }
 
-  .ctaPrimary {
+  .side {
     margin-left: 0;
+    max-width: none;
+  }
+
+  .actions {
+    left: 40px;
+    right: auto;
+    bottom: 24px;
   }
 }
 

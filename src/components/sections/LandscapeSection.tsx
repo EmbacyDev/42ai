@@ -1,6 +1,7 @@
 import { CrystalFieldShader, DEFAULT_CRYSTAL_SHADER_SETTINGS } from '../CrystalFieldShader'
-import { GlassButton } from '../GlassButton'
-import { GlassSurface } from '../GlassSurface'
+import { LiquidGlassButton } from '../LiquidGlassButton'
+import { LiquidGlassRoot } from '../LiquidGlassRoot'
+import { PillButton } from '../PillButton'
 import { useHomePageVariant } from '../../context/HomePageVariantContext'
 import { LANDSCAPE } from '../../data/content'
 import styles from './LandscapeSection.module.css'
@@ -11,12 +12,12 @@ const SHADER_HOME_SETTINGS = {
 }
 
 export function LandscapeSection() {
-  const { landscapeBackground } = useHomePageVariant()
+  const { landscapeBackground, useLiquidGlassButtons } = useHomePageVariant()
   const isShader = landscapeBackground === 'shader'
 
   return (
     <section className={styles.section} aria-labelledby="landscape-heading">
-      <GlassSurface className={styles.glassRoot}>
+      <LiquidGlassRoot className={styles.glassRoot}>
         {isShader ? (
           <div className={styles.shaderStage} aria-hidden="true">
             <CrystalFieldShader
@@ -48,10 +49,16 @@ export function LandscapeSection() {
           </div>
         </div>
 
-        <GlassButton variant="ghost" className={styles.cta}>
-          {LANDSCAPE.cta}
-        </GlassButton>
-      </GlassSurface>
+        {useLiquidGlassButtons ? (
+          <LiquidGlassButton variant="ghost" className={styles.cta}>
+            {LANDSCAPE.cta}
+          </LiquidGlassButton>
+        ) : (
+          <PillButton variant="ghost" className={styles.cta}>
+            {LANDSCAPE.cta}
+          </PillButton>
+        )}
+      </LiquidGlassRoot>
     </section>
   )
 }

@@ -63,10 +63,9 @@
 
 .cta {
   position: absolute;
-  inset-inline: 0;
+  left: 50%;
   top: calc(100px + 12rem);
-  width: fit-content;
-  margin-inline: auto;
+  transform: translateX(-50%);
   z-index: 3;
 }
 
@@ -111,10 +110,9 @@
   }
 
   .cta {
-    inset-inline: auto;
-    inset-inline-start: var(--section-padding-x);
+    left: var(--section-padding-x);
+    transform: none;
     top: auto;
     bottom: 48px;
-    margin-inline: 0;
   }
 }

@@ -1,5 +1,5 @@
-import { GlassButton } from '../GlassButton'
-import { GlassSurface } from '../GlassSurface'
+import { LiquidGlassButton } from '../LiquidGlassButton'
+import { LiquidGlassRoot } from '../LiquidGlassRoot'
 import { PRODUCTS } from '../../data/content'
 import styles from './ProductsSection.module.css'
 
@@ -18,7 +18,7 @@ export function ProductsSection() {
           const isFirstCard = index === 0
 
           return (
-            <GlassSurface
+            <LiquidGlassRoot
               key={product.id}
               className={`${styles.card} ${isFirstCard ? styles.cardDarkText : ''}`}
             >
@@ -30,10 +30,13 @@ export function ProductsSection() {
                 </h3>
                 <p className={styles.cardDescription}>{product.description}</p>
               </div>
-              <GlassButton className={styles.cardCta} variant={isFirstCard ? 'darkText' : 'light'}>
+              <LiquidGlassButton
+                className={styles.cardCta}
+                variant={isFirstCard ? 'darkText' : 'light'}
+              >
                 {product.cta}
-              </GlassButton>
-            </GlassSurface>
+              </LiquidGlassButton>
+            </LiquidGlassRoot>
           )
         })}
       </div>
