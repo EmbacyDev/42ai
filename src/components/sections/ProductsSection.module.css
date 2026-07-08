@@ -38,9 +38,16 @@
   width: min(100%, 1280px);
 }
 
+/* The glass library requires glass buttons to be direct children of the
+   root (the card), so the card lays out content + CTA as a flex column
+   while the image and overlay sit behind as absolutely positioned layers. */
 .card {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   height: 604px;
+  padding: 40px 87px;
   border-radius: var(--radius-card-lg);
   overflow: hidden;
   background: var(--color-card);
@@ -68,14 +75,11 @@
 }
 
 .cardContent {
-  position: absolute;
-  inset: 0;
   z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 20px;
   align-items: center;
-  padding: 40px 87px;
   text-align: center;
   color: var(--color-white);
 }
@@ -115,12 +119,10 @@
   color: transparent;
 }
 
+/* 20px content gap + 12px extra, matching the original in-flow spacing */
 .cardCta {
-  position: absolute;
-  left: 50%;
-  bottom: 40px;
-  transform: translateX(-50%);
-  z-index: 3;
+  margin-top: 32px;
+  align-self: center;
 }
 
 @media (max-width: 900px) {
@@ -142,16 +144,15 @@
 
   .cardContent {
     align-items: flex-start;
-    padding-inline: 24px;
     text-align: left;
   }
 
   .card {
     height: 460px;
+    padding-inline: 24px;
   }
 
   .cardCta {
-    left: 24px;
-    transform: none;
+    align-self: flex-start;
   }
 }

@@ -38,25 +38,17 @@ export function LandscapeSection() {
 
         {!isShader ? <div className={styles.bottomShade} aria-hidden="true" /> : null}
 
-        <div className={styles.overlay}>
-          <div className={styles.content}>
-            <div className={styles.copy}>
-              <h2 className={`${styles.title} gradientText`} id="landscape-heading">
-                {LANDSCAPE.title}
-              </h2>
-              <p className={`${styles.subtitle} gradientText`}>{LANDSCAPE.subtitle}</p>
-            </div>
-          </div>
+        <div className={styles.copy}>
+          <h2 className={`${styles.title} gradientText`} id="landscape-heading">
+            {LANDSCAPE.title}
+          </h2>
+          <p className={`${styles.subtitle} gradientText`}>{LANDSCAPE.subtitle}</p>
         </div>
 
         {useLiquidGlassButtons ? (
-          <LiquidGlassButton variant="ghost" className={styles.cta}>
-            {LANDSCAPE.cta}
-          </LiquidGlassButton>
+          <LiquidGlassButton variant="ghost">{LANDSCAPE.cta}</LiquidGlassButton>
         ) : (
-          <PillButton variant="ghost" className={styles.cta}>
-            {LANDSCAPE.cta}
-          </PillButton>
+          <PillButton variant="ghost">{LANDSCAPE.cta}</PillButton>
         )}
       </LiquidGlassRoot>
     </section>

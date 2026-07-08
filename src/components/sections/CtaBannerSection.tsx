@@ -6,25 +6,25 @@ import styles from './CtaBannerSection.module.css'
 export function CtaBannerSection() {
   return (
     <section className={styles.section} aria-labelledby="cta-heading">
+      {/* Title, subtitle and both CTAs are direct children of the glass
+          root: the library only applies the effect to direct children. */}
       <LiquidGlassRoot className={styles.banner}>
         <img className={styles.image} src="/assets/images/cta-banner.jpg" alt="" loading="lazy" />
 
-        <div className={styles.overlay}>
-          <h2 className={`${styles.title} gradientText`} id="cta-heading">
-            Bring your data.
-            <br />
-            See what it predicts.
-          </h2>
+        <h2 className={`${styles.title} gradientText`} id="cta-heading">
+          Bring your data.
+          <br />
+          See what it predicts.
+        </h2>
 
-          <div className={styles.side}>
-            <p className={styles.subtitle}>{CTA_BANNER.subtitle}</p>
-          </div>
-        </div>
+        <p className={styles.subtitle}>{CTA_BANNER.subtitle}</p>
 
-        <div className={styles.actions}>
-          <LiquidGlassButton variant="light">{CTA_BANNER.primaryCta}</LiquidGlassButton>
-          <LiquidGlassButton variant="outline">{CTA_BANNER.secondaryCta}</LiquidGlassButton>
-        </div>
+        <LiquidGlassButton variant="light" className={styles.primaryCta}>
+          {CTA_BANNER.primaryCta}
+        </LiquidGlassButton>
+        <LiquidGlassButton variant="outline" className={styles.secondaryCta}>
+          {CTA_BANNER.secondaryCta}
+        </LiquidGlassButton>
       </LiquidGlassRoot>
     </section>
   )
