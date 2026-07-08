@@ -8,7 +8,15 @@
 }
 
 .shaderPreview {
-  background: #020303;
+  margin-top: -14svh;
+  padding-top: 14svh;
+  background: linear-gradient(180deg, transparent 0%, transparent 14svh, #020303 14svh);
+  z-index: 0;
+}
+
+.shaderPreview .header,
+.shaderPreview .diagram {
+  z-index: 2;
 }
 
 .header {
@@ -45,11 +53,6 @@
   width: 1146px;
   max-width: calc(100% - 48px);
   transform: translateX(-50%);
-}
-
-.diagramImage {
-  width: 100%;
-  height: auto;
 }
 
 @media (max-width: 767px) {

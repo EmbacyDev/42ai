@@ -1,4 +1,5 @@
 import { useHomePageVariant } from '../../context/HomePageVariantContext'
+import { BehaviorLayersDiagram } from './BehaviorLayersDiagram'
 import styles from './BehaviorLayersSection.module.css'
 
 export function BehaviorLayersSection() {
@@ -22,12 +23,7 @@ export function BehaviorLayersSection() {
       </div>
 
       <div className={styles.diagram}>
-        <img
-          className={styles.diagramImage}
-          src="/assets/images/behavior-layers.png"
-          alt="Diagram showing four stacked behavioral layers: The Event, Personal Context, Personal Interpretation, and Foundational Traits"
-          loading="lazy"
-        />
+        <BehaviorLayersDiagram />
       </div>
     </section>
   )

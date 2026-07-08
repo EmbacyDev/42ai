@@ -6,6 +6,12 @@
   overflow: hidden;
 }
 
+.sectionShader {
+  overflow: visible;
+  margin-bottom: -14svh;
+  z-index: 1;
+}
+
 /* The glass library requires glass buttons to be direct children of the
    root, so the root itself lays out the copy + CTA column while the image
    and shade sit behind as absolutely positioned layers. */
@@ -28,9 +34,19 @@
   height: 100%;
 }
 
+.sectionShader .shaderStage {
+  height: calc(100% + 14svh);
+  z-index: 0;
+}
+
 .shaderStage {
   overflow: hidden;
   background: #020303;
+}
+
+.shaderCta {
+  position: relative;
+  z-index: 2;
 }
 
 .shaderCanvas {
