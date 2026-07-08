@@ -7,7 +7,7 @@ export const NAV_LINKS = [
 
 export const HERO = {
   title: 'Know what people will do next.',
-  subtitle: 'Not personas. Not averages. The specific person, in the specific moment.',
+  subtitle: 'Meet the Large Behavioral Model, AI trained on the drivers of human decisions.',
   cta: 'Request demo',
 } as const
 
@@ -16,37 +16,37 @@ export const USE_CASES = [
     id: 'banking',
     image: '/assets/images/use-case-1.jpg',
     alt: 'Banking and fintech use case',
-    title: 'Banking & Fintech',
-    description: 'Know how someone will handle money — before they do.',
+    title: 'Banking',
+    description: 'Know who repays and who defaults before your risk models do.',
   },
   {
     id: 'brokerages',
     image: '/assets/images/use-case-2.jpg',
     alt: 'Brokerages use case',
     title: 'Brokerages',
-    description: 'Better LTV. Sharper risk.',
+    description: 'Hedge only the clients who will actually sell.',
   },
   {
     id: 'gaming',
     image: '/assets/images/use-case-3.jpg',
     alt: 'Gaming use case',
     title: 'Gaming',
-    description: 'Cold start solved. Churn predicted. Whales identified.',
+    description: 'Catch the player days before he churns.',
   },
   {
     id: 'capital',
     image: '/assets/images/use-case-4.jpg',
     alt: 'Capital markets use case',
     title: 'Capital Markets',
-    description: 'Alpha signals from behavioral drivers.',
+    description: 'Trade on behavioral signals that never show up in price data.',
   },
 ] as const
 
 export const PREDICTION_TABS = [
-  'Market shock',
-  'New product',
-  'Credit decision',
-  'Player behavior',
+  'Banking',
+  'Brokerages',
+  'Gaming',
+  'Capital Markets',
 ] as const
 
 export const LANDSCAPE = {
@@ -63,7 +63,7 @@ export const PRODUCTS = [
     alt: 'Person using a smartphone against a blue sky',
     title: 'Large Behavioral Model',
     description:
-      'Give it an event. Get what a specific person will do next. Connects into your existing data. No new pipeline. Ask about one customer — get a decision-ready answer, in real time.',
+      'Plug in your data and ask about a single customer. The model understands who this person is and tells you what he will do next, fast enough to act on it.',
     cta: 'Explore the Product',
   },
   {
@@ -78,10 +78,10 @@ export const PRODUCTS = [
 ] as const
 
 export const STATS = [
-  { value: '2.5x', label: 'more accurate than frontier LLMs' },
-  { value: '1M+', label: 'scenarios validated' },
-  { value: '24 hours', label: 'to first prediction' },
-  { value: '2M+', label: 'individuals represented across proprietary behavioral dataset' },
+  { value: '2.5x', label: 'more accurate than frontier LLMs and classical ML' },
+  { value: '2M+', label: 'individuals in a proprietary behavioral dataset' },
+  { value: '1M+', label: 'scenarios validated with enterprise customers' },
+  { value: '24 hours', label: 'from your data to the first prediction' },
 ] as const
 
 export const CTA_BANNER = {

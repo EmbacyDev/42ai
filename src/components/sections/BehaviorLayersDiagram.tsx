@@ -35,12 +35,12 @@ export function BehaviorLayersDiagram() {
         <div className={styles.sideSpacer} aria-hidden="true" />
         <LabelBlock
           title="Personal Interpretation"
-          description="The actual situation — market conditions, life event, in-app moment."
+          description="How this specific person interprets this specific situation — the same event read differently by different people."
         />
         <div className={styles.sideSpacer} aria-hidden="true" />
         <LabelBlock
           title="Foundational Traits"
-          description="The predicted action. Not a simulation of what someone might do — a prediction of what they will."
+          description="A stable psychometric profile. Who someone is, independent of the moment."
         />
       </div>
 
@@ -70,12 +70,12 @@ export function BehaviorLayersDiagram() {
       <div className={styles.sideColumn}>
         <LabelBlock
           title="The Event"
-          description="Stable psychometric profile. Who someone is, independent of the moment."
+          description="The actual situation. Market conditions, a life event, an in app moment."
         />
         <div className={styles.sideSpacer} aria-hidden="true" />
         <LabelBlock
           title="Personal Context"
-          description="How this specific person interprets this specific situation — the same event read differently by different people."
+          description="Experience and environment shape how behavior is expressed. Context influences outcomes."
         />
         <div className={styles.sideSpacer} aria-hidden="true" />
       </div>

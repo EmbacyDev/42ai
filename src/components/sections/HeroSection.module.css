@@ -59,11 +59,11 @@
 }
 
 .subtitle {
-  max-width: 560px;
+  max-width: 605px;
   font-size: 16px;
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.92);
-  text-wrap: balance;
+  white-space: nowrap;
 }
 
 @media (max-width: 767px) {
@@ -93,5 +93,9 @@
 
   .copy {
     align-items: flex-start;
+  }
+
+  .subtitle {
+    white-space: normal;
   }
 }

@@ -8,7 +8,7 @@ export function PredictionSection() {
   return (
     <section className={styles.section} id="features" aria-labelledby="prediction-heading">
       <h2 className={styles.title} id="prediction-heading">
-        Our models predict how specific people will act
+        Pick your industry and watch one real event become a prediction.
       </h2>
 
       <div className={styles.tabs} role="tablist" aria-label="Prediction scenarios">

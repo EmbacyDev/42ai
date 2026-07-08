@@ -86,11 +86,10 @@ export function ModelBehaviorSection() {
       >
         <div className={styles.behaviorHeader}>
           <h2 className={`${styles.behaviorTitle} gradientText`} id="behavior-heading">
-            Behavior isn&apos;t one signal. It&apos;s four, stacked.
+            Behavior isn&apos;t one signal. It&apos;s layers.
           </h2>
           <p className={`${styles.behaviorSubtitle} gradientText`}>
-            Every prediction is built from layers you can see, audit, and trust —
-            individually and together.
+            Every prediction is built from layers you can see, audit, and trust. Individually and together.
           </p>
         </div>
 

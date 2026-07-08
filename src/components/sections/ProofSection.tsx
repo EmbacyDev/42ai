@@ -7,7 +7,7 @@ export function ProofSection() {
       <div className={styles.intro}>
         <p className={styles.label}>Proof</p>
         <h2 className={styles.title} id="proof-heading">
-          Our models predict how specific people will act
+          The numbers behind the claim.
         </h2>
       </div>
 
