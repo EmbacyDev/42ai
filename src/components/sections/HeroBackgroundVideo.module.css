@@ -9,10 +9,19 @@
   object-fit: cover;
   object-position: center;
   pointer-events: none;
+  background: transparent;
+}
+
+.video {
+  opacity: 1;
+  visibility: visible;
+  z-index: 2;
 }
 
 .videoHidden {
   opacity: 0;
+  visibility: hidden;
+  z-index: 1;
 }
 
 @media (max-width: 767px) {
