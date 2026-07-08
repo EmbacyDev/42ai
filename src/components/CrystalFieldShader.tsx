@@ -333,20 +333,21 @@ uniform float uBlockSpread;
 uniform float uBlockPointDensity;
 uniform float uPointSize;
 uniform float uExposure;
-uniform float uColorShift;
-uniform float uDepthMode;
-uniform float uVideoDepth;
+  uniform float uColorShift;
+  uniform float uDepthMode;
+  uniform float uVideoDepth;
+  uniform float uBlockEdgeFade;
 
-out vec3 vColor;
-out float vAlpha;
-out float vCluster;
-out float vDepthGate;
+  out vec3 vColor;
+  out float vAlpha;
+  out float vCluster;
+  out float vDepthGate;
 
-float hash(float n) {
-  return fract(sin(n) * 43758.5453123);
-}
+  float hash(float n) {
+    return fract(sin(n) * 43758.5453123);
+  }
 
-vec3 hash33(float n) {
+  vec3 hash33(float n) {
   return normalize(vec3(
     hash(n) * 2.0 - 1.0,
     hash(n + 1.7) * 2.0 - 1.0,
@@ -404,9 +405,13 @@ void main() {
 
   gl_Position = uViewProj * vec4(pos, 1.0);
 
+  vec2 ndc = gl_Position.xy / max(abs(gl_Position.w), 0.0001);
+  float edge = max(abs(ndc.x), abs(ndc.y));
+  float edgeFade = mix(1.0, 1.0 - smoothstep(0.48, 0.96, edge), uBlockEdgeFade);
+
   float cluster = 0.42 + hash(seed + pointId * 0.37) * 0.58;
   float shimmer = 0.68 + 0.32 * hash(seed + floor(uTime * 18.0 + pointId));
-  vAlpha = clamp((0.18 + cluster * 0.82) * shimmer * uExposure, 0.0, 1.2);
+  vAlpha = clamp((0.18 + cluster * 0.82) * shimmer * uExposure * edgeFade, 0.0, 1.2);
   vCluster = cluster;
 
   vec3 cool = vec3(0.42, 0.72, 1.0);
@@ -914,6 +919,7 @@ function setBlockUniforms(
   settings: ShaderSettings,
   elapsed: number,
   depthMode: number,
+  blockEdgeFade: number,
 ) {
   gl.uniformMatrix4fv(gl.getUniformLocation(program, 'uViewProj'), false, matrix)
   gl.uniform1f(gl.getUniformLocation(program, 'uTime'), elapsed)
@@ -928,6 +934,7 @@ function setBlockUniforms(
   gl.uniform1f(gl.getUniformLocation(program, 'uColorShift'), settings.colorShift)
   gl.uniform1f(gl.getUniformLocation(program, 'uDepthMode'), depthMode)
   gl.uniform1f(gl.getUniformLocation(program, 'uVideoDepth'), settings.videoDepth)
+  gl.uniform1f(gl.getUniformLocation(program, 'uBlockEdgeFade'), blockEdgeFade)
 }
 
 function setRayUniforms(
@@ -962,6 +969,7 @@ type CrystalFieldShaderProps = {
   contentScale?: number
   backgroundColor?: string
   followPointer?: boolean
+  blockEdgeFade?: boolean
 }
 
 export function CrystalFieldShader({
@@ -972,6 +980,7 @@ export function CrystalFieldShader({
   contentScale = 1,
   backgroundColor = '#020303',
   followPointer = false,
+  blockEdgeFade = false,
 }: CrystalFieldShaderProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -980,6 +989,7 @@ export function CrystalFieldShader({
   const contentScaleRef = useRef(contentScale)
   const backgroundColorRef = useRef(backgroundColor)
   const followPointerRef = useRef(followPointer)
+  const blockEdgeFadeRef = useRef(blockEdgeFade ? 1 : 0)
   const pointerTargetRef = useRef({ x: 0, y: 0 })
   const pointerCurrentRef = useRef({ x: 0, y: 0 })
 
@@ -1006,6 +1016,10 @@ export function CrystalFieldShader({
       pointerCurrentRef.current = { x: 0, y: 0 }
     }
   }, [followPointer])
+
+  useEffect(() => {
+    blockEdgeFadeRef.current = blockEdgeFade ? 1 : 0
+  }, [blockEdgeFade])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1098,7 +1112,15 @@ export function CrystalFieldShader({
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
 
       gl.useProgram(blockProgram)
-      setBlockUniforms(gl, blockProgram, blockMatrix, liveSettings, blockElapsed, depthMode)
+      setBlockUniforms(
+        gl,
+        blockProgram,
+        blockMatrix,
+        liveSettings,
+        blockElapsed,
+        depthMode,
+        blockEdgeFadeRef.current,
+      )
       gl.drawArrays(gl.POINTS, 0, blockPointCount)
 
       gl.useProgram(rayProgram)

@@ -3,7 +3,7 @@
   height: 100svh;
   min-height: 800px;
   padding: 0;
-  background: var(--color-dark);
+  background: #020303;
   overflow: hidden;
 }
 

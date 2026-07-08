@@ -1,8 +1,13 @@
-import { CrystalFieldShader } from '../CrystalFieldShader'
+import { CrystalFieldShader, DEFAULT_CRYSTAL_SHADER_SETTINGS } from '../CrystalFieldShader'
 import { LiquidGlassButton } from '../LiquidGlassButton'
 import { LiquidGlassRoot } from '../LiquidGlassRoot'
 import { LANDSCAPE } from '../../data/content'
 import styles from './LandscapeSection.module.css'
+
+const SHADER_HOME_SETTINGS = {
+  ...DEFAULT_CRYSTAL_SHADER_SETTINGS,
+  videoScale: DEFAULT_CRYSTAL_SHADER_SETTINGS.videoScale * 0.6,
+}
 
 type LandscapeSectionProps = {
   background?: 'image' | 'shader'
@@ -16,9 +21,9 @@ export function LandscapeSection({ background = 'image' }: LandscapeSectionProps
           <div className={styles.shaderStage} aria-hidden="true">
             <CrystalFieldShader
               className={styles.shaderCanvas}
-              contentScale={0.8}
-              backgroundColor="#0d0d09"
+              settings={SHADER_HOME_SETTINGS}
               followPointer
+              blockEdgeFade
             />
           </div>
         ) : (
@@ -30,7 +35,7 @@ export function LandscapeSection({ background = 'image' }: LandscapeSectionProps
           />
         )}
 
-        <div className={styles.bottomShade} aria-hidden="true" />
+        {background !== 'shader' ? <div className={styles.bottomShade} aria-hidden="true" /> : null}
 
         <div className={styles.copy}>
           <h2 className={`${styles.title} gradientText`} id="landscape-heading">
