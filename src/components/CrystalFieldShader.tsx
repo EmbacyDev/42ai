@@ -69,7 +69,7 @@ export const DEFAULT_CRYSTAL_SHADER_SETTINGS: ShaderSettings = {
   exposure: 0.92,
   colorShift: 0,
   videoOpacity: 1,
-  videoScale: 0.62,
+  videoScale: 0.3,
   videoContrast: 1.22,
   videoDodge: 0,
   videoDepth: 0.8,
