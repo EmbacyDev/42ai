@@ -1,8 +1,16 @@
 import styles from './BehaviorLayersSection.module.css'
 
-export function BehaviorLayersSection() {
+type BehaviorLayersSectionProps = {
+  className?: string
+}
+
+export function BehaviorLayersSection({ className }: BehaviorLayersSectionProps) {
   return (
-    <section className={styles.section} id="how-it-works" aria-labelledby="behavior-heading">
+    <section
+      className={className ? `${styles.section} ${className}` : styles.section}
+      id="how-it-works"
+      aria-labelledby="behavior-heading"
+    >
       <div className={styles.header}>
         <h2 className={`${styles.title} gradientText`} id="behavior-heading">
           Behavior isn&apos;t one signal. It&apos;s four, stacked.

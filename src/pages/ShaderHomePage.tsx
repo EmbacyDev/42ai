@@ -2,22 +2,23 @@ import { BehaviorLayersSection } from '../components/sections/BehaviorLayersSect
 import { CtaBannerSection } from '../components/sections/CtaBannerSection'
 import { FooterSection } from '../components/sections/FooterSection'
 import { HeroSection } from '../components/sections/HeroSection'
-import { LandscapeSection } from '../components/sections/LandscapeSection'
 import { PredictionSection } from '../components/sections/PredictionSection'
 import { ProductsSection } from '../components/sections/ProductsSection'
 import { ProofSection } from '../components/sections/ProofSection'
+import { ShaderLandscapeSection } from '../components/sections/ShaderLandscapeSection'
 import { UseCasesSection } from '../components/sections/UseCasesSection'
 import { ValuePropositionSection } from '../components/sections/ValuePropositionSection'
+import styles from './ShaderHomePage.module.css'
 
-export function HomePage() {
+export function ShaderHomePage() {
   return (
     <main>
       <HeroSection />
       <ValuePropositionSection />
       <UseCasesSection />
       <PredictionSection />
-      <LandscapeSection />
-      <BehaviorLayersSection />
+      <ShaderLandscapeSection />
+      <BehaviorLayersSection className={styles.behaviorLayers} />
       <ProductsSection />
       <ProofSection />
       <CtaBannerSection />
