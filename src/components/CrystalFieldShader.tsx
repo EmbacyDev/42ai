@@ -54,14 +54,14 @@ type ControlConfig = {
 
 export const DEFAULT_CRYSTAL_SHADER_SETTINGS: ShaderSettings = {
   density: 47,
-  sphereRadius: 0.72,
+  sphereRadius: 0.28,
   clusterStrength: 0.45,
   scatter: 0.28,
   pointSize: 2.4,
   warp: 0.18,
   blockCount: 64,
   blockLength: 1.35,
-  blockThickness: 0.07,
+  blockThickness: 0.12,
   blockSpread: 0.55,
   rotation: -32,
   tilt: -44,
@@ -69,14 +69,14 @@ export const DEFAULT_CRYSTAL_SHADER_SETTINGS: ShaderSettings = {
   exposure: 0.92,
   colorShift: 0,
   videoOpacity: 1,
-  videoScale: 0.52,
+  videoScale: 0.62,
   videoContrast: 1.22,
   videoDodge: 0,
   videoDepth: 0.8,
-  maskContrast: 0.4,
-  maskPosterize: 6,
-  maskThreshold: 0.05,
-  maskSoftness: 0.05,
+  maskContrast: 1.38,
+  maskPosterize: 9,
+  maskThreshold: 0.4,
+  maskSoftness: 0.3,
   maskGamma: 2.5,
   maskBrightness: 2.4,
   maskInvert: 0,
@@ -87,8 +87,8 @@ export const DEFAULT_CRYSTAL_SHADER_SETTINGS: ShaderSettings = {
   rayBlur: 0.42,
   rayLength: 1.05,
   facetFeather: 0.12,
-  facetStrength: 0.19,
-  facetScale: 6.7,
+  facetStrength: 0.24,
+  facetScale: 4.5,
   facetDrift: 1.11,
   refractionStrength: 0.12,
   refractionChroma: 0,
@@ -143,6 +143,7 @@ const BLOCK_EDGES = 12
 const RAY_POINTS_PER_BLOCK = 20
 const DEFAULT_CAMERA_DISTANCE = 4.35
 const DEFAULT_CLEAR_COLOR: [number, number, number] = [0.004, 0.006, 0.006]
+const REFERENCE_SPHERE_RADIUS = DEFAULT_CRYSTAL_SHADER_SETTINGS.sphereRadius
 
 function parseBackgroundColor(color: string): [number, number, number] {
   if (color.startsWith('#') && color.length >= 7) {
@@ -176,7 +177,8 @@ uniform sampler2D uVideoTexture;
 uniform vec2 uResolution;
 uniform vec2 uVideoResolution;
 uniform float uVideoScale;
-uniform float uVideoAnchorY;
+uniform float uSphereRadius;
+uniform float uReferenceSphereRadius;
 uniform float uMaskContrast;
 uniform float uMaskPosterize;
 uniform float uMaskThreshold;
@@ -188,19 +190,20 @@ uniform float uMaskInvert;
 in vec2 vUv;
 out vec4 fragColor;
 
-vec2 coverUv(vec2 uv, vec2 resolution, vec2 videoResolution, float scale, float anchorY) {
+vec2 coverUv(vec2 uv, vec2 resolution, vec2 videoResolution, float scale, float sphereRadius, float referenceSphereRadius) {
   vec2 safeVideo = max(videoResolution, vec2(1.0));
   float canvasAspect = resolution.x / max(1.0, resolution.y);
   float videoAspect = safeVideo.x / safeVideo.y;
   vec2 planeSize = canvasAspect > videoAspect
     ? vec2(videoAspect / canvasAspect, 1.0)
     : vec2(1.0, canvasAspect / videoAspect);
-  vec2 centered = uv - vec2(0.5, anchorY);
-  return centered / max(vec2(0.001), planeSize * max(0.01, scale)) + 0.5;
+  float unifiedScale = scale * (sphereRadius / max(0.001, referenceSphereRadius));
+  vec2 centered = uv - 0.5;
+  return centered / max(vec2(0.001), planeSize * max(0.01, unifiedScale)) + 0.5;
 }
 
 void main() {
-  vec2 videoUv = coverUv(vUv, uResolution, uVideoResolution, uVideoScale, uVideoAnchorY);
+  vec2 videoUv = coverUv(vUv, uResolution, uVideoResolution, uVideoScale, uSphereRadius, uReferenceSphereRadius);
   float boundsMask = step(0.0, videoUv.x) * step(videoUv.x, 1.0) * step(0.0, videoUv.y) * step(videoUv.y, 1.0);
   vec3 color = texture(uVideoTexture, clamp(videoUv, vec2(0.0), vec2(1.0))).rgb;
 
@@ -236,7 +239,6 @@ uniform float uColorShift;
 uniform float uWarp;
 uniform float uDepthMode;
 uniform float uVideoDepth;
-uniform float uBackgroundOffsetY;
 
 out vec3 vColor;
 out float vAlpha;
@@ -276,7 +278,7 @@ void main() {
 
   vec3 pos = vec3(
     cos(phi) * radiusAtY * radius,
-    y * radius * 0.92 + warpPulse * 0.5 + uBackgroundOffsetY,
+    y * radius * 0.92 + warpPulse * 0.5,
     sin(phi) * radiusAtY * radius
   );
   vDepthGate = uDepthMode < 0.0 ? step(pos.z, uVideoDepth) : step(uVideoDepth, pos.z);
@@ -339,7 +341,6 @@ uniform float uExposure;
   uniform float uDepthMode;
   uniform float uVideoDepth;
   uniform float uBlockEdgeFade;
-  uniform float uBackgroundOffsetY;
 
   out vec3 vColor;
   out float vAlpha;
@@ -404,7 +405,6 @@ void main() {
   int cornerB = edges[int(edgeIndex) * 2 + 1];
   vec3 local = mix(corners[cornerA], corners[cornerB], edgeT);
   vec3 pos = origin + basis * local;
-  pos.y += uBackgroundOffsetY;
   vDepthGate = uDepthMode < 0.0 ? step(pos.z, uVideoDepth) : step(uVideoDepth, pos.z);
 
   gl_Position = uViewProj * vec4(pos, 1.0);
@@ -563,7 +563,8 @@ uniform vec2 uVideoResolution;
 uniform float uTime;
 uniform float uVideoOpacity;
 uniform float uVideoScale;
-uniform float uVideoAnchorY;
+uniform float uSphereRadius;
+uniform float uReferenceSphereRadius;
 uniform float uVideoContrast;
 uniform float uVideoDodge;
 uniform float uFacetFeather;
@@ -642,19 +643,20 @@ vec4 movingFacetField(vec2 p, vec2 center, float mask) {
   return vec4(edgeBend * mask, facetEdge, 1.0);
 }
 
-vec2 coverUv(vec2 uv, vec2 resolution, vec2 videoResolution, float scale, float anchorY) {
+vec2 coverUv(vec2 uv, vec2 resolution, vec2 videoResolution, float scale, float sphereRadius, float referenceSphereRadius) {
   vec2 safeVideo = max(videoResolution, vec2(1.0));
   float canvasAspect = resolution.x / max(1.0, resolution.y);
   float videoAspect = safeVideo.x / safeVideo.y;
   vec2 planeSize = canvasAspect > videoAspect
     ? vec2(videoAspect / canvasAspect, 1.0)
     : vec2(1.0, canvasAspect / videoAspect);
-  vec2 centered = uv - vec2(0.5, anchorY);
-  return centered / max(vec2(0.001), planeSize * max(0.01, scale)) + 0.5;
+  float unifiedScale = scale * (sphereRadius / max(0.001, referenceSphereRadius));
+  vec2 centered = uv - 0.5;
+  return centered / max(vec2(0.001), planeSize * max(0.01, unifiedScale)) + 0.5;
 }
 
 void main() {
-  vec2 videoUv = coverUv(vUv, uResolution, uVideoResolution, uVideoScale, uVideoAnchorY);
+  vec2 videoUv = coverUv(vUv, uResolution, uVideoResolution, uVideoScale, uSphereRadius, uReferenceSphereRadius);
   float mask = texture(uMaskTexture, vUv).r;
 
   vec3 video = texture(uVideoTexture, clamp(videoUv, vec2(0.0), vec2(1.0))).rgb;
@@ -902,7 +904,6 @@ function setSphereUniforms(
   elapsed: number,
   pointCount: number,
   depthMode: number,
-  backgroundOffsetY: number,
 ) {
   gl.uniformMatrix4fv(gl.getUniformLocation(program, 'uViewProj'), false, matrix)
   gl.uniform1f(gl.getUniformLocation(program, 'uTime'), elapsed)
@@ -916,7 +917,6 @@ function setSphereUniforms(
   gl.uniform1f(gl.getUniformLocation(program, 'uWarp'), settings.warp)
   gl.uniform1f(gl.getUniformLocation(program, 'uDepthMode'), depthMode)
   gl.uniform1f(gl.getUniformLocation(program, 'uVideoDepth'), settings.videoDepth)
-  gl.uniform1f(gl.getUniformLocation(program, 'uBackgroundOffsetY'), backgroundOffsetY)
 }
 
 function setBlockUniforms(
@@ -927,7 +927,6 @@ function setBlockUniforms(
   elapsed: number,
   depthMode: number,
   blockEdgeFade: number,
-  backgroundOffsetY: number,
 ) {
   gl.uniformMatrix4fv(gl.getUniformLocation(program, 'uViewProj'), false, matrix)
   gl.uniform1f(gl.getUniformLocation(program, 'uTime'), elapsed)
@@ -943,7 +942,6 @@ function setBlockUniforms(
   gl.uniform1f(gl.getUniformLocation(program, 'uDepthMode'), depthMode)
   gl.uniform1f(gl.getUniformLocation(program, 'uVideoDepth'), settings.videoDepth)
   gl.uniform1f(gl.getUniformLocation(program, 'uBlockEdgeFade'), blockEdgeFade)
-  gl.uniform1f(gl.getUniformLocation(program, 'uBackgroundOffsetY'), backgroundOffsetY)
 }
 
 function setRayUniforms(
@@ -979,8 +977,6 @@ type CrystalFieldShaderProps = {
   backgroundColor?: string
   followPointer?: boolean
   blockEdgeFade?: boolean
-  backgroundOffsetY?: number
-  videoAnchorY?: number
 }
 
 export function CrystalFieldShader({
@@ -992,8 +988,6 @@ export function CrystalFieldShader({
   backgroundColor = '#020303',
   followPointer = false,
   blockEdgeFade = false,
-  backgroundOffsetY = 0,
-  videoAnchorY = 0.5,
 }: CrystalFieldShaderProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -1003,8 +997,6 @@ export function CrystalFieldShader({
   const backgroundColorRef = useRef(backgroundColor)
   const followPointerRef = useRef(followPointer)
   const blockEdgeFadeRef = useRef(blockEdgeFade ? 1 : 0)
-  const backgroundOffsetYRef = useRef(backgroundOffsetY)
-  const videoAnchorYRef = useRef(videoAnchorY)
   const pointerTargetRef = useRef({ x: 0, y: 0 })
   const pointerCurrentRef = useRef({ x: 0, y: 0 })
 
@@ -1035,14 +1027,6 @@ export function CrystalFieldShader({
   useEffect(() => {
     blockEdgeFadeRef.current = blockEdgeFade ? 1 : 0
   }, [blockEdgeFade])
-
-  useEffect(() => {
-    backgroundOffsetYRef.current = backgroundOffsetY
-  }, [backgroundOffsetY])
-
-  useEffect(() => {
-    videoAnchorYRef.current = videoAnchorY
-  }, [videoAnchorY])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1143,7 +1127,6 @@ export function CrystalFieldShader({
         blockElapsed,
         depthMode,
         blockEdgeFadeRef.current,
-        backgroundOffsetYRef.current,
       )
       gl.drawArrays(gl.POINTS, 0, blockPointCount)
 
@@ -1152,16 +1135,7 @@ export function CrystalFieldShader({
       gl.drawArrays(gl.POINTS, 0, rayPointCount)
 
       gl.useProgram(sphereProgram)
-      setSphereUniforms(
-        gl,
-        sphereProgram,
-        sphereMatrix,
-        liveSettings,
-        elapsed,
-        pointCount,
-        depthMode,
-        backgroundOffsetYRef.current,
-      )
+      setSphereUniforms(gl, sphereProgram, sphereMatrix, liveSettings, elapsed, pointCount, depthMode)
       gl.drawArrays(gl.POINTS, 0, pointCount)
     }
 
@@ -1183,7 +1157,8 @@ export function CrystalFieldShader({
         video?.videoHeight || height,
       )
       gl.uniform1f(gl.getUniformLocation(maskProgram, 'uVideoScale'), liveSettings.videoScale)
-      gl.uniform1f(gl.getUniformLocation(maskProgram, 'uVideoAnchorY'), videoAnchorYRef.current)
+      gl.uniform1f(gl.getUniformLocation(maskProgram, 'uSphereRadius'), liveSettings.sphereRadius)
+      gl.uniform1f(gl.getUniformLocation(maskProgram, 'uReferenceSphereRadius'), REFERENCE_SPHERE_RADIUS)
       gl.uniform1f(gl.getUniformLocation(maskProgram, 'uMaskContrast'), liveSettings.maskContrast)
       gl.uniform1f(gl.getUniformLocation(maskProgram, 'uMaskPosterize'), liveSettings.maskPosterize)
       gl.uniform1f(gl.getUniformLocation(maskProgram, 'uMaskThreshold'), liveSettings.maskThreshold)
@@ -1284,7 +1259,8 @@ export function CrystalFieldShader({
       )
       gl.uniform1f(gl.getUniformLocation(postProgram, 'uVideoOpacity'), liveSettings.videoOpacity)
       gl.uniform1f(gl.getUniformLocation(postProgram, 'uVideoScale'), liveSettings.videoScale)
-      gl.uniform1f(gl.getUniformLocation(postProgram, 'uVideoAnchorY'), videoAnchorYRef.current)
+      gl.uniform1f(gl.getUniformLocation(postProgram, 'uSphereRadius'), liveSettings.sphereRadius)
+      gl.uniform1f(gl.getUniformLocation(postProgram, 'uReferenceSphereRadius'), REFERENCE_SPHERE_RADIUS)
       gl.uniform1f(gl.getUniformLocation(postProgram, 'uVideoContrast'), liveSettings.videoContrast)
       gl.uniform1f(gl.getUniformLocation(postProgram, 'uVideoDodge'), liveSettings.videoDodge)
       gl.uniform1f(gl.getUniformLocation(postProgram, 'uFacetFeather'), liveSettings.facetFeather)

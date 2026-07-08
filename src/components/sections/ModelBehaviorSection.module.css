@@ -1,0 +1,223 @@
+.section {
+  position: relative;
+  width: 100%;
+  height: 200svh;
+  min-height: 1600px;
+  overflow: hidden;
+  background: var(--color-dark);
+}
+
+.sectionShader {
+  height: calc(200svh - 14svh);
+  min-height: calc(1600px - 14svh);
+  overflow: visible;
+  background: #020303;
+}
+
+.landscapePane,
+.behaviorPane {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 100svh;
+  min-height: 800px;
+}
+
+.landscapePane {
+  top: 0;
+  overflow: hidden;
+}
+
+.landscapePaneShader {
+  overflow: visible;
+  z-index: 1;
+  background: #020303;
+}
+
+.behaviorPane {
+  top: 100svh;
+  background: var(--color-dark);
+}
+
+.sectionShader .behaviorPane {
+  top: calc(100svh - 14svh);
+}
+
+.behaviorPaneShader {
+  padding-top: 14svh;
+  background: linear-gradient(180deg, transparent 0%, transparent 14svh, #020303 14svh);
+  z-index: 0;
+}
+
+.behaviorPaneShader .behaviorHeader,
+.behaviorPaneShader .diagram {
+  z-index: 2;
+}
+
+.glassRoot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+  height: 100%;
+  padding: 100px var(--section-padding-x) 0;
+}
+
+.image,
+.shaderStage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.landscapePaneShader .shaderStage {
+  top: 12svh;
+  height: calc(100% - 12svh);
+}
+
+.shaderStage {
+  overflow: hidden;
+  background: #020303;
+}
+
+.shaderCta {
+  position: relative;
+  z-index: 2;
+}
+
+.shaderCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.image {
+  object-fit: cover;
+  object-position: center;
+}
+
+.bottomShade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  height: 163px;
+  background: linear-gradient(0deg, #0d0d09 0%, rgba(13, 13, 9, 0) 100%);
+  pointer-events: none;
+}
+
+.landscapeCopy {
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 588px;
+  text-align: center;
+}
+
+.landscapeTitle {
+  font-size: 48px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.landscapeSubtitle {
+  max-width: 560px;
+  font-size: 16px;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+.behaviorHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  position: absolute;
+  top: calc(50% - 269px);
+  left: 50%;
+  width: 585px;
+  max-width: calc(100% - 48px);
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.behaviorTitle {
+  font-size: 32px;
+  line-height: 1.1;
+  letter-spacing: var(--text-h2-tracking);
+}
+
+.behaviorSubtitle {
+  max-width: 409px;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--color-text-white-muted);
+}
+
+.diagram {
+  position: absolute;
+  top: calc(50% - 73px);
+  left: 50%;
+  width: 1146px;
+  max-width: calc(100% - 48px);
+  transform: translateX(-50%);
+}
+
+@media (max-width: 767px) {
+  .section {
+    height: 1360px;
+    min-height: 1360px;
+  }
+
+  .sectionShader {
+    height: calc(1360px - 14svh);
+    min-height: calc(1360px - 14svh);
+  }
+
+  .landscapePane {
+    height: 640px;
+    min-height: 640px;
+  }
+
+  .behaviorPane {
+    top: 640px;
+    height: 720px;
+    min-height: 640px;
+  }
+
+  .sectionShader .behaviorPane {
+    top: calc(640px - 14svh);
+  }
+
+  .glassRoot {
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 0;
+  }
+
+  .landscapeTitle {
+    font-size: 36px;
+  }
+
+  .landscapeCopy {
+    text-align: left;
+  }
+
+  .behaviorHeader {
+    top: 96px;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .diagram {
+    top: 280px;
+    width: 792px;
+    max-width: none;
+  }
+}

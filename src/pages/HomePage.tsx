@@ -1,9 +1,8 @@
 import { HomePageVariantProvider, type HomePageVariant } from '../context/HomePageVariantContext'
-import { BehaviorLayersSection } from '../components/sections/BehaviorLayersSection'
+import { ModelBehaviorSection } from '../components/sections/ModelBehaviorSection'
 import { CtaBannerSection } from '../components/sections/CtaBannerSection'
 import { FooterSection } from '../components/sections/FooterSection'
 import { HeroSection } from '../components/sections/HeroSection'
-import { LandscapeSection } from '../components/sections/LandscapeSection'
 import { PredictionSection } from '../components/sections/PredictionSection'
 import { ProductsSection } from '../components/sections/ProductsSection'
 import { ProofSection } from '../components/sections/ProofSection'
@@ -21,8 +20,7 @@ function HomePageContent() {
       <ValuePropositionSection />
       <UseCasesSection />
       <PredictionSection />
-      <LandscapeSection />
-      <BehaviorLayersSection />
+      <ModelBehaviorSection />
       <ProductsSection />
       <ProofSection />
       <CtaBannerSection />
