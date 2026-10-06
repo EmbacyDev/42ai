@@ -1,0 +1,1214 @@
+:root {
+  --page: #ffffff;
+  --ink: #1a1b20;
+  /* UI chrome only (settings panel, editor/site switch) — the Site hero
+     keeps its own Figma-sourced fonts (Work Sans/42dot Sans/Inter). */
+  --panel-font: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--page);
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #1a1a1f;
+  overflow: hidden;
+}
+
+.stage {
+  position: fixed;
+  inset: 0;
+}
+
+/* ---------- Режим «Сайт»: во весь вьюпорт, без рамки с полями ---------- */
+
+/* Раньше здесь центрировали и ужимали .hero-frame внутри паддинга — из-за
+   этого вокруг сцены был виден серый фон стейджа и «сайт» читался как
+   вставленная картинка, а не как страница. Теперь .stage-site — просто
+   ещё один full-bleed контейнер, как .stage у редактора: .hero-frame
+   внутри него уже сам равен вьюпорту (ширина/высота приходят инлайном
+   из HeroFrame в App.jsx), тут только позиционирование. */
+.stage-site {
+  position: fixed;
+  inset: 0;
+}
+
+/* Общий якорь для Canvas и DOM-оверлея: оба — абсолютные дети этой
+   рамки, поэтому проценты в SiteHero.jsx (снятые с кадра 1440×800 в
+   Figma) ложатся в те же пропорции, что и в макете, при любом размере
+   окна — рамка просто масштабируется целиком. */
+.hero-frame {
+  /* width/height приходят инлайном из HeroFrame в App.jsx, посчитанные
+     в пикселях — см. комментарий там же про то, почему не 100vw/100vh
+     в CSS напрямую. Фон-градиент из Figma теперь рисует SiteBackdrop
+     внутри самого Canvas (см. App.jsx) — canvas там непрозрачный, так
+     что CSS-фон этого контейнера всё равно был бы не виден. */
+  position: relative;
+}
+
+.hero-frame > div {
+  /* Обёртка, которую сама рисует <Canvas> вокруг <canvas> — растягиваем
+     на всю рамку, R3F дальше сам подгонит под неё drawing buffer. */
+  position: absolute !important;
+  inset: 0;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Перспектива у каждой карточки СВОЯ (см. .hero-photo-slot), а не одна
+     общая здесь — раньше был именно общий perspective с perspective-origin
+     на кристалле, и это ломало rotateY у карточек, стоящих далеко сбоку
+     от этой точки: измеряла реально отрендеренные пропорции карточек —
+     при общей перспективе rotateY(35deg) у самой правой карточки почти
+     не менял соотношение сторон (0.98–1.07 вместо ожидаемых ~0.8), потому
+     что для точки схода в стороне поворот и «естественная» асимметрия
+     от смещения от центра проекции взаимно смешиваются непредсказуемо —
+     это не баг браузера, а поведение честной проективной проекции, но
+     оно не даёт того, что нужно: явного, предсказуемого 3D-разворота
+     каждой карточки на глаз. У своей перспективы на каждой карточке то
+     же rotateY(35deg) даёт чистые ~0.8 — ровно как в учебнике. */
+}
+
+/* Виньетирование по краям кадра — часть «ощущения пространства»: без
+   него все объекты просто наклеены на ровный фон, каждый сам по себе.
+   Радиальное затемнение к углам читается как рассеянный свет вокруг
+   кристалла и мягкая тень на периферии — то, что визуально связывает
+   кристалл и карточки в одну сцену, а не в набор наклеек. Значения
+   подобраны едва заметными специально — это должно ощущаться, а не
+   бросаться в глаза как отдельный элемент дизайна. */
+.hero-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(20, 20, 25, 0.05) 100%);
+}
+
+.hero-logo {
+  /* Временно не рендерится (см. SiteHero.jsx) — стиль оставлен на
+     случай, когда логотип вернут. Inter SemiBold 24px — узел «42AI» в
+     Figma (фрейм 1612-289). */
+  position: absolute;
+  left: 2.2%;
+  top: 4.5%;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  font-size: calc(24px * var(--frame-scale, 1));
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.hero-photo-slot {
+  position: absolute;
+  transform-style: preserve-3d;
+  /* Своя perspective на каждой карточке (не общая на .hero-overlay) —
+     perspective-origin по умолчанию 50% 50%, то есть центр КАЖДОЙ
+     карточки, а не общая точка на кристалле. Это даёт каждой карточке
+     чистый, предсказуемый rotateY/rotateX независимо от того, где она
+     стоит на экране (см. разбор в .hero-overlay) — угол наклона в
+     SiteHero.jsx один и тот же что для центральной, что для крайней
+     карточки читается как один и тот же градус поворота. Общее ощущение
+     «все смотрят на один объект» даёт не общая точка схода, а то, что
+     знак и величина rotateY у каждой карточки уже посчитаны из вектора
+     «карточка → кристалл» в SiteHero.jsx. */
+  perspective: 1300px;
+}
+
+.hero-photo-card {
+  width: 100%;
+  height: 100%;
+  /* Причина «то нет, то сильное» на самом деле в двух разных местах:
+     1) фиксированные px радиуса (было раньше) — то же число даёт разную
+        скруглённость в зависимости от размера карточки; проценты это
+        чинят сами по себе.
+     2) но у нас ещё и сильный per-card rotateY (до ~30°, см. tiltY в
+        SiteHero.jsx) — а это не просто плоское масштабирование, это
+        НАСТОЯЩАЯ перспектива: ближний к камере край угла проецируется
+        крупнее дальнего. Скруглённые углы на одной и той же карточке
+        после такой проекции превращаются из окружности в неодинаковые
+        по обе стороны дуги — один угол чуть круглее соседнего. При
+        крупном радиусе (12%) это было заметно и читалось как «случайные»
+        скругления от карточки к карточке. Меньший радиус (8%) не убирает
+        асимметрию полностью (это неотъемлемое свойство перспективы, а не
+        баг), но делает её достаточно маленькой, чтобы не бросаться в
+        глаза — сохраняя при этом сильный разворот, который просили не
+        трогать. */
+  border-radius: 8%;
+  overflow: hidden;
+  /* box-shadow и filter приходят инлайном из depthStyle() в SiteHero.jsx —
+     оба зависят от z каждой карточки, который здесь не виден. */
+  will-change: transform;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.hero-photo-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.hero-copy {
+  position: absolute;
+  left: 50%;
+  top: 63.5%;
+  transform: translateX(-50%);
+  width: min(60%, 620px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 22px;
+  pointer-events: none;
+}
+
+.hero-title {
+  margin: 0;
+  /* Work Sans Regular 38px, tracking -6% — снято прямо с текстового узла
+     в Figma (фрейм 1612-289). Размер считается от --frame-scale (см.
+     HeroFrame в App.jsx), не clamp()/vw — тот давал лишь примерную
+     пропорцию, а так при любом размере рамки сохраняется ровно то же
+     соотношение «кегль/ширина кадра», что и в макете. */
+  font-family: 'Work Sans', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  font-size: calc(38px * var(--frame-scale, 1));
+  line-height: 1.2;
+  letter-spacing: -0.06em;
+  color: var(--ink);
+}
+
+.hero-subtitle {
+  margin: 0;
+  /* 42dot Sans SemiBold 15px, line-height 175%, tracking -1% — оттуда же
+     (шрифт подключён через Google Fonts, см. index.html). */
+  font-family: '42dot Sans', Inter, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  font-size: calc(15px * var(--frame-scale, 1));
+  line-height: 1.75;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: #6b6c76;
+}
+
+.hero-cta {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  border-radius: 999px;
+  padding: 13px 22px;
+  background: var(--ink);
+  color: #f6f3ec;
+  /* 42dot Sans Bold 12px, tracking +2% — тот же узел «Request a demo». */
+  font-family: '42dot Sans', Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: calc(12px * var(--frame-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.hero-cta:hover {
+  background: #34353d;
+  transform: translateY(-1px);
+}
+
+.hero-cta span {
+  font-size: 1.1em;
+}
+
+/* Form controls (button/select/input) don't inherit text-transform from
+   an ancestor the way plain text does — the UA stylesheet resets it back
+   to `none` specifically on these elements (and on anything nested
+   inside them, since THAT reset is what they'd otherwise inherit from).
+   .control-panel/.mode-switch/.bookmarks-bar set uppercase + tight
+   tracking at the container level, which is enough for every span/div in
+   there, but every button/select/input needs it spelled out again here
+   for the exact same look to actually reach them too. */
+.mode-switch-btn,
+.panel-tab,
+.section-tab,
+.select-control,
+.bookmark-add,
+.bookmark-delete,
+.bookmark-thumb-fallback,
+.slider-pill-value {
+  text-transform: uppercase;
+  letter-spacing: -0.5px;
+}
+
+/* ---------- Переключатель «Редактор / Сайт» ---------- */
+
+.mode-switch {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #e9eaf1;
+  border-radius: 999px;
+  box-shadow: 0 12px 32px rgba(20, 20, 30, 0.12), 0 2px 8px rgba(20, 20, 30, 0.06);
+  font-family: var(--panel-font);
+  text-transform: uppercase;
+  letter-spacing: -0.5px;
+}
+
+.mode-switch-btn {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #5c5e68;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.mode-switch-btn:hover:not(.is-active) {
+  background: #f3f4f7;
+  color: #1d1e23;
+}
+
+.mode-switch-btn.is-active {
+  background: var(--ink);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* ---------- «Fire Light Ray» / «Clear» (Сайт) ----------
+   Своя плавающая пара кнопок снизу по центру — независимая от
+   .mode-switch (тот сверху слева) и не часть никакой панели настроек,
+   которой в «Сайте» вообще нет. См. RayLauncher в App.jsx. */
+.ray-controls {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  gap: 10px;
+}
+
+.ray-launch-btn,
+.ray-clear-btn {
+  padding: 12px 22px;
+  border: none;
+  border-radius: 999px;
+  font-family: var(--panel-font);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: -0.5px;
+  cursor: pointer;
+  box-shadow: 0 12px 32px rgba(20, 20, 30, 0.16), 0 2px 8px rgba(20, 20, 30, 0.08);
+  transition: background 120ms ease, transform 120ms ease, opacity 120ms ease;
+}
+
+.ray-launch-btn {
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.ray-launch-btn:hover:not(:disabled) {
+  background: #34353d;
+}
+
+.ray-launch-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Second-tier action — same pill shape, lighter fill so it doesn't
+   compete with "Fire Light Ray" as the primary action. */
+.ray-clear-btn {
+  background: #ffffff;
+  color: var(--ink);
+  border: 1px solid #e9eaf1;
+}
+
+.ray-clear-btn:hover {
+  background: #f3f4f7;
+}
+
+.ray-launch-btn:active:not(:disabled),
+.ray-clear-btn:active {
+  transform: scale(0.96);
+}
+
+/* ---------- Панель настроек (замена автопанели Leva) ---------- */
+
+/* Pinned to the top, not vertically centered — the panel should never
+   need an internal scrollbar (see .control-panel-body below), so its
+   height is however tall its content naturally is, not a fixed box a
+   scroll happens inside. `max-height` here is a last-resort safety net
+   (e.g. someone adding a dozen photos in Photos), not the normal budget:
+   every FIELD_GROUPS section in Panel.jsx is deliberately kept short
+   enough (see the comments there) that this cap shouldn't ever bite in
+   ordinary use. Narrower than the very first version too — 272px instead
+   of 320px. */
+.control-panel {
+  position: fixed;
+  top: 10px;
+  right: 14px;
+  width: 272px;
+  max-height: calc(100vh - 20px);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  background: #ffffff;
+  border: 1px solid #e9eaf1;
+  border-radius: 22px;
+  box-shadow: 0 24px 56px rgba(20, 20, 30, 0.14), 0 2px 10px rgba(20, 20, 30, 0.06);
+  overflow: hidden;
+  font-size: 13px;
+  font-family: var(--panel-font);
+  text-transform: uppercase;
+  letter-spacing: -0.5px;
+  color: #1d1e23;
+}
+
+.panel-tabs {
+  display: flex;
+  gap: 3px;
+  padding: 8px;
+  background: #f6f7fa;
+  border-bottom: 1px solid #ececf3;
+}
+
+.panel-tab {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #5c5e68;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.panel-tab:hover:not(.is-active) {
+  background: #eceef4;
+  color: #1d1e23;
+}
+
+.panel-tab.is-active {
+  background: var(--ink);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* ---------- Закладки (сохранённые виды) ----------
+   Своя плавающая полка снизу слева, независимая от .control-panel (тот
+   справа) и .mode-switch (тот сверху слева) — см. App.jsx. Каждая
+   закладка — квадратное превью кристалла (снимок канваса на момент
+   сохранения, см. CanvasCapture в App.jsx), а не текстовая плашка с
+   названием: с несколькими сохранёнными видами имя само по себе не даёт
+   узнать вид с первого взгляда так же хорошо, как то, как кристалл на
+   самом деле выглядел. */
+.bookmarks-bar {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #e9eaf1;
+  border-radius: 18px;
+  box-shadow: 0 12px 32px rgba(20, 20, 30, 0.12), 0 2px 8px rgba(20, 20, 30, 0.06);
+  font-family: var(--panel-font);
+  text-transform: uppercase;
+  letter-spacing: -0.5px;
+}
+
+.bookmark-chip {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.bookmark-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 1px solid #ececf3;
+  border-radius: 12px;
+  background: #f6f7fa;
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.bookmark-thumb:hover {
+  border-color: #c7c9d6;
+}
+
+.bookmark-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+/* Закладки, сохранённые до появления превью, или если снимок канваса не
+   удался (например, контекст WebGL временно потерян) — первая буква
+   имени вместо картинки, а не пустой квадрат. */
+.bookmark-thumb-fallback {
+  font-size: 15px;
+  font-weight: 500;
+  color: #6b6d78;
+}
+
+.bookmark-delete {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #e9eaf1;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #9a9ca6;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+/* Не только на hover самого крестика — иначе его пришлось бы сначала
+   "найти" мышью на невидимой кнопке. Наведение на всю плашку раскрывает
+   его. */
+.bookmark-chip:hover .bookmark-delete {
+  opacity: 1;
+}
+
+.bookmark-delete:hover {
+  color: #e0526b;
+  border-color: #e0526b;
+}
+
+.bookmark-add {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1.5px dashed #c7c9d6;
+  border-radius: 12px;
+  background: transparent;
+  color: #4a4c56;
+  font-size: 17px;
+  cursor: pointer;
+  line-height: 1;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.bookmark-add:hover {
+  border-color: #6b6d78;
+  background: #eceef2;
+}
+
+.control-panel-body {
+  flex: 1;
+  min-height: 0;
+  /* Скролл — аварийный случай (см. комментарий у .control-panel), не
+     обычный режим: каждый раздел в FIELD_GROUPS нарочно короткий и
+     физически помещается на экран без него. */
+  overflow-y: auto;
+  /* Не даёт скроллу «протекать» на страницу за пределами панели —
+     основная причина ощущения, что список иногда «не хочет» скролиться. */
+  overscroll-behavior: contain;
+  padding: 10px 12px 12px;
+}
+
+/* ---------- Вкладки разделов (Main/Edges/Light/Shatter/...) ----------
+   Вторая, более лёгкая строка вкладок под MaterialTabs (и под
+   PortalContentTabs, если это Portal) — открыт всегда ровно один раздел
+   (см. ControlPanel в Panel.jsx), поэтому список полей ниже — это
+   содержимое ОДНОЙ вкладки, а не всех сразу. Сама строка переносится на
+   несколько строк (flex-wrap), а не скролится вбок: при пяти-шести
+   разделах в узкой 272px панели горизонтальный скролл вкладок без
+   видимой подсказки был бы менее очевиден, чем перенос. */
+.section-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid #ececf3;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.section-tab {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 999px;
+  background: #f5f6f8;
+  color: #646774;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.section-tab:hover:not(.is-active) {
+  background: #eceef4;
+  color: #1d1e23;
+}
+
+.section-tab.is-active {
+  background: #e4e5ea;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.memory-mode-field,
+.memory-photo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.memory-mode-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.memory-mode-button,
+.memory-photo-upload {
+  min-height: 32px;
+  padding: 7px 10px;
+  border: 1px solid #e4e5ea;
+  border-radius: 999px;
+  background: #f5f6f8;
+  color: #646774;
+  font: inherit;
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.memory-mode-button:hover:not(.is-active),
+.memory-photo-upload:hover:not(.is-active) {
+  background: #eceef4;
+  color: var(--ink);
+}
+
+.memory-mode-button.is-active,
+.memory-photo-upload.is-active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.memory-photo-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.memory-photo-preset {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: #eceef4;
+  cursor: pointer;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.memory-photo-preset:hover {
+  transform: translateY(-1px);
+}
+
+.memory-photo-preset.is-active {
+  border-color: var(--ink);
+}
+
+.memory-photo-preset img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+}
+
+/* A run of unlabeled swatches in one row — see renderFields in Panel.jsx
+   (fields marked `bareSwatch: true`, e.g. Portal's five colors: nobody
+   tunes them by reading a label, only `center color` really matters, so
+   they don't get a labeled row each — just a compact strip of plain
+   squares, the field's `label` surviving only as each swatch's hover
+   title). Wraps rather than overflowing if the panel is ever narrower
+   than one row's worth of swatches. */
+.color-swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Bare swatch + its share slider, one row — see renderFields in
+   Panel.jsx (the colorN/colorNWeight pairs in Figure's Main group). */
+.color-share-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-share-row .slider-pill {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-label {
+  color: #4a4c56;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+/* Стрелки порядка цветов и сам свотч в одной строке. Кнопки те же,
+   что у счётчика количества цветов, — отдельного языка тут не нужно. */
+.color-order-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-count-control {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px;
+  border-radius: 10px;
+  background: #f2f3f7;
+}
+
+.color-count-button {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1d1e23;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.color-count-button:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.color-count-value {
+  width: 20px;
+  color: #1d1e23;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.gradient-color-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gradient-color-row {
+  display: grid;
+  grid-template-columns: 22px 1fr 28px 28px;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  background: #f2f3f7;
+  cursor: grab;
+  transition: opacity 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.gradient-color-row:active {
+  cursor: grabbing;
+}
+
+.gradient-color-row.is-dragging {
+  opacity: 0.42;
+}
+
+.gradient-color-row.is-drop-target {
+  border-color: #1d1e23;
+  transform: translateY(1px);
+}
+
+.color-drag-handle {
+  color: #8c8e98;
+  font-size: 18px;
+  line-height: 1;
+  text-align: center;
+  user-select: none;
+}
+
+.color-remove-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #5c5e68;
+  font: 400 19px/1 inherit;
+  cursor: pointer;
+}
+
+.color-remove-button:disabled,
+.color-add-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.color-add-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 42px;
+  border: 1px dashed #c7c9d2;
+  border-radius: 13px;
+  background: #ffffff;
+  color: #4a4c56;
+  font-family: inherit;
+  font-size: 12px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.color-add-button span {
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* ---------- Слайдер-«пилюля» ----------
+   Раньше слайдер был лейблом слева + узкой дорожкой с круглым бегунком
+   справа. Теперь весь ряд — одна широкая скруглённая полоса: лейбл и
+   значение — текст, лежащий ПОВЕРХ неё (лейбл слева, значение справа), а
+   текущая позиция отмечена тонкой вертикальной чертой вместо круглого
+   бегунка — см. референс во втором приложенном примере. */
+.slider-pill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 13px;
+  background: #f2f3f7;
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.slider-pill-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  /* Back to a light, translucent tint — solid black/dark-grey fills were
+     tried and both read as too heavy (and forced a mix-blend-mode text
+     trick just to stay legible on top of them, which this avoids
+     entirely: at 8% opacity the label/value can just be plain dark text
+     the whole row, filled or not). overflow:hidden on the parent still
+     clips this rectangle to the pill's rounding — no border-radius
+     needed here, which is why the fill's inner edge is a flat vertical
+     line rather than "a pill inside a pill". */
+  background: rgba(20, 20, 26, 0.08);
+  pointer-events: none;
+}
+
+.slider-pill-label {
+  position: relative;
+  z-index: 1;
+  font-size: 11px;
+  color: #4a4c56;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.slider-pill-value {
+  position: relative;
+  z-index: 1;
+  width: 52px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #1d1e23;
+  text-align: right;
+  padding: 0;
+  cursor: text;
+}
+
+.slider-pill-value:focus {
+  outline: none;
+}
+
+.color-swatch {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid rgba(20, 20, 30, 0.12);
+  box-shadow: inset 0 0 0 2px #ffffff, 0 0 0 1px #e3e5ec;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.color-swatch input[type='color'] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+.select-control {
+  border: 1px solid #e3e5ec;
+  border-radius: 8px;
+  background: #f6f7fa;
+  font-family: inherit;
+  font-size: 12px;
+  color: #1d1e23;
+  padding: 6px 8px;
+  cursor: pointer;
+  max-width: 168px;
+}
+
+.select-control:focus {
+  outline: none;
+  border-color: #6b6d78;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 36px;
+  height: 21px;
+  border-radius: 999px;
+  border: none;
+  background: #dcdee6;
+  cursor: pointer;
+  transition: background 150ms ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.toggle-switch.is-on {
+  background: var(--ink);
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(20, 20, 30, 0.3);
+  transition: transform 150ms ease;
+}
+
+.toggle-switch.is-on .toggle-thumb {
+  transform: translateX(15px);
+}
+
+/* ---------- Режим «Banner» ---------- */
+
+.banner-mode {
+  position: fixed;
+  inset: 0;
+}
+
+.banner-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f6f7fa;
+}
+
+/* width/height приходят инлайном из useBannerFrameSize в Banner.jsx,
+   посчитанные в пикселях — та же причина, что у .hero-frame в App.jsx
+   (см. комментарий там): CSS aspect-ratio у Canvas-контейнера иногда
+   меряется раньше, чем браузер досчитает раскладку. */
+.banner-frame {
+  position: relative;
+  background: #ffffff;
+}
+
+/* Страховка поверх BannerForceResize (Banner.jsx): R3F подгоняет РАЗРЕШЕНИЕ
+   канваса (атрибуты width/height, drawing buffer) под .banner-frame через
+   ResizeObserver — если та привязка на мгновение отстаёт (например, сразу
+   после смены формата), внутреннее разрешение канваса какое-то время не
+   совпадает с реальным размером рамки. Без явного CSS-размера сам элемент
+   <canvas> в этот момент показывается в СВОЁМ внутреннем разрешении
+   (маленький прямоугольник в углу рамки), а не растянутым на всю рамку.
+   width/height:100% здесь гарантируют, что видимый размер всегда равен
+   .banner-frame несмотря ни на что — в худшем случае на секунду смазанная
+   картинка вместо съехавшей в угол крошечной. */
+.banner-frame canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+.banner-panel-header {
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1d1e23;
+  border-bottom: 1px solid #ececf3;
+  background: #f6f7fa;
+  flex-shrink: 0;
+}
+
+.banner-section-label {
+  color: #4a4c56;
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+
+.aspect-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.aspect-btn {
+  padding: 7px 12px;
+  border: 1px solid #e3e5ec;
+  border-radius: 999px;
+  background: #f6f7fa;
+  color: #4a4c56;
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.aspect-btn:hover:not(.is-active) {
+  background: #eceef4;
+  color: #1d1e23;
+}
+
+.aspect-btn.is-active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+}
+
+.banner-download-btn {
+  margin-top: 4px;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 12px;
+  background: var(--ink);
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, opacity 120ms ease;
+}
+
+.banner-download-btn:hover:not(:disabled) {
+  background: #34353d;
+}
+
+.banner-download-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---------- Motion / Prism Flow ---------- */
+
+.motion-site-stage,
+.motion-site-frame {
+  position: absolute;
+  inset: 0;
+}
+
+.motion-site-stage {
+  background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
+}
+
+.motion-site-frame {
+  overflow: hidden;
+}
+
+.motion-site-frame canvas {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.motion-mode .banner-panel {
+  z-index: 30;
+}
+
+.motion-panel .banner-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.motion-panel-toggle {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid #e3e5ec;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--ink);
+  font: 500 16px/1 var(--panel-font);
+  cursor: pointer;
+}
+
+.motion-panel-toggle:hover {
+  background: #eceef4;
+}
+
+.motion-panel.is-collapsed {
+  bottom: auto;
+  width: auto;
+  min-width: 190px;
+}
+
+.motion-panel.is-collapsed .banner-panel-header {
+  border-bottom: 0;
+}
+
+.motion-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  border: 1px solid #e9eaf1;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 26px rgba(20, 20, 30, 0.1), 0 2px 6px rgba(20, 20, 30, 0.05);
+  color: #5c5e68;
+  font-family: var(--panel-font);
+  font-size: 9px;
+  letter-spacing: -0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.motion-upload-btn,
+.motion-secondary-btn {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e3e5ec;
+  border-radius: 10px;
+  background: #f6f7fa;
+  color: #33353d;
+  font: inherit;
+  font-size: 11.5px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.motion-upload-btn:hover,
+.motion-secondary-btn:hover {
+  border-color: #ced1da;
+  background: #eceef4;
+}
+
+.motion-upload-btn input {
+  display: none;
+}
+
+.motion-photo-count {
+  margin-top: -2px;
+  color: #8a8c95;
+  font-size: 10px;
+  text-align: center;
+}
+
+.motion-secondary-btn {
+  margin-top: -3px;
+  background: #ffffff;
+}
+
+.motion-record-btn {
+  margin-top: 0;
+  background: #ffffff;
+  color: var(--ink);
+  border: 1px solid #e3e5ec;
+}
+
+.motion-record-btn:hover:not(:disabled) {
+  background: #eceef4;
+}
