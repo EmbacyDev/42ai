@@ -1,0 +1,421 @@
+.physics-behavior-section {
+  --physics-reveal: 0;
+  --physics-descent: 0;
+  --physics-copy: 0;
+  --physics-focus: 0;
+  --physics-state-one: 0;
+  --physics-state-two: 0;
+  --physics-state-three: 0;
+  --physics-state-four: 0;
+  --physics-clean-frame: 0;
+  --physics-portal: 0;
+  --physics-portal-field: 0;
+  --physics-portal-scale: 0.72;
+  --physics-portal-blur: 18px;
+  --physics-state-one-copy: 0;
+  --physics-state-two-copy: 0;
+  --physics-state-three-copy: 0;
+  --physics-state-four-copy: 0;
+  --physics-state-one-rail: 0;
+  --physics-state-two-rail: 0;
+  --physics-state-three-rail: 0;
+  --physics-state-four-rail: 0;
+  --physics-state-one-offset: 28px;
+  --physics-state-two-offset: -28px;
+  --physics-state-three-offset: 28px;
+  --physics-state-four-offset: -28px;
+  position: relative;
+  width: 100%;
+  height: 900vh;
+  height: 900svh;
+  overflow-x: clip;
+  background-color: #ffffff;
+  background-image: none;
+  color: #121212;
+  font-family: 'Season Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.physics-behavior-section__sticky {
+  position: sticky;
+  z-index: 31;
+  top: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
+  /* The introductory copy is viewport-fixed so it can fade in at its final
+     position while the section itself is still completing the 3→4 handoff. */
+  overflow: visible;
+  background: transparent;
+}
+
+.physics-behavior-section__state-rail {
+  position: absolute;
+  z-index: 41;
+  top: 299px;
+  left: 153px;
+  display: flex;
+  width: 252px;
+  height: 200px;
+  margin: 0;
+  padding: 16px 9px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: min(
+    1,
+    calc(
+      var(--physics-state-one-copy)
+      + var(--physics-state-two-copy)
+      + var(--physics-state-three-copy)
+      + var(--physics-state-four-copy)
+    )
+  );
+  list-style: none;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.physics-behavior-section__state-rail-item {
+  display: flex;
+  height: 36px;
+  padding: 8px 20px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  border-radius: 0;
+  color: rgba(106, 106, 106, 0.8);
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.65px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  transition: color 240ms ease, background-color 240ms ease;
+}
+
+.physics-behavior-section__state-rail-item:nth-child(1) { width: 200px; }
+.physics-behavior-section__state-rail-item:nth-child(2) { width: 234px; }
+.physics-behavior-section__state-rail-item:nth-child(3) { width: 175px; }
+.physics-behavior-section__state-rail-item:nth-child(4) { width: 116px; }
+
+.physics-behavior-section__state-rail-item--one {
+  background-color: rgb(18 18 18 / var(--physics-state-one-rail));
+  color: rgb(
+    calc(106 + 149 * var(--physics-state-one-rail))
+    calc(106 + 149 * var(--physics-state-one-rail))
+    calc(106 + 149 * var(--physics-state-one-rail))
+    / calc(0.8 + 0.2 * var(--physics-state-one-rail))
+  );
+}
+
+.physics-behavior-section__state-rail-item--two {
+  background-color: rgb(18 18 18 / var(--physics-state-two-rail));
+  color: rgb(
+    calc(106 + 149 * var(--physics-state-two-rail))
+    calc(106 + 149 * var(--physics-state-two-rail))
+    calc(106 + 149 * var(--physics-state-two-rail))
+    / calc(0.8 + 0.2 * var(--physics-state-two-rail))
+  );
+}
+
+.physics-behavior-section__state-rail-item--three {
+  background-color: rgb(18 18 18 / var(--physics-state-three-rail));
+  color: rgb(
+    calc(106 + 149 * var(--physics-state-three-rail))
+    calc(106 + 149 * var(--physics-state-three-rail))
+    calc(106 + 149 * var(--physics-state-three-rail))
+    / calc(0.8 + 0.2 * var(--physics-state-three-rail))
+  );
+}
+
+.physics-behavior-section__state-rail-item--four {
+  background-color: rgb(18 18 18 / var(--physics-state-four-rail));
+  color: rgb(
+    calc(106 + 149 * var(--physics-state-four-rail))
+    calc(106 + 149 * var(--physics-state-four-rail))
+    calc(106 + 149 * var(--physics-state-four-rail))
+    / calc(0.8 + 0.2 * var(--physics-state-four-rail))
+  );
+}
+
+.physics-behavior-section__copy {
+  position: fixed;
+  z-index: 40;
+  top: 144px;
+  left: 50%;
+  display: flex;
+  width: min(1076px, calc(100vw - 48px));
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  opacity: var(--physics-copy);
+  transform: translate3d(-50%, 0, 0);
+  text-align: center;
+  will-change: transform, opacity;
+}
+
+.physics-behavior-section__copy .physics-behavior-section__eyebrow {
+  margin: 0;
+  color: #7c8083;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.physics-behavior-section__copy h2 {
+  margin: 0;
+  width: min(1076px, 100%);
+  color: #121212;
+  -webkit-text-fill-color: currentColor;
+  font-family: "TT Hoves Pro Trial Variable", sans-serif;
+  font-size: 42px;
+  font-weight: 450;
+  line-height: 1.15;
+  letter-spacing: -0.84px;
+}
+
+.physics-behavior-section__copy p {
+  margin: 0;
+  width: min(650px, 100%);
+  color: #7c8083;
+  font-family: "42dot Sans", sans-serif;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: -0.17px;
+}
+
+.physics-behavior-section__state {
+  position: absolute;
+  z-index: 40;
+  display: flex;
+  width: min(301px, calc(100vw - 48px));
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+  color: #121110;
+  text-align: left;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.physics-behavior-section__state--one {
+  top: 453px;
+  left: calc(50% + 266px);
+  right: auto;
+  opacity: var(--physics-state-one-copy);
+  transform: translate3d(0, 0, 0);
+}
+
+.physics-behavior-section__state--two {
+  top: 453px;
+  left: calc(50% + 266px);
+  opacity: var(--physics-state-two-copy);
+  transform: translate3d(0, 0, 0);
+}
+
+.physics-behavior-section__state--three {
+  top: 453px;
+  left: calc(50% + 266px);
+  opacity: var(--physics-state-three-copy);
+  transform: translate3d(0, 0, 0);
+}
+
+.physics-behavior-section__state--four {
+  top: 453px;
+  left: calc(50% + 266px);
+  opacity: var(--physics-state-four-copy);
+  transform: translate3d(0, 0, 0);
+}
+
+.physics-behavior-section__state h3 {
+  margin: 0;
+  color: #121212;
+  font-family: "TT Hoves Pro Trial Variable", sans-serif;
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: -0.64px;
+  white-space: nowrap;
+}
+
+.physics-behavior-section__state p {
+  width: 301px;
+  max-width: 100%;
+  margin: 12px 0 0;
+  color: rgba(0, 0, 0, 0.6);
+  font-family: "42dot Sans", sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.24;
+  letter-spacing: 0;
+}
+
+/* Figma 450:6576. This is the final zoom target for the crystal rather
+   than a new hard cut: it grows from the gem's centre after the clean
+   450:5855 frame, then becomes the first frame of block five. */
+.physics-behavior-section__portal {
+  position: absolute;
+  z-index: 42;
+  top: 40px;
+  right: 80px;
+  bottom: 40px;
+  left: 80px;
+  overflow: hidden;
+  border-radius: 24px;
+  background:
+    radial-gradient(ellipse 62% 112% at 61% 18%, rgba(105, 255, 160, 0.72) 0%, rgba(129, 241, 177, 0.36) 31%, rgba(168, 237, 206, 0) 68%),
+    radial-gradient(ellipse 70% 115% at 96% 61%, rgba(126, 206, 230, 0.82) 0%, rgba(159, 224, 235, 0.44) 40%, rgba(210, 241, 241, 0) 72%),
+    radial-gradient(ellipse 68% 100% at 20% 90%, rgba(255, 255, 255, 0.98) 0%, rgba(246, 251, 251, 0.74) 44%, rgba(231, 246, 247, 0) 78%),
+    linear-gradient(103deg, #eaf8f7 0%, #e5f3f6 46%, #d4f0ee 100%);
+  opacity: var(--physics-portal-field);
+  filter: blur(var(--physics-portal-blur));
+  transform: scale(var(--physics-portal-scale));
+  transform-origin: 50% 50%;
+  pointer-events: none;
+  will-change: opacity, filter, transform;
+}
+
+.physics-behavior-section__portal::after {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 48% 75% at 42% 42%, rgba(255, 255, 255, 0.22), transparent 72%),
+    radial-gradient(ellipse 34% 56% at 68% 76%, rgba(55, 194, 128, 0.18), transparent 75%);
+  content: '';
+}
+
+.physics-behavior-section__portal-dot {
+  position: absolute;
+  z-index: 1;
+  width: 6.6px;
+  height: 6.6px;
+  border-radius: 50%;
+  background: rgba(44, 69, 70, calc(0.11 + var(--portal-dot-delay) * 0.012));
+  transform: translate(-50%, -50%);
+}
+
+@media (max-width: 1050px) {
+  .physics-behavior-section__state-rail {
+    left: 32px;
+  }
+
+  .physics-behavior-section__state {
+    width: min(340px, calc(100vw - 64px));
+  }
+
+  .physics-behavior-section__state--one,
+  .physics-behavior-section__state--two,
+  .physics-behavior-section__state--three,
+  .physics-behavior-section__state--four {
+    right: 32px;
+    left: auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .physics-behavior-section__copy {
+    top: 116px;
+    width: calc(100vw - 32px);
+  }
+
+  .physics-behavior-section__copy h2 {
+    font-size: clamp(30px, 8vw, 42px);
+  }
+
+  .physics-behavior-section__copy p {
+    font-size: 16px;
+  }
+
+  .physics-behavior-section__state,
+  .physics-behavior-section__state--one,
+  .physics-behavior-section__state--two,
+  .physics-behavior-section__state--three,
+  .physics-behavior-section__state--four {
+    top: 96px;
+    right: auto;
+    left: 24px;
+    width: calc(100vw - 48px);
+  }
+
+  .physics-behavior-section__state-rail {
+    top: auto;
+    bottom: 28px;
+    left: 24px;
+    width: calc(100vw - 48px);
+    flex-flow: row wrap;
+    gap: 2px;
+    opacity: min(
+      1,
+      calc(
+        var(--physics-state-one-copy)
+        + var(--physics-state-two-copy)
+        + var(--physics-state-three-copy)
+        + var(--physics-state-four-copy)
+      )
+    );
+    transform: none;
+  }
+
+  .physics-behavior-section__state h3 {
+    font-size: 22px;
+    white-space: normal;
+  }
+
+  .physics-behavior-section__state p {
+    font-size: 16px;
+  }
+
+  .physics-behavior-section__portal {
+    top: 24px;
+    right: 20px;
+    bottom: 24px;
+    left: 20px;
+    border-radius: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .physics-behavior-section {
+    --physics-reveal: 1 !important;
+    --physics-descent: 1 !important;
+    --physics-copy: 0 !important;
+    --physics-focus: 1 !important;
+    --physics-state-one: 0 !important;
+    --physics-state-two: 0 !important;
+    --physics-state-three: 0 !important;
+    --physics-state-four: 1 !important;
+    --physics-clean-frame: 1 !important;
+    --physics-portal: 1 !important;
+    --physics-portal-field: 1 !important;
+    --physics-portal-scale: 1 !important;
+    --physics-portal-blur: 0px !important;
+    --physics-state-one-copy: 0 !important;
+    --physics-state-two-copy: 0 !important;
+    --physics-state-three-copy: 0 !important;
+    --physics-state-four-copy: 1 !important;
+    --physics-state-one-offset: 0 !important;
+    --physics-state-two-offset: 0 !important;
+    --physics-state-three-offset: 0 !important;
+    --physics-state-four-offset: 0 !important;
+    height: 100vh;
+    height: 100svh;
+  }
+
+  .physics-behavior-section__copy {
+    transform: translate3d(-50%, 0, 0);
+    will-change: auto;
+  }
+
+  .physics-behavior-section__portal {
+    filter: none;
+  }
+}

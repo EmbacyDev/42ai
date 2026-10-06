@@ -1,0 +1,605 @@
+.world-model-section {
+  --world-expansion: 0;
+  --world-glow: 0;
+  --world-ripple-b: 0;
+  --world-ripple-c: 0;
+  --world-tail-enter: 0;
+  --world-exit: 0;
+  --world-absorb: 0;
+  --world-bloom-opacity: 1;
+  --world-hole: 0px;
+  --world-hole-feather: 26px;
+  --world-core-glow: 0;
+  --world-copy-reveal: 0;
+  --world-copy-exit: 0;
+  --world-rim-x: 0.5px;
+  --world-rim-y: 0.5px;
+  --world-mask-x: 50%;
+  --world-mask-y: 50%;
+  --world-soft-radius: 0.5px;
+  --world-mid-radius: 0.5px;
+  --world-core-radius: 0.5px;
+  --world-cloud-radius: 0.5px;
+  --world-cloud-offset-x: 0px;
+  --world-cloud-offset-y: 0px;
+  --world-cloud-b-radius: 0.5px;
+  --world-cloud-b-offset-x: 0px;
+  --world-cloud-b-offset-y: 0px;
+  --world-cloud-c-radius: 0.5px;
+  --world-cloud-c-offset-x: 0px;
+  --world-cloud-c-offset-y: 0px;
+  --world-glow-radius: 0.5px;
+  --world-main-alpha: 0.42;
+  --world-main-mid-alpha: 0.3;
+  --world-main-soft-alpha: 0.07;
+  position: relative;
+  width: 100%;
+  /* The copy drum is driven by the wheel, and the page is held at the
+     reading rest. This only has to stay tall enough for the colour field
+     to remain open there (progress ≈ 0.63, under the 0.82 ceiling) and
+     for the 3→4 flight to cover about one and a half viewports. The old
+     500svh was empty distance that flight had to cross. */
+  height: 160vh;
+  height: 160svh;
+  /* The ripples grow to 155vmax and the field/glass overhang the pane, so
+     without this the page gains ~500px of horizontal scroll the moment the
+     drop opens and everything jumps sideways. `clip`, not `hidden`: hidden
+     would make this a scroll container and break the sticky pane inside,
+     and unlike `hidden` it needs no stacking context, so the glass stays
+     above the page crystal (see __sticky below). */
+  overflow-x: clip;
+  /* Neutral, uncoloured pane. All of the crystal colour lives in the
+     growing field, so the glass reads as clear frost until that field
+     actually opens behind it. */
+  background: #ffffff;
+  color: #fff;
+  font-family: 'Season Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.world-model-section__sticky {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
+  /* `position: sticky` creates a stacking context on its own, whether or
+     not anything else here asks for one — so every z-index inside this
+     pane is scoped to it, and the pane as a whole used to land below the
+     page crystal's canvas (z-index 30). That is what put the mesh ON TOP
+     of its own colour bloom and made it read as a second crystal: the
+     frost and the field were painting behind it, not over it.
+     31 puts the whole pane just above that canvas, which is the
+     behaviour the rest of this file assumes — the crystal goes under the
+     frost as it lands, gets blurred by it, and is then covered by the
+     colour as the drop opens. */
+  z-index: 0;
+  opacity: 1;
+}
+
+/* During the short 2↔3 flight the real sticky element is still travelling
+   across the section boundary. Hold its transparent effects surface over the
+   viewport so the gradient/crystal transition remains continuous and no
+   horizontal edge of either section can appear. */
+.world-model-section--handoff-cover .world-model-section__sticky {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
+  z-index: 31;
+  pointer-events: none;
+}
+
+.world-model-section--open .world-model-section__sticky {
+  z-index: 31;
+}
+
+/* The colour field stays in front of the crystal. A soft hole opens on
+   the mesh so it remains visible while the remaining colour spirals into
+   a vortex that sits on the crystal's face. */
+.world-model-section__field {
+  position: absolute;
+  z-index: 1;
+  inset: -6%;
+  pointer-events: none;
+  opacity: var(--world-bloom-opacity);
+  will-change: opacity;
+}
+
+.world-model-section--gathering .world-model-section__sticky {
+  /* Colour field stays behind the crystal; the vortex portal sits in
+     front of the mesh so the last of the colour flies into a beam. */
+  z-index: 28;
+}
+
+/* The final image always occupies one stable full-screen surface. Only its
+   soft alpha mask grows. This avoids the large inverse-scaled texture that
+   WebKit could temporarily rasterise as translucent rectangular tiles. */
+.world-model-section__bloom {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background-image: url('/images/world-model/field-gradient.jpg?v=5');
+  background-repeat: no-repeat;
+  /* A wider crop diffuses the source image without filtering the masked
+     surface itself (which can expose GPU tiles during the hand-off). */
+  background-size: 172% 172%;
+  background-position: 42% 44%;
+  background-color: #14967a;
+  -webkit-mask-image: radial-gradient(
+      ellipse var(--world-rim-x) var(--world-rim-y) at var(--world-mask-x) var(--world-mask-y),
+      rgb(255 255 255 / var(--world-main-alpha)) 0 var(--world-core-radius),
+      rgb(255 255 255 / var(--world-main-mid-alpha)) var(--world-mid-radius),
+      rgb(255 255 255 / var(--world-main-soft-alpha)) var(--world-soft-radius),
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse var(--world-cloud-radius) calc(var(--world-cloud-radius) * 0.72) at calc(50% + var(--world-cloud-offset-x)) calc(50% + var(--world-cloud-offset-y)),
+      rgba(255, 255, 255, 0.38) 0,
+      rgba(255, 255, 255, 0.16) 48%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse calc(var(--world-cloud-b-radius) * 0.82) var(--world-cloud-b-radius) at calc(50% + var(--world-cloud-b-offset-x)) calc(50% + var(--world-cloud-b-offset-y)),
+      rgba(255, 255, 255, 0.3) 0,
+      rgba(255, 255, 255, 0.12) 52%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse calc(var(--world-cloud-c-radius) * 1.15) calc(var(--world-cloud-c-radius) * 0.7) at calc(50% + var(--world-cloud-c-offset-x)) calc(50% + var(--world-cloud-c-offset-y)),
+      rgba(255, 255, 255, 0.26) 0,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 100%
+    );
+  mask-image: radial-gradient(
+      ellipse var(--world-rim-x) var(--world-rim-y) at var(--world-mask-x) var(--world-mask-y),
+      rgb(255 255 255 / var(--world-main-alpha)) 0 var(--world-core-radius),
+      rgb(255 255 255 / var(--world-main-mid-alpha)) var(--world-mid-radius),
+      rgb(255 255 255 / var(--world-main-soft-alpha)) var(--world-soft-radius),
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse var(--world-cloud-radius) calc(var(--world-cloud-radius) * 0.72) at calc(50% + var(--world-cloud-offset-x)) calc(50% + var(--world-cloud-offset-y)),
+      rgba(255, 255, 255, 0.38) 0,
+      rgba(255, 255, 255, 0.16) 48%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse calc(var(--world-cloud-b-radius) * 0.82) var(--world-cloud-b-radius) at calc(50% + var(--world-cloud-b-offset-x)) calc(50% + var(--world-cloud-b-offset-y)),
+      rgba(255, 255, 255, 0.3) 0,
+      rgba(255, 255, 255, 0.12) 52%,
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse calc(var(--world-cloud-c-radius) * 1.15) calc(var(--world-cloud-c-radius) * 0.7) at calc(50% + var(--world-cloud-c-offset-x)) calc(50% + var(--world-cloud-c-offset-y)),
+      rgba(255, 255, 255, 0.26) 0,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 100%
+    );
+  -webkit-mask-mode: alpha;
+  mask-mode: alpha;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-composite: source-over;
+  mask-composite: add;
+  pointer-events: none;
+  /* A slightly deeper field gives the now-solid white copy enough
+     contrast while preserving the crystal palette. */
+  filter:
+    brightness(0.84)
+    saturate(calc(1.4 + var(--world-absorb) * 0.08))
+    contrast(1.06);
+  animation: world-model-gradient-drift 8.5s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+  /* Do not scale or blur this large masked texture. Promoting it as one
+     transformed GPU surface can expose rectangular raster tiles during the
+     fast light hand-offs. The mask radii and compact core supply the same
+     suction without a rectangular compositing layer. */
+  will-change: background-position;
+}
+
+/* The Pinterest reference moves like illuminated liquid rather than a
+   rotating texture. Two over-sized, heavily blurred planes drift at
+   different speeds, so their intersections continuously redraw the light
+   without ever exposing a geometric edge or a rectangular mask. */
+.world-model-section__bloom::before,
+.world-model-section__bloom::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.world-model-section__bloom::before {
+  z-index: 1;
+  inset: -32%;
+  background:
+    radial-gradient(ellipse 28% 36% at 18% 78%, rgba(186, 255, 226, 0.38) 0%, rgba(52, 198, 158, 0.34) 22%, rgba(18, 150, 118, 0.2) 48%, transparent 72%),
+    radial-gradient(ellipse 46% 54% at 74% 38%, rgba(36, 118, 214, 0.78), transparent 74%),
+    radial-gradient(ellipse 36% 34% at 61% 76%, rgba(46, 190, 150, 0.58), transparent 76%),
+    linear-gradient(122deg, transparent 26%, rgba(110, 220, 180, 0.3) 42%, rgba(32, 170, 138, 0.16) 52%, transparent 65%);
+  opacity: 0.7;
+  mix-blend-mode: screen;
+  filter: blur(54px) saturate(1.08);
+  transform-origin: 48% 52%;
+  animation: world-model-light-flow 7.2s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate;
+}
+
+.world-model-section__bloom::after {
+  z-index: 2;
+  inset: -38%;
+  background:
+    radial-gradient(ellipse 52% 58% at 77% 24%, rgba(2, 38, 88, 0.78), transparent 72%),
+    radial-gradient(ellipse 48% 40% at 31% 27%, rgba(6, 108, 88, 0.28), transparent 74%),
+    linear-gradient(132deg, transparent 34%, rgba(8, 112, 92, 0.2) 51%, transparent 68%);
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  filter: blur(74px) saturate(1.2);
+  transform-origin: 54% 47%;
+  animation: world-model-shadow-flow 10.4s cubic-bezier(0.42, 0, 0.58, 1) infinite alternate;
+}
+
+@keyframes world-model-gradient-drift {
+  0% {
+    background-position: 24% 34%;
+  }
+
+  48% {
+    background-position: 76% 50%;
+  }
+
+  100% {
+    background-position: 34% 72%;
+  }
+}
+
+@keyframes world-model-light-flow {
+  0% {
+    transform: translate3d(-13%, 6%, 0) rotate(-9deg) scale(1.02, 1.12);
+  }
+
+  52% {
+    transform: translate3d(6%, -9%, 0) rotate(4deg) scale(1.13, 1.01);
+  }
+
+  100% {
+    transform: translate3d(15%, 9%, 0) rotate(12deg) scale(1.03, 1.15);
+  }
+}
+
+@keyframes world-model-shadow-flow {
+  0% {
+    transform: translate3d(13%, -9%, 0) rotate(10deg) scale(1.12, 1.01);
+  }
+
+  50% {
+    transform: translate3d(-5%, 8%, 0) rotate(-4deg) scale(1.01, 1.13);
+  }
+
+  100% {
+    transform: translate3d(-14%, -3%, 0) rotate(-12deg) scale(1.14, 1.04);
+  }
+}
+
+/* Light leaves the crystal toward the camera before the colour field
+   opens. It is mounted on the body, above the page crystal, and grows
+   from a point inside the gem until it fills the view. */
+.world-model-flash {
+  --world-flash: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 36;
+  pointer-events: none;
+}
+
+.world-model-flash__core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 64vmin;
+  height: 64vmin;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(calc(0.04 + var(--world-flash) * 2.7));
+  background: radial-gradient(circle,
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(255, 255, 255, 0.72) 10%,
+    rgba(186, 255, 244, 0.7) 22%,
+    rgba(72, 214, 196, 0.38) 40%,
+    rgba(90, 170, 230, 0.12) 58%,
+    transparent 74%);
+  box-shadow: 0 0 70px 28px rgba(170, 255, 236, 0.28);
+  filter: blur(calc(4px + var(--world-flash) * 10px));
+  opacity: var(--world-flash);
+}
+
+.world-model-flash--inward .world-model-flash__core {
+  transform: translate(-50%, -50%) scale(calc(2.15 - var(--world-gather, 0) * 2));
+  filter: blur(calc(16px - var(--world-gather, 0) * 12px));
+  opacity: var(--world-flash);
+}
+
+/* Sits above the bloom so the field's darkening filter cannot swallow it.
+   Opacity follows the open, so it does not leave a patch while the colour
+   is still a small halo. */
+.world-model-section__corner-light {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--world-expansion);
+  background: radial-gradient(
+    ellipse 92% 52% at 10% 0%,
+    rgba(236, 255, 248, 0.97) 0 16%,
+    rgba(184, 248, 214, 0.9) 32%,
+    rgba(110, 214, 180, 0.42) 56%,
+    transparent 80%
+  );
+}
+
+/* A travelling light source sits above the colour field. Its hot white core
+   remains just outside the lower-left edge, while cyan and green spill into
+   the pane like the reference glow. Keeping the layer oversized and blurred
+   prevents any rectangular raster edge from becoming visible. */
+.world-model-section__expansion-glow {
+  position: absolute;
+  z-index: 3;
+  inset: -8%;
+  background:
+    radial-gradient(ellipse 36% 48% at -22% 118%, rgba(210, 255, 236, 0.42) 0 12%, rgba(48, 204, 162, 0.34) 28%, rgba(14, 148, 118, 0.22) 52%, transparent 74%),
+    linear-gradient(43deg, rgba(140, 245, 210, 0.16) -4%, rgba(28, 176, 145, 0.14) 22%, rgba(10, 132, 108, 0.1) 41%, transparent 62%);
+  opacity: calc(var(--world-glow) * 0.18 + var(--world-copy-reveal) * 0.38);
+  mix-blend-mode: screen;
+  filter: blur(58px) saturate(1.45);
+  transform-origin: -4% 104%;
+  animation: world-model-glow-drift 6.4s cubic-bezier(0.42, 0, 0.58, 1) infinite alternate;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+@keyframes world-model-glow-drift {
+  0% {
+    transform: translate3d(-5%, 5%, 0) scale(1.06, 1.1) rotate(-2deg);
+  }
+
+  52% {
+    transform: translate3d(2%, -1%, 0) scale(1.14, 1.04) rotate(1deg);
+  }
+
+  100% {
+    transform: translate3d(7%, -6%, 0) scale(1.08, 1.14) rotate(3deg);
+  }
+}
+
+/* A compact coloured flare joins the shrinking field to the crystal's
+   silhouette. It uses the field's own cyan and cool-green palette and lives
+   behind the mesh, so no detached grey ring can cover its glass faces. */
+.world-model-section__field::after {
+  content: '';
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 50%;
+  width: min(24vmin, 190px);
+  height: min(24vmin, 190px);
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 38% 42%, rgb(255 255 255 / 0.92), transparent 37%),
+    radial-gradient(ellipse at 64% 34%, rgb(132 245 224 / 0.88), transparent 60%),
+    radial-gradient(ellipse at 34% 68%, rgb(78 174 255 / 0.8), transparent 62%),
+    radial-gradient(ellipse at 70% 72%, rgb(126 230 176 / 0.78), transparent 58%);
+  opacity: var(--world-core-glow);
+  transform: translate(-50%, -50%) scale(calc(1.7 - var(--world-absorb) * 1.45));
+  filter: blur(calc(9px - var(--world-absorb) * 5px)) saturate(1.35);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.world-model-section__ripples {
+  display: none;
+}
+
+.world-model-section__ripple {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* Same radius the colour reveal uses, so the leading ring rides the
+     edge of the spreading colour instead of running its own race; the
+     other two trail it on their delayed --ripple values. Slightly under
+     2x so the ring sits in the middle of the soft rim rather than out
+     past the end of it.
+     Fixed size, grown with `scale`. Sizing these off --ripple instead
+     re-ran layout every frame on three boxes up to 3000px across, right
+     in the middle of the one animation that has to stay smooth.
+     The stroke now thins as the ring expands, which is how a real ripple
+     behaves anyway — hence the fatter base widths below. */
+  width: calc(var(--drop-radius, 160vmax) * 1.9);
+  height: calc(var(--drop-radius, 160vmax) * 1.9);
+  border-radius: 50%;
+  translate: -50% -50%;
+  scale: var(--ripple);
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 0 4px rgba(90, 170, 200, 0.07),
+    0 0 56px rgba(210, 250, 255, 0.22),
+    inset 0 0 38px rgba(255, 255, 255, 0.1);
+  filter: blur(52px);
+  /* Fades right out as it expands, the way a real ripple does. Holding
+     it at 0.35 at full size left a white arc parked across the bottom of
+     narrow viewports, where 155vmax still lands inside the screen. */
+  opacity: calc((1 - var(--ripple)) * 0.07);
+  will-change: scale, opacity;
+}
+
+.world-model-section__ripple--a {
+  --ripple: var(--world-expansion);
+  border-width: 4px;
+}
+
+.world-model-section__ripple--b {
+  --ripple: var(--world-ripple-b);
+}
+
+.world-model-section__ripple--c {
+  --ripple: var(--world-ripple-c);
+  border-width: 3px;
+}
+
+.world-model-section__dots {
+  position: absolute;
+  z-index: 42;
+  left: -6.83%;
+  top: -46.44%;
+  width: 109.87%;
+  height: 201.25%;
+  max-width: none;
+  object-fit: fill;
+  pointer-events: none;
+  opacity: 0;
+  display: none;
+  mix-blend-mode: screen;
+  filter: blur(1.2px);
+}
+
+.world-model-section__copy {
+  position: absolute;
+  z-index: 44;
+  top: 50%;
+  left: 50%;
+  width: min(780px, calc(100vw - 48px));
+  height: 1px;
+  max-width: calc(100vw - 48px);
+  margin: 0;
+  transform: translate(-50%, -50%);
+  font-family: "TT Hoves Pro Trial Variable", sans-serif;
+  font-size: 52px;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: -1.56px;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  /* The text belongs to the giant gradient crystal, not to a small sphere
+     inside it. JS replaces this fallback with a radius derived from the
+     viewport diagonal, keeping the surface beyond every screen corner. */
+  --cylinder-radius: 112vh;
+  --cylinder-step: 6.6;
+}
+
+/* Perspective is only visible while rows are rolling. At rest the facing
+   paragraph is a flat stack sitting on the screen plane. */
+.world-model-section__drum {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 1px;
+  perspective: 120vh;
+  perspective-origin: 50% 50%;
+  transform-style: preserve-3d;
+}
+
+/* Both thoughts share one cylinder. Each block only establishes the common
+   axis; the ticker writes every row's rotateX/translateZ from its live wheel
+   slot, so Y, Z, perspective scale and facing angle all stay coupled. */
+.world-model-section__copy-block {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: max-content;
+  max-width: 100%;
+  transform: translate3d(-50%, -50%, calc(var(--cylinder-radius) * -1));
+  transform-style: preserve-3d;
+}
+
+.world-model-section__copy-block--head {
+  width: min(780px, calc(100vw - 48px));
+}
+
+.world-model-section__copy-block--tail {
+  width: min(768px, calc(100vw - 48px));
+  pointer-events: none;
+}
+
+.world-model-section__line {
+  --line-visibility: 0;
+  grid-area: 1 / 1;
+  display: block;
+  white-space: nowrap;
+  text-align: center;
+  color: #ffffff;
+  -webkit-text-fill-color: currentColor;
+  transform-origin: center center;
+  opacity: calc(
+    var(--world-copy-reveal)
+    * (1 - var(--world-copy-exit))
+    * var(--line-visibility)
+  );
+  will-change: transform, opacity, filter;
+}
+
+.world-model-section__copy-block--head .world-model-section__line,
+.world-model-section__copy-block--tail .world-model-section__line {
+  background: none;
+}
+
+
+@media (max-width: 900px) {
+  .world-model-section__copy-block--tail {
+    width: calc(100vw - 48px);
+  }
+}
+
+@media (max-width: 680px) {
+  .world-model-section__copy {
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+    font-size: clamp(28px, 7vw, 52px);
+    line-height: 1.25;
+    letter-spacing: -0.03em;
+    white-space: normal;
+  }
+
+  .world-model-section__line {
+    white-space: normal;
+    max-width: calc(100vw - 32px);
+  }
+
+  .world-model-section__copy-block--tail {
+    width: min(768px, calc(100vw - 32px));
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .world-model-section {
+    --world-expansion: 1 !important;
+    --world-glow: 0 !important;
+    --world-ripple-b: 1 !important;
+    --world-ripple-c: 1 !important;
+    --world-tail-enter: 1 !important;
+    --world-exit: 0 !important;
+    --world-absorb: 0 !important;
+    --world-bloom-opacity: 1 !important;
+    --world-copy-reveal: 1 !important;
+    --world-copy-exit: 0 !important;
+  }
+
+  .world-model-section__line {
+    filter: none !important;
+  }
+
+  .world-model-section__bloom,
+  .world-model-section__bloom::before,
+  .world-model-section__bloom::after,
+  .world-model-section__expansion-glow {
+    animation: none !important;
+  }
+
+}

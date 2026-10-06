@@ -1,0 +1,15 @@
+.scroll-reveal {
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+
+.scroll-reveal.is-in {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal {
+    opacity: 1;
+    transition: none;
+  }
+}

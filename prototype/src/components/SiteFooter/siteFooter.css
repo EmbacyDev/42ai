@@ -1,0 +1,130 @@
+.site-footer {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 460px;
+  padding: 69px 0 40px;
+  background: #000000;
+  color: rgba(254, 254, 254, 0.6);
+  -webkit-font-smoothing: antialiased;
+}
+
+.site-footer__inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 28px;
+  width: min(1126px, calc(100% - 80px));
+  min-height: 353px;
+  margin: 0 auto;
+}
+
+.site-footer__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.site-footer__group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 250px;
+}
+
+.site-footer__group--end {
+  width: 277px;
+}
+
+.site-footer__nav a {
+  color: rgba(254, 254, 254, 0.6);
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.28px;
+  line-height: 1.2;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.site-footer__nav a:hover,
+.site-footer__nav a:focus-visible {
+  color: rgba(254, 254, 254, 0.9);
+}
+
+.site-footer__mark {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1128.27 / 239.504;
+}
+
+.site-footer__mark img:first-child {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.site-footer__iris {
+  position: absolute;
+  top: 28.46%;
+  left: 33.37%;
+  width: 4.63%;
+  height: auto;
+}
+
+.site-footer__chip {
+  position: absolute;
+  top: 15.8%;
+  left: 40.65%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 12.8%;
+  padding: 0 1.36%;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #000000;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: clamp(8px, 0.9vw, 10px);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.site-footer__mark::after {
+  content: "";
+  position: absolute;
+  right: -8%;
+  bottom: -6%;
+  left: -8%;
+  height: 38%;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, #000000 78%);
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  .site-footer {
+    min-height: 0;
+    padding-top: 48px;
+  }
+
+  .site-footer__inner {
+    width: min(1126px, calc(100% - 40px));
+    min-height: 0;
+  }
+
+  .site-footer__nav {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .site-footer__group,
+  .site-footer__group--end {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 28px;
+  }
+}
