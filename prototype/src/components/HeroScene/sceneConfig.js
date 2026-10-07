@@ -1,11 +1,9 @@
 export const sceneConfig = {
   background: '#f7f7f6',
-  // The tuned crystal is rendered in a second, transparent full-screen
-  // WebGL canvas. At DPR 2 this hero canvas alone costs 4 physical pixels
-  // per CSS pixel, then the crystal canvas adds another full-screen pass.
-  // Capping the supporting portrait scene at 1.5 keeps its photographs
-  // crisp while leaving enough GPU time for the crystal's shader motion.
-  dprCap: 1.25,
+  // Portraits live on this canvas; the crystal shader is a separate one
+  // with its own pixel ratio. Cap at the screen's density so the
+  // photographs stay as sharp as the DOM type beside them.
+  dprCap: 2,
   /** The Figma frame the portrait placement is read from. */
   design: {
     width: 1440,

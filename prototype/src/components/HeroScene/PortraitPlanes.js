@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { alignFieldEdges, placeOnSphere } from './placement.js'
-
-const loader = new THREE.TextureLoader()
+import { rasterizeHeroCard } from './rasterizeHeroCard.js'
 
 function createSoftShadowTexture() {
   const size = 128
@@ -30,33 +29,40 @@ function createSoftShadowTexture() {
 const softShadowTexture = createSoftShadowTexture()
 
 /**
- * A flat plane whose opaque pixels land on the Figma mask box.
+ * A plane for one region of the SVG sheet.
  *
- * The export is larger than the card: a transparent margin around the
- * skewed, rounded photograph. The plane grows by that margin, then shifts
- * so the opaque centre — not the file centre — sits on the mask centre.
+ * `mask` is the photograph, and it is fitted to the Figma rect. `region`
+ * is either that photo plus its drop shadow, or the whole sheet (so the
+ * UI chip, which hangs off the photo, stays in the same place). The mesh
+ * origin stays on the mask centre.
  */
-function buildBakedPlane(placed, pad) {
-  const opaqueW = pad.maxX - pad.minX + 1
-  const opaqueH = pad.maxY - pad.minY + 1
-  const planeW = placed.width * (pad.imgW / opaqueW)
-  const planeH = placed.height * (pad.imgH / opaqueH)
-  const geometry = new THREE.PlaneGeometry(planeW, planeH)
-  const dx = ((pad.minX + pad.maxX) / 2 - pad.imgW / 2) / pad.imgW * planeW
-  const dy = -(((pad.minY + pad.maxY) / 2 - pad.imgH / 2) / pad.imgH) * planeH
-  geometry.translate(-dx, -dy, 0)
+function planeForRegion(placed, mask, region) {
+  const sx = placed.width / mask.w
+  const sy = placed.height / mask.h
+  const geometry = new THREE.PlaneGeometry(region.w * sx, region.h * sy)
+  const dx = (region.x + region.w / 2 - (mask.x + mask.w / 2)) * sx
+  const dy = -((region.y + region.h / 2 - (mask.y + mask.h / 2)) * sy)
+  geometry.translate(dx, dy, 0)
   return geometry
 }
 
-function prepareTexture(texture) {
+function textureFromCanvas(canvas) {
+  const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
   texture.wrapS = THREE.ClampToEdgeWrapping
   texture.wrapT = THREE.ClampToEdgeWrapping
-  texture.anisotropy = 8
-  // The whole file, padding included. Cropping to the plane would shift
-  // the opaque card off the mask box the plane was sized for.
-  texture.repeat.set(1, 1)
-  texture.offset.set(0, 0)
+  texture.anisotropy = 16
+  texture.needsUpdate = true
+  return texture
+}
+
+function cropTextureToRegion(texture, sheet, region) {
+  const x = Math.max(0, region.x)
+  const y = Math.max(0, region.y)
+  const w = Math.min(sheet.w, region.x + region.w) - x
+  const h = Math.min(sheet.h, region.y + region.h) - y
+  texture.repeat.set(w / sheet.w, h / sheet.h)
+  texture.offset.set(x / sheet.w, 1 - (y + h) / sheet.h)
   texture.needsUpdate = true
 }
 
@@ -68,7 +74,9 @@ function createPlane(item, placed, nearness) {
   const quaternion = new THREE.Quaternion()
 
   const frame = { width: placed.width, height: placed.height }
-  const geometry = buildBakedPlane(placed, item.pad)
+  const sheet = item.sheet
+  const mask = item.mask
+  const geometry = planeForRegion(placed, mask, item.crop)
 
   const material = new THREE.MeshBasicMaterial({
     color: '#ffffff',
@@ -117,6 +125,21 @@ function createPlane(item, placed, nearness) {
   shadow.renderOrder = -1
   mesh.add(shadow)
 
+  // The chip is not a texture on this canvas. The portrait buffer is capped
+  // below the screen's pixel density, which turns the small type to mush.
+  // This anchor is the sheet centre, so a DOM copy of the SVG can sit in
+  // the same place and be rasterised by the browser at full resolution.
+  const uiAnchor = new THREE.Object3D()
+  const sheetCx = sheet.w / 2
+  const sheetCy = sheet.h / 2
+  const maskCx = mask.x + mask.w / 2
+  const maskCy = mask.y + mask.h / 2
+  const sx = placed.width / mask.w
+  const sy = placed.height / mask.h
+  uiAnchor.position.set((sheetCx - maskCx) * sx, -((sheetCy - maskCy) * sy), 0.004)
+  uiAnchor.scale.setScalar(placed.width / item.rect.width)
+  mesh.add(uiAnchor)
+
   mesh.userData.base = {
     position: position.clone(),
     quaternion: quaternion.clone(),
@@ -128,6 +151,11 @@ function createPlane(item, placed, nearness) {
   mesh.userData.cardId = item.id
   mesh.userData.shadowMaterial = shadowMaterial
   mesh.userData.cleanMaterial = cleanMaterial
+  mesh.userData.uiAnchor = uiAnchor
+  mesh.userData.uiPixelSize = {
+    width: sheet.w * item.rect.width / mask.w,
+    height: sheet.h * item.rect.height / mask.h,
+  }
   mesh.userData.baseMaterialColor = material.color.clone()
   // Loading-screen entrance: null until `reveal()` (see
   // createPortraitPlanes below) stamps a start time on it. updateAmbient
@@ -141,7 +169,7 @@ function createPlane(item, placed, nearness) {
   mesh.userData.hoverTarget = 0
   mesh.userData.hoverDim = 0
   mesh.userData.hoverPointer = { x: 0, y: 0 }
-  mesh.userData.planeAspect = item.pad.imgW / item.pad.imgH
+  mesh.userData.planeAspect = mask.w / mask.h
   mesh.userData.size = frame
   mesh.renderOrder = 2 + nearness
   // Chips follow the exported skew. The photograph itself is flat, so the
@@ -195,27 +223,23 @@ export function createPortraitPlanes(items, sphere, onProgress = () => {}) {
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
     const plane = built[i]
-    loader.load(
-      item.src,
-      (texture) => {
-        if (disposed) {
-          texture.dispose()
-          return
-        }
-        prepareTexture(texture)
-        plane.material.map = texture
+    rasterizeHeroCard(item.src)
+      .then(({ photo }) => {
+        if (disposed) return
+        const photoTexture = textureFromCanvas(photo)
+        cropTextureToRegion(photoTexture, item.sheet, item.crop)
+        plane.material.map = photoTexture
         plane.material.needsUpdate = true
-        plane.object.userData.cleanMaterial.map = texture
+        plane.object.userData.cleanMaterial.map = photoTexture
         plane.object.userData.cleanMaterial.needsUpdate = true
-        textures.push(texture)
+        textures.push(photoTexture)
         reportSettled()
-      },
-      undefined,
-      () => {
+      })
+      .catch(() => {
+        if (disposed) return
         plane.material.color.set('#dedbd6')
         reportSettled()
-      }
-    )
+      })
   }
 
   return {

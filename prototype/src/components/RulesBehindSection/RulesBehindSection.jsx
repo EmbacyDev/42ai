@@ -41,7 +41,7 @@ export default function RulesBehindSection() {
   return (
     <section className="rules-section" aria-labelledby="rules-behind-heading" ref={rootRef}>
       <div className="rules-section__panel">
-        <div className="rules-section__field scroll-reveal" data-reveal="0" aria-hidden="true">
+        <div className="rules-section__field" aria-hidden="true">
           {DOTS.map((dot) => (
             <span
               key={`${dot.x}-${dot.y}`}
@@ -56,7 +56,7 @@ export default function RulesBehindSection() {
             </span>
           ))}
         </div>
-        <h2 id="rules-behind-heading" className="rules-section__title scroll-reveal" data-reveal="1">
+        <h2 id="rules-behind-heading" className="rules-section__title">
           42AI learns the rules behind behaviour.
         </h2>
       </div>

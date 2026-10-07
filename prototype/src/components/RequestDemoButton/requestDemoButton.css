@@ -19,6 +19,7 @@
   transition: width 0.26s cubic-bezier(0.45, 0, 0.55, 1);
 }
 
+.request-demo--hot,
 .request-demo:hover,
 .request-demo:focus-visible {
   width: var(--demo-hover-width);

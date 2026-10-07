@@ -28,7 +28,7 @@ export const BLOCK24_PHOTO_HEIGHT = 370
 export const BLOCK24_CONTENT_TOP = 123
 export const BLOCK24_CONTENT_BOTTOM = 860
 /** Inactive rail cards. The tab drum uses the same height. */
-export const BLOCK24_INACTIVE_CARD_HEIGHT = 270.24
+export const BLOCK24_INACTIVE_CARD_HEIGHT = 346
 /** Vertical centre of the 336×400 active card (top 219). */
 export const BLOCK24_HERO_CENTER_Y = 419
 
@@ -49,15 +49,17 @@ export function layoutBlock24(width, height) {
   const safeHeight = Math.max(1, h - safeTop)
   const contentHeight = BLOCK24_CONTENT_BOTTOM - BLOCK24_CONTENT_TOP
   const contentCenter = (BLOCK24_CONTENT_TOP + BLOCK24_CONTENT_BOTTOM) / 2
-  // The active card stays centred. Only two inactive cards remain visible
-  // at rest now; the following one enters from outside the viewport during
-  // a transition. Do not shrink the whole composition to reserve permanent
-  // room for that hidden card.
+  // The active card stays centred. Fit the industry list and the first
+  // side card; the card after that leaves through the right edge. Shrinking
+  // the whole block so that second card stayed fully inside made the photo
+  // and the type too small on laptops.
   const heroCenter = 720.5
-  const secondRight = 1180 + 227
-  const edgeBreathingRoom = 24
+  const menuLeft = 128
+  const firstCardRight = 920.5 + 290
+  const edgeInset = 20
+  const horizontalSpan = Math.max(heroCenter - menuLeft, firstCardRight - heroCenter)
   const heightScale = Math.max(1, safeHeight - BLOCK24_MIN_GAP * 2) / contentHeight
-  const edgeScale = w / (2 * (secondRight + edgeBreathingRoom - heroCenter))
+  const edgeScale = (w - edgeInset * 2) / (2 * horizontalSpan)
   const scale = Math.min(heightScale, edgeScale)
   const originX = w / 2 - heroCenter * scale
   let originY = safeTop + safeHeight / 2 - contentCenter * scale
@@ -69,6 +71,12 @@ export function layoutBlock24(width, height) {
   if (contentBottom > h - BLOCK24_MIN_GAP) {
     originY -= contentBottom - (h - BLOCK24_MIN_GAP)
   }
+  const secondCardRight = 920.5 + 322 + 290
+  const railOverflow = originX + secondCardRight * scale - w
+  // Figma links sit at x=160 inside the 1440 frame (11% of the width).
+  // Pin that to the viewport, so a wider window keeps the same fraction
+  // instead of parking the list a fixed distance from the centred photo.
+  const tabTextLeft = (160 / BLOCK24_DESIGN_WIDTH) * w
   const crystalCenterY = originY + BLOCK24_DESIGN_CRYSTAL_CENTER_Y * scale
   const crystalTop = crystalCenterY - BLOCK24_CRYSTAL_HIT / 2
   const photoY = originY + 219 * scale
@@ -91,6 +99,8 @@ export function layoutBlock24(width, height) {
     headerReserve: BLOCK24_HEADER_HEIGHT,
     crystalTop,
     crystalCenterY,
+    tabTextLeft,
+    railFade: Math.max(0, railOverflow + 56),
     photoY,
     tabsTop: tabsY - originY,
     labelY: originY + 353 * scale,
@@ -113,6 +123,8 @@ export function applyBlock24Layout(section) {
     section.style.setProperty('--block24-tabs-top', `${layout.tabsTop.toFixed(1)}px`)
     section.style.setProperty('--block24-label-top', `${layout.labelTop}px`)
     section.style.setProperty('--block24-exit-origin-y', `${layout.crystalCenterY}px`)
+    section.style.setProperty('--block24-tab-text-left', `${layout.tabTextLeft.toFixed(1)}px`)
+    section.style.setProperty('--block24-rail-fade', `${layout.railFade.toFixed(1)}px`)
   }
   return layout
 }

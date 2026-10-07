@@ -5,6 +5,7 @@ import { createCrystalLight } from './crystalLight.js'
 import { createPortraitPlanes } from './PortraitPlanes.js'
 import { createParallax } from './parallax.js'
 import { createChipLayer } from './chipLayer.js'
+import { createCardUiLayer } from './cardUiLayer.js'
 import { updateAmbient } from './ambientMotion.js'
 import { startRenderLoop } from './renderLoop.js'
 import { bindResize } from './responsive.js'
@@ -198,6 +199,12 @@ export function mountHeroScene({
   const chips = createChipLayer({
     labels,
     cardsById: planes.byId,
+    camera: sceneApi.camera,
+    element,
+  })
+  const cardUi = createCardUiLayer({
+    meshes: planes.meshes,
+    sources: portraits.map((item) => item.src),
     camera: sceneApi.camera,
     element,
   })
@@ -566,6 +573,7 @@ export function mountHeroScene({
       })
       sceneApi.rig.updateMatrixWorld()
       chips.update(viewport.width, viewport.height)
+      cardUi.update(viewport.width, viewport.height)
       const frontBeamActive = crystalLight.isFrontActive?.() ?? false
       if (frontLayerActive || frontBeamActive) {
         for (const mesh of planes.meshes) {
@@ -598,6 +606,7 @@ export function mountHeroScene({
     window.removeEventListener('pointermove', updateHoveredCard)
     window.removeEventListener('blur', clearHoveredCard)
     chips.dispose()
+    cardUi.dispose()
     planes.dispose()
     crystal.dispose()
     crystalLight.dispose()

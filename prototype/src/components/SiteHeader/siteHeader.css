@@ -50,6 +50,7 @@
   display: block;
   width: 105.714px;
   height: 40px;
+  transition: filter 0.32s ease;
 }
 
 .site-header__links {
@@ -106,6 +107,9 @@ html.on-world-model .site-header__glyph--scramble {
   --demo-shape-width: 146.3px;
   flex: none;
   color: #ffffff;
+  transition:
+    width 0.26s cubic-bezier(0.45, 0, 0.55, 1),
+    color 0.32s ease;
   font-family: "Geist Mono", ui-monospace, monospace;
   font-size: 13px;
   font-weight: 500;
@@ -123,6 +127,32 @@ html.on-world-model .site-header__glyph--scramble {
 
 .site-header__cta .request-demo__shape path {
   fill: #121212;
+  transition: fill 0.32s ease;
+}
+
+/* Last block and the footer are #121212. Swap the header: black marks
+   become white, and the white label on the demo button becomes black. */
+.site-header--on-dark .site-header__logo img {
+  filter: invert(1);
+}
+
+.site-header--on-dark .site-header__links a,
+.site-header--on-dark .site-header__glyph--scramble,
+html.on-world-model .site-header--on-dark .site-header__links a,
+html.on-world-model .site-header--on-dark .site-header__glyph--scramble {
+  color: #ffffff;
+}
+
+.site-header--on-dark .site-header__cta.request-demo {
+  color: #121212;
+}
+
+.site-header--on-dark .site-header__cta .request-demo__shape path {
+  fill: #ffffff;
+}
+
+.site-header--on-dark .site-header__cta:focus-visible {
+  outline-color: #ffffff;
 }
 
 .site-header__cta:focus-visible {

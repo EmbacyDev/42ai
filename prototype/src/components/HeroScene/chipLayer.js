@@ -150,7 +150,7 @@ export function createChipLayer({ labels, cardsById, camera, element }) {
  * flips leave the world untouched — flipping both ends of one matrix
  * instead would put a spurious mirror in the middle.
  */
-function cssMatrix(matrix, isCamera) {
+export function cssMatrix(matrix, isCamera) {
   const e = matrix.elements
   const s = isCamera
     ? [e[0], -e[1], e[2], e[3], e[4], -e[5], e[6], e[7], e[8], -e[9], e[10], e[11], e[12], -e[13], e[14], e[15]]

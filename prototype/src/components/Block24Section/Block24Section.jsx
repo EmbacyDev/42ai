@@ -14,8 +14,20 @@ import PhotoRail3D, {
   BLOCK24_CARD_PHASES,
   BLOCK24_CARD_TRANSITION_DURATION,
 } from './PhotoRail3D.jsx'
-import brokeragesQualityPhoto from '../../../assets/block 2-images/For Brokerages & Market Makers.jpg'
-import aiLabsQualityPhoto from '../../../assets/block 2-images/For AI Labs & Robotics.jpg'
+import brokeragesPhoto from '../../../assets/block 2-images/Brokerages & Market Makers.jpg'
+import marketsRiskPhoto from '../../../assets/block 2-images/Markets & Risk.jpg'
+import almTreasuryPhoto from '../../../assets/block 2-images/ALM & Treasury.jpg'
+import aiLabsPhoto from '../../../assets/block 2-images/AI Labs & Robotics.jpg'
+import hedgeFundsPhoto from '../../../assets/block 2-images/Hedge Funds &  Asset Managers.jpg'
+import personalizedAiPhoto from '../../../assets/block 2-images/Personalized AI.jpg'
+import simulationPhoto from '../../../assets/block 2-images/Simulation & Decision Systems.jpg'
+import brokeragesCover from '../../../assets/block 2-images/default covers/Brokerages & Market Makers.jpg'
+import marketsRiskCover from '../../../assets/block 2-images/default covers/Markets & Risk.jpg'
+import almTreasuryCover from '../../../assets/block 2-images/default covers/ALM & Treasury.jpg'
+import aiLabsCover from '../../../assets/block 2-images/default covers/AI Labs & Robotics.jpg'
+import hedgeFundsCover from '../../../assets/block 2-images/default covers/Hedge Funds &  Asset Managers.jpg'
+import personalizedAiCover from '../../../assets/block 2-images/default covers/Personalized AI.jpg'
+import simulationCover from '../../../assets/block 2-images/default covers/Simulation & Decision Systems.jpg'
 import './block24Section.css'
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin)
@@ -42,51 +54,51 @@ const studioEase = (t) => smootherstep(t)
 const SLIDES = [
   {
     id: 'brokerages',
-    image: brokeragesQualityPhoto,
+    image: brokeragesPhoto,
+    cover: brokeragesCover,
     tab: 'Brokerages & Market Makers',
-    labelColor: '#121212',
     title: 'Know what every trader will do before they act.',
   },
   {
     id: 'markets-risk',
-    image: aiLabsQualityPhoto,
+    image: marketsRiskPhoto,
+    cover: marketsRiskCover,
     tab: 'Markets & Risk',
-    labelColor: '#ffffff',
     title: 'Predicts financial book’s exposure before it arrives.',
   },
   {
     id: 'alm-treasury',
-    image: brokeragesQualityPhoto,
+    image: almTreasuryPhoto,
+    cover: almTreasuryCover,
     tab: 'ALM & Treasury',
-    labelColor: '#121212',
     title: 'Turn the client-side of your balance sheet predictable.',
   },
   {
     id: 'ai-labs-robotics',
-    image: aiLabsQualityPhoto,
+    image: aiLabsPhoto,
+    cover: aiLabsCover,
     tab: 'AI Labs & Robotics',
-    labelColor: '#121212',
     title: 'Give AI human intuition and simulate real reactions.',
   },
   {
     id: 'hedge-funds',
-    image: brokeragesQualityPhoto,
+    image: hedgeFundsPhoto,
+    cover: hedgeFundsCover,
     tab: 'Hedge Funds & Asset Managers',
-    labelColor: '#ffffff',
     title: 'Alternative alpha in human behaviour.',
   },
   {
     id: 'personalized-ai',
-    image: aiLabsQualityPhoto,
+    image: personalizedAiPhoto,
+    cover: personalizedAiCover,
     tab: 'Personalized AI',
-    labelColor: '#ffffff',
     title: 'Know who to target, what to offer, when to say it, and why.',
   },
   {
     id: 'simulation-decision',
-    image: brokeragesQualityPhoto,
+    image: simulationPhoto,
+    cover: simulationCover,
     tab: 'Simulation & Decision Systems',
-    labelColor: '#ffffff',
     title: 'Simulate real human reactions.',
   },
 ]
@@ -934,17 +946,6 @@ export default function Block24Section({
             src={heroReady ? activeSlide.image : undefined}
             alt=""
           />
-          <button
-            className="block24-section__glass"
-            type="button"
-            disabled={isExiting || !contentReady || Boolean(flight)}
-            onClick={() => moveBy(1)}
-            aria-label="Show next solution"
-          >
-            <svg viewBox="0 0 6 10" aria-hidden="true">
-              <path d="M1 1.2 L4.7 5 L1 8.8" />
-            </svg>
-          </button>
         </div>
 
         <PhotoRail3D

@@ -15,6 +15,16 @@
   font-display: swap;
 }
 
+/* Figma's body copy is 42dot Sans. It previously fell through to the
+   browser's generic sans-serif because the actual font was not bundled. */
+@font-face {
+  font-family: "42dot Sans";
+  src: url("/fonts/42dotSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 * {
   box-sizing: border-box;
 }

@@ -310,8 +310,12 @@ export function updateAmbient(meshes, time, delta, transition) {
     // has nearly reached its seat, then fade them in. On the way back they
     // leave first, before the photograph itself moves.
     const chipHome = 1 - THREE.MathUtils.smoothstep(fly, 0, 0.28)
+    // The chip is a DOM copy of the SVG, so it cannot ride the front-canvas
+    // flight without sliding under the photograph. Keep it fully hidden
+    // until the card has landed, then let the DOM layer fade it in. On the
+    // way back it still leaves first.
     mesh.userData.chipReveal = entrance.active
-      ? THREE.MathUtils.smoothstep(entrance.linearProgress, 0.78, 1)
+      ? 0
       : (mesh.userData.hasRevealed ? chipHome : 0)
     if (mesh.userData.shadowMaterial) {
       // A card does not cast its external drop shadow while it is still

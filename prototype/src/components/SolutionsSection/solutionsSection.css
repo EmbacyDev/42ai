@@ -1,9 +1,14 @@
 .solutions-section {
+  position: relative;
+  z-index: 1;
   box-sizing: border-box;
   width: 100%;
-  padding: 144px 40px 40px;
+  /* Sit up against the block-five card so the heading is already in view
+     when that rectangle has landed, instead of a screen later. */
+  margin-top: -140px;
+  padding: 48px 40px 80px;
   background: #ffffff;
-  color: #291c16;
+  color: #121212;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -11,29 +16,29 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: min(1076px, 100%);
+  width: min(957px, 100%);
   margin: 0 auto;
 }
 
 .solutions-section__title {
   margin: 0;
-  color: #291c16;
+  color: #121212;
   font-family: "TT Hoves Pro Trial Variable", sans-serif;
-  font-size: 40px;
+  font-size: 42px;
   font-weight: 400;
-  letter-spacing: -0.8px;
-  line-height: 1.1;
+  letter-spacing: -0.84px;
+  line-height: 1.15;
   text-align: center;
 }
 
 .solutions-section__lead {
   width: min(862px, 100%);
   margin: 24px 0 0;
-  color: rgba(0, 0, 0, 0.6);
+  color: #7c8083;
   font-family: "42dot Sans", sans-serif;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 400;
-  letter-spacing: -0.36px;
+  letter-spacing: -0.17px;
   line-height: 1.4;
   text-align: center;
 }
@@ -44,7 +49,6 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 48px;
   margin-top: 40px;
   padding: 6px;
   border-radius: 116px;
@@ -56,9 +60,12 @@
   align-items: center;
   justify-content: center;
   height: 36px;
+  margin: 0;
   padding: 8px 20px;
+  border: 0;
   border-radius: 57px;
-  color: rgba(106, 106, 106, 0.8);
+  background: transparent;
+  color: #7c8083;
   font-family: "Geist Mono", ui-monospace, monospace;
   font-size: 13px;
   font-weight: 500;
@@ -66,149 +73,102 @@
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .solutions-section__tab--active {
-  background: #000000;
+  background: #121212;
   color: #ffffff;
 }
 
-.solutions-section__stage {
-  position: relative;
-  width: min(1118px, 100%);
-  height: 274px;
-  margin: 80px auto 0;
-  perspective: 840px;
-  perspective-origin: 50% 50%;
+.solutions-section__tab:focus-visible {
+  outline: 2px solid #121212;
+  outline-offset: 2px;
 }
 
-.solutions-section__slot {
-  --center: 0;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 472px;
-  height: 274px;
-  margin: 0;
-  pointer-events: none;
-  transform-style: preserve-3d;
-}
-
-.solutions-section__card-bg {
-  position: absolute;
-  inset: 0;
-  border-radius: 8px;
-  opacity: var(--center);
-  background:
-    radial-gradient(ellipse 90% 80% at 78% 8%, rgba(255, 206, 224, 0.9) 0%, rgba(255, 206, 224, 0) 58%),
-    radial-gradient(ellipse 80% 90% at 18% 92%, rgba(186, 220, 255, 0.85) 0%, rgba(186, 220, 255, 0) 60%),
-    radial-gradient(ellipse 55% 70% at 88% 78%, rgba(210, 232, 186, 0.75) 0%, rgba(210, 232, 186, 0) 55%),
-    radial-gradient(ellipse 40% 50% at 48% 40%, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 70%),
-    #f0f1f2;
-}
-
-.solutions-section__chart {
-  position: absolute;
-  top: 24px;
-  left: 24px;
-  display: block;
-  width: 40px;
-  height: 40px;
-  opacity: var(--center);
-}
-
-.solutions-section__card-copy {
-  position: absolute;
-  top: 50%;
-  left: 24px;
+.solutions-section__panel {
   display: flex;
+  align-items: flex-start;
+  gap: 56px;
+  width: min(957px, 100%);
+  margin: 32px auto 0;
+}
+
+.solutions-section__envelope {
+  display: block;
+  flex: 0 0 auto;
+  width: 267px;
+  height: 312px;
+  object-fit: cover;
+  border-radius: 7px;
+}
+
+.solutions-section__list {
+  display: flex;
+  flex: 1;
   flex-direction: column;
-  width: 326px;
+  gap: 40px;
+  min-width: 0;
 }
 
-.solutions-section__kicker {
-  max-height: calc(17px * var(--center));
-  margin: 0 0 calc(16px * var(--center));
-  overflow: hidden;
-  color: rgba(0, 0, 0, 0.5);
-  font-family: "Geist Mono", ui-monospace, monospace;
-  font-size: 13px;
-  font-weight: 400;
-  letter-spacing: 0.65px;
-  line-height: 1;
-  text-transform: uppercase;
-  opacity: var(--center);
-}
-
-.solutions-section__slot h3 {
-  width: 100%;
-  margin: 0;
-  color: #000000;
-  font-family: "TT Hoves Pro Trial Variable", sans-serif;
-  font-size: calc(28px + 4px * var(--center));
-  font-weight: 400;
-  letter-spacing: calc(-0.28px - 0.04px * var(--center));
-  line-height: calc(1.1 + 0.04 * var(--center));
-  opacity: calc(0.22 + 0.78 * var(--center));
-}
-
-.solutions-section__progress {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  width: max-content;
-  margin: 91px auto 0;
-  padding: 7.5px 10px;
-  border-radius: 37.5px;
-  background: rgba(0, 0, 0, 0.05);
-  backdrop-filter: blur(17px);
-}
-
-.solutions-section__progress button {
-  position: relative;
-  display: block;
+.solutions-section__list ul {
   margin: 0;
   padding: 0;
-  border: 0;
-  cursor: pointer;
-  appearance: none;
+  list-style: none;
 }
 
-.solutions-section__progress button::before {
-  content: "";
-  position: absolute;
-  inset: -12px -4px;
+.solutions-section__list li {
+  padding: 24px 0;
+  border-top: 1px solid rgba(128, 128, 128, 0.2);
+  color: #121212;
+  font-family: "TT Hoves Pro Trial Variable", sans-serif;
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: -0.52px;
+  line-height: 1.25;
 }
 
-.solutions-section__progress button:focus-visible {
-  outline: 2px solid #000000;
-  outline-offset: 4px;
+.solutions-section__list li:first-child {
+  border-top: 0;
 }
 
-.solutions-section__progress-fill {
-  width: 26px;
-  height: 5px;
-  border-radius: 25px;
-  background: #000000;
+.solutions-section__more.request-demo {
+  align-self: flex-start;
+  color: #121212;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.75px;
+  line-height: 1.1;
+  text-transform: uppercase;
 }
 
-.solutions-section__progress-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.3);
+.solutions-section__more .request-demo__shape path {
+  fill: #f0f1f2;
 }
 
 @media (max-width: 980px) {
   .solutions-section {
-    padding-top: 96px;
+    margin-top: -100px;
+    padding: 16px 20px 64px;
   }
 
-  .solutions-section__tabs {
+  .solutions-section__title {
+    font-size: 32px;
+  }
+
+  .solutions-section__panel {
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .solutions-section__envelope {
+    width: min(267px, 100%);
     height: auto;
+    aspect-ratio: 267 / 312;
   }
 
-  .solutions-section__stage {
-    height: 300px;
+  .solutions-section__list li {
+    font-size: 22px;
   }
 }

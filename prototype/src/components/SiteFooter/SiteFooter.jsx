@@ -24,15 +24,8 @@ export default function SiteFooter() {
           </div>
         </nav>
         <div className="site-footer__mark scroll-reveal" data-reveal="1">
-          <img src="/images/v2/footer-mark.svg" alt="42AI" width={1128} height={240} />
-          <img
-            className="site-footer__iris"
-            src="/images/v2/footer-iris.svg"
-            alt=""
-            width={52}
-            height={54}
-          />
-          <span className="site-footer__chip">Robotics</span>
+          <img src="/images/v2/footer-mark.svg" alt="42AI" width={1128} height={239} />
+          <span className="site-footer__chip">Personalised AI</span>
         </div>
       </div>
     </footer>

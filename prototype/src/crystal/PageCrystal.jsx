@@ -82,26 +82,23 @@ function CrystalContextGuard() {
   return null
 }
 
-function useCrystalDpr(highQuality = false) {
+function useCrystalDpr() {
   const [dpr, setDpr] = useState(() => {
-    if (typeof window === 'undefined') return highQuality ? [1.25, 1.75] : [1.15, 1.5]
+    if (typeof window === 'undefined') return [1.15, 1.5]
     const compact = window.innerWidth < 900 || window.innerHeight < 700
-    if (highQuality) return compact ? [1.25, 1.75] : [1.5, 2]
     return compact ? [1.25, 1.5] : [1.5, 2]
   })
 
   useEffect(() => {
     const update = () => {
       const compact = window.innerWidth < 900 || window.innerHeight < 700
-      const next = highQuality
-        ? (compact ? [1.25, 1.75] : [1.5, 2])
-        : (compact ? [1.25, 1.5] : [1.5, 2])
+      const next = compact ? [1.25, 1.5] : [1.5, 2]
       setDpr((current) => (current[0] === next[0] && current[1] === next[1] ? current : next))
     }
     update()
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
-  }, [highQuality])
+  }, [])
 
   return dpr
 }
@@ -123,14 +120,14 @@ const PHYSICS_TARGET_SCALE = 1.95
 const PHYSICS_STATES_SCALE = 1.14
 const PHYSICS_TILT_X = -0.14
 const PHYSICS_TILT_Z = -0.34
-// State one follows the new 299:28666 composition: the crystal presents a
+// State one follows Figma 450:5558: the crystal presents a
 // broad upper-right facet to camera while the extracted pane clears the
 // silhouette above and to the right.
-const STATE_ONE_ROTATION = { x: 0.08, y: -0.34, z: -0.03 }
+const STATE_ONE_ROTATION = { x: 0.14, y: -0.4, z: -0.07 }
 const STATE_TWO_ROTATION = { x: 0.2, y: 0.1, z: -0.05 }
 const STATE_THREE_ROTATION = { x: 0.18, y: 0.34, z: 0.06 }
 const STATE_FOUR_ROTATION = { x: 0.08, y: -0.34, z: -0.03 }
-const STATE_ONE_SHIFT_X = 0.014
+const STATE_ONE_SHIFT_X = -0.017
 const STATE_TWO_SHIFT_X = 0
 const STATE_THREE_SHIFT_X = 0.008
 const STATE_FOUR_SHIFT_X = 0.01
@@ -138,14 +135,41 @@ const STATE_ONE_CENTER_Y = 0.495
 const STATE_TWO_CENTER_Y = 0.466
 const STATE_THREE_CENTER_Y = 0.432
 const STATE_FOUR_CENTER_Y = 0.456
-const STATE_ONE_SCALE = 1.14
+const STATE_ONE_SCALE = 1.38
 const STATE_TWO_SCALE = 1.06
 const STATE_THREE_SCALE = 1.02
 const STATE_FOUR_SCALE = 1.06
+// The text-free staging frame must preserve the fourth reading pose. The
+// detached panes own the first part of the portal move; enlarging the body
+// here made the crystal and panes appear to fly at the same time.
+const PHYSICS_CLEAN_FRAME_SCALE = STATE_FOUR_SCALE
+
+// One interior palette for the shared crystal across its entire journey.
+// Block four established the approved mint/cyan/green balance; keeping the
+// colour-bearing core parameters here prevents the hero and transitions
+// from silently falling back to the older violet-heavy treatment.
+const UNIFIED_CRYSTAL_INTERIOR_LOOK = Object.freeze({
+  friendInnerShade: 0.46,
+  friendShadeColor: '#9fddea',
+  friendCoreSize: 0.14,
+  friendVolumeScale: 1.72,
+  friendCenterPower: 0.84,
+  friendCenterSize: 0.31,
+  friendCenterColor: '#f5f7e8',
+  friendColorBoost: 0.72,
+  friendFlowColor1: '#76dcf2',
+  friendFlowColor2: '#08df68',
+  friendFlowColor3: '#55a9eb',
+  friendFlowColor4: '#e5f2ad',
+  friendFlowColor5: '#9a92ff',
+})
+
 // Figma 450:5855 → 450:6576 scales the same complete crystal composition
-// (shell plus the four detached panes) by roughly 5.78× until its colour
-// becomes the next section's full rounded field.
-const PHYSICS_PORTAL_SCALE = STATE_FOUR_SCALE * 5.78
+// (shell plus the four detached panes) toward the camera until its colour
+// becomes the next section's full rounded field. The WebGL zoom stops before
+// the geometry reaches the camera; the matched colour field completes the
+// remaining apparent magnification without near-plane artefacts.
+const PHYSICS_PORTAL_SCALE = 5.6
 // After the pin releases, the section's own top (and therefore its live
 // anchor) scrolls off the viewport; the 2→3 flight has to leave from this
 // stable dock instead, or the crystal rides the departing block into the
@@ -428,6 +452,14 @@ function TravellingCrystal({
       fourthCleanFrame = Math.min(Math.max(fourthTarget.cleanFrame ?? 0, 0), 1)
       fourthPortal = Math.min(Math.max(fourthTarget.portal ?? 0, 0), 1)
     }
+    // The detached panes cross the camera first. The parent crystal does not
+    // begin its own push until their staggered flights are almost complete,
+    // so the final beat reads as panes → body instead of one simultaneous
+    // scale-up. This is derived from the same reversible playhead.
+    const crystalPortal = smootherstep(Math.min(Math.max(
+      (fourthPortal - 0.80) / 0.20,
+      0,
+    ), 1))
     const absorb = Math.min(Math.max(thirdTarget?.absorb ?? 0, 0), 1)
     // During 3→4 the colour must disappear into its white core before the
     // glass object is allowed back on screen. Starting from the old `exit`
@@ -468,8 +500,8 @@ function TravellingCrystal({
       // leave. Only the following beat moves the virtual camera into the
       // crystal, keeping the zoom centred on the rounded block-five panel.
       if (fourthCleanFrame > 0) {
-        target.x += (vw * 0.5 - target.x) * fourthPortal
-        target.y += (vh * 0.5 - target.y) * fourthPortal
+        target.x += (vw * 0.5 - target.x) * crystalPortal
+        target.y += (vh * 0.5 - target.y) * crystalPortal
       }
     }
     // The colour has to be seen leaving the gem. Hold the mesh at full
@@ -491,7 +523,8 @@ function TravellingCrystal({
       fullScale += (STATE_TWO_SCALE * compactScale - fullScale) * fourthStateTwo * fourthFocus
       fullScale += (STATE_THREE_SCALE * compactScale - fullScale) * fourthStateThree * fourthFocus
       fullScale += (STATE_FOUR_SCALE * compactScale - fullScale) * fourthStateFour * fourthFocus
-      fullScale += (PHYSICS_PORTAL_SCALE * compactScale - fullScale) * fourthPortal
+      fullScale += (PHYSICS_CLEAN_FRAME_SCALE * compactScale - fullScale) * fourthCleanFrame
+      fullScale += (PHYSICS_PORTAL_SCALE * compactScale - fullScale) * crystalPortal
     }
     if (!introReady) {
       introDelayRef.current = 0
@@ -651,11 +684,31 @@ function TravellingCrystal({
     // The outer shell is the stacking context. Keeping it above the world
     // pane lets the field grow behind the gem, so the colour reads as
     // spilling out of the crystal instead of covering it.
-    const shell = gl.domElement?.parentElement?.parentElement
+    // R3F inserts two wrappers around the canvas inside our fixed page
+    // layer. Opacity/z-index must be applied to that outer fixed layer;
+    // styling the inner wrapper cannot escape its parent's z30 stacking
+    // context and lets block four's gradient cover the crystal completely.
+    const shell = gl.domElement?.parentElement?.parentElement?.parentElement
     if (shell) {
       const gathering = absorb > 0.05 && !fourthIsVisible
       const emerging = !fourthIsVisible && expansion < 0.88 && (toCenter > 0.12 || expansion > 0.001)
-      shell.style.zIndex = emerging || gathering ? '34' : '30'
+      // In block four the sticky layer owns the hero-style gradient at z31;
+      // keep the WebGL glass between that background and the copy/portal.
+      shell.style.zIndex = fourthIsVisible
+        ? '33'
+        : emerging || gathering
+          ? '34'
+          : '30'
+      // The destination panel is the camera aperture for the entire final
+      // move, even before its colour field becomes visible. Clipping the
+      // fixed WebGL layer here also contains post-processing bloom, so neither
+      // a pane nor the enlarged body can leak beyond the later rectangle.
+      const portalMaskActive = fourthPortal > 0.002
+      const portalInset = vw <= 680
+        ? 'inset(24px 20px round 18px)'
+        : 'inset(40px 80px round 24px)'
+      shell.style.clipPath = portalMaskActive ? portalInset : 'none'
+      shell.style.webkitClipPath = portalMaskActive ? portalInset : 'none'
       // The mesh stays viewport-locked through block four. Once that
       // section scrolls away, fade the canvas so blocks 5+ stay readable.
       // The same opacity also fades the gem once its colour has spilled out.
@@ -672,8 +725,12 @@ function TravellingCrystal({
         pageFade = introReady ? t * t * (3 - 2 * t) : 0
       }
       const gemFade = fourthIsVisible ? 1 : 1 - dissolve
-      const portalFade = 1 - smootherstep(Math.min(Math.max((fourthPortal - 0.68) / 0.28, 0), 1))
-      shell.style.opacity = (pageFade * gemFade * portalFade).toFixed(3)
+      // Keep the glass present while the coloured hero light swells behind
+      // it. It disappears only once the camera is already crossing the
+      // bright core, avoiding the old premature dissolve into a flat field.
+      const portalFade = 1 - smootherstep(Math.min(Math.max((crystalPortal - 0.54) / 0.42, 0), 1))
+      const handedToBlockFive = physics?.dataset.released === 'true'
+      shell.style.opacity = (pageFade * gemFade * portalFade * (handedToBlockFive ? 0 : 1)).toFixed(3)
     }
   })
 
@@ -835,7 +892,10 @@ export default function PageCrystal({
   const spinBlendRef = useRef({ value: introReady ? 1 : 0 })
   const { progress: pulseProgress, intensity: pulseIntensity } = useCrystalPulse(pulseKey)
   const { shouldRotate, fourthActive } = useCrystalRotation(sectionAnchorsRef)
-  const crystalDpr = useCrystalDpr(fourthActive)
+  // Keep one render resolution for the whole journey. Reallocating the
+  // full-screen WebGL buffer at the exact moment block four takes over was
+  // the source of the intermittent black frame.
+  const crystalDpr = useCrystalDpr()
 
   // Hovering ramps the same "iridescence" knob the editor already has
   // (figureChromaticAberration) well past its tuned value, softens the
@@ -854,21 +914,16 @@ export default function PageCrystal({
     const baseColorBoost = config.friendColorBoost ?? 1
     const baseLightMotion = config.friendLightMotion ?? 0.13
     const lerp = (from, to) => from + (to - from) * pulseIntensity
-    return {
+    const nextConfig = {
       ...config,
       // After the preloader hand-off, Glass resumes the original Y/X
       // tumble. Z-spin is faded out by TravellingCrystal via spinBlendRef.
       autoRotate: !fourthActive && (config.autoRotate !== false),
       rotateSpeed: shouldRotate ? (config.rotateSpeed ?? 0.5) : 0,
-      // Small travelling states use the authored 10/512 baseline. The
-      // block-four hand-off switches to 14/1024 before the mesh grows, so
-      // its large glass silhouette keeps clean facets and colour gradients.
-      samples: fourthActive
-        ? Math.max(config.samples ?? 10, PHYSICS_CRYSTAL_SAMPLES)
-        : Math.max(config.samples ?? 10, SITE_CRYSTAL_SAMPLES),
-      resolution: fourthActive
-        ? Math.max(config.resolution ?? 512, PHYSICS_CRYSTAL_RESOLUTION)
-        : Math.max(config.resolution ?? 512, SITE_CRYSTAL_RESOLUTION),
+      // A stable transmission target avoids a shader/render-target rebuild
+      // during the hand-off, which could briefly paint the gem black.
+      samples: Math.max(config.samples ?? 10, SITE_CRYSTAL_SAMPLES),
+      resolution: Math.max(config.resolution ?? 512, SITE_CRYSTAL_RESOLUTION),
       figureChromaticAberration: lerp(baseChroma, baseChroma + 1.15),
       figureRoughness: lerp(baseRoughness, Math.max(0.04, baseRoughness * 0.48)),
       figureAnisotropicBlur: lerp(baseBlur, 0.72),
@@ -878,6 +933,20 @@ export default function PageCrystal({
       friendLightMotion: lerp(baseLightMotion, baseLightMotion + 0.34),
       bloom: baseBloom + pulseIntensity * 0.28,
       bloomThreshold: config.bloomThreshold ?? 0.94,
+      ...UNIFIED_CRYSTAL_INTERIOR_LOOK,
+    }
+    if (!fourthActive) return nextConfig
+
+    // Block four keeps its paler, back-lit surface treatment, while its
+    // interior colour palette now remains identical to the hero crystal.
+    return {
+      ...nextConfig,
+      friendTransparency: 0.96,
+      friendMatte: 0.3,
+      friendFrost: 0.18,
+      friendGlassBlur: 0.26,
+      friendEdgeClarity: 0.82,
+      friendLightDiffusion: 0.23,
     }
   }, [config, shouldRotate, fourthActive, pulseIntensity])
 

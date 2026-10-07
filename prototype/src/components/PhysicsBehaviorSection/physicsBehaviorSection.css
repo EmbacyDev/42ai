@@ -9,6 +9,7 @@
   --physics-state-four: 0;
   --physics-clean-frame: 0;
   --physics-portal: 0;
+  --physics-portal-aura: 0;
   --physics-portal-field: 0;
   --physics-portal-scale: 0.72;
   --physics-portal-blur: 18px;
@@ -20,6 +21,7 @@
   --physics-state-two-rail: 0;
   --physics-state-three-rail: 0;
   --physics-state-four-rail: 0;
+  --physics-rail-hit: none;
   --physics-state-one-offset: 28px;
   --physics-state-two-offset: -28px;
   --physics-state-three-offset: 28px;
@@ -29,8 +31,7 @@
   height: 900vh;
   height: 900svh;
   overflow-x: clip;
-  background-color: #ffffff;
-  background-image: none;
+  background: #ffffff;
   color: #121212;
   font-family: 'Season Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -46,7 +47,29 @@
   /* The introductory copy is viewport-fixed so it can fade in at its final
      position while the section itself is still completing the 3→4 handoff. */
   overflow: visible;
-  background: transparent;
+  /* Block four keeps the hero atmosphere through its intro and all four
+     facet states. Because this is the sticky viewport layer, the gradient
+     does not stretch across the section's 900svh scroll track. */
+  background: linear-gradient(
+    180deg,
+    #d4e7f8 0%,
+    #edf6fd 34%,
+    #ffffff 76%
+  );
+}
+
+.physics-behavior-section__sticky::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: #ffffff;
+  content: '';
+  /* The hero gradient holds through the last four-fragment reading state.
+     As the portal move begins, the area outside its rectangle becomes clean
+     white; all chromatic light is clipped inside the rectangle below. */
+  opacity: var(--physics-portal-aura);
+  pointer-events: none;
+  will-change: opacity;
 }
 
 .physics-behavior-section__state-rail {
@@ -77,25 +100,53 @@
 }
 
 .physics-behavior-section__state-rail-item {
+  position: relative;
   display: flex;
   height: 36px;
-  padding: 8px 20px;
+  flex: 0 0 36px;
   align-items: center;
   justify-content: center;
-  flex: 0 0 36px;
-  border-radius: 0;
   color: rgba(106, 106, 106, 0.8);
   font-family: "Geist Mono", ui-monospace, monospace;
   font-size: 13px;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: normal;
   letter-spacing: 0.65px;
   text-transform: uppercase;
   white-space: nowrap;
-  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  transition: color 240ms ease, background-color 240ms ease;
+}
+
+.physics-behavior-section__state-rail-button {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 22px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: var(--physics-rail-hit, none);
+}
+
+.physics-behavior-section__state-rail-button span {
+  position: relative;
+  z-index: 1;
+}
+
+.physics-behavior-section__state-rail-shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .physics-behavior-section__state-rail-item:nth-child(1) { width: 200px; }
@@ -104,7 +155,6 @@
 .physics-behavior-section__state-rail-item:nth-child(4) { width: 116px; }
 
 .physics-behavior-section__state-rail-item--one {
-  background-color: rgb(18 18 18 / var(--physics-state-one-rail));
   color: rgb(
     calc(106 + 149 * var(--physics-state-one-rail))
     calc(106 + 149 * var(--physics-state-one-rail))
@@ -113,8 +163,11 @@
   );
 }
 
+.physics-behavior-section__state-rail-item--one .physics-behavior-section__state-rail-shape path {
+  fill: rgb(18 18 18 / var(--physics-state-one-rail));
+}
+
 .physics-behavior-section__state-rail-item--two {
-  background-color: rgb(18 18 18 / var(--physics-state-two-rail));
   color: rgb(
     calc(106 + 149 * var(--physics-state-two-rail))
     calc(106 + 149 * var(--physics-state-two-rail))
@@ -123,8 +176,11 @@
   );
 }
 
+.physics-behavior-section__state-rail-item--two .physics-behavior-section__state-rail-shape path {
+  fill: rgb(18 18 18 / var(--physics-state-two-rail));
+}
+
 .physics-behavior-section__state-rail-item--three {
-  background-color: rgb(18 18 18 / var(--physics-state-three-rail));
   color: rgb(
     calc(106 + 149 * var(--physics-state-three-rail))
     calc(106 + 149 * var(--physics-state-three-rail))
@@ -133,14 +189,21 @@
   );
 }
 
+.physics-behavior-section__state-rail-item--three .physics-behavior-section__state-rail-shape path {
+  fill: rgb(18 18 18 / var(--physics-state-three-rail));
+}
+
 .physics-behavior-section__state-rail-item--four {
-  background-color: rgb(18 18 18 / var(--physics-state-four-rail));
   color: rgb(
     calc(106 + 149 * var(--physics-state-four-rail))
     calc(106 + 149 * var(--physics-state-four-rail))
     calc(106 + 149 * var(--physics-state-four-rail))
     / calc(0.8 + 0.2 * var(--physics-state-four-rail))
   );
+}
+
+.physics-behavior-section__state-rail-item--four .physics-behavior-section__state-rail-shape path {
+  fill: rgb(18 18 18 / var(--physics-state-four-rail));
 }
 
 .physics-behavior-section__copy {
@@ -259,10 +322,15 @@
   letter-spacing: 0;
 }
 
-/* Figma 450:6576. This is the final zoom target for the crystal rather
-   than a new hard cut: it grows from the gem's centre after the clean
-   450:5855 frame, then becomes the first frame of block five. */
+.physics-behavior-section[data-released='true'] .physics-behavior-section__sticky {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Figma 450:6576. The coloured approach stays here. The sharp rectangle
+   the crystal becomes is block five itself, not this stand-in. */
 .physics-behavior-section__portal {
+  visibility: hidden;
   position: absolute;
   z-index: 42;
   top: 40px;
@@ -284,12 +352,38 @@
   will-change: opacity, filter, transform;
 }
 
+/* The hero light arrives before the pale destination field. It is a separate
+   layer so the final panel cannot flash in with the first halo frame. Wide,
+   offset colour volumes make the camera move feel as if it crosses lit glass. */
+.physics-behavior-section__portal-aura {
+  position: absolute;
+  z-index: 1;
+  top: 40px;
+  right: 80px;
+  bottom: 40px;
+  left: 80px;
+  overflow: hidden;
+  border-radius: 24px;
+  background:
+    radial-gradient(ellipse 30% 43% at 48% 49%, rgba(255, 255, 255, 0.98) 0%, rgba(240, 255, 250, 0.78) 25%, transparent 68%),
+    radial-gradient(ellipse 46% 58% at 35% 39%, rgba(59, 207, 255, 0.88) 0%, rgba(74, 173, 255, 0.42) 35%, transparent 72%),
+    radial-gradient(ellipse 48% 61% at 65% 34%, rgba(255, 126, 184, 0.78) 0%, rgba(189, 116, 255, 0.38) 37%, transparent 73%),
+    radial-gradient(ellipse 52% 64% at 57% 66%, rgba(104, 255, 161, 0.9) 0%, rgba(209, 255, 101, 0.38) 38%, transparent 74%);
+  content: '';
+  filter: saturate(1.16);
+  opacity: var(--physics-portal-aura);
+  transform: scale(calc(0.32 + var(--physics-portal-aura) * 0.68));
+  transform-origin: 50% 50%;
+  pointer-events: none;
+  will-change: opacity, transform, filter;
+}
+
 .physics-behavior-section__portal::after {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 48% 75% at 42% 42%, rgba(255, 255, 255, 0.22), transparent 72%),
-    radial-gradient(ellipse 34% 56% at 68% 76%, rgba(55, 194, 128, 0.18), transparent 75%);
+    radial-gradient(ellipse 48% 75% at 42% 42%, rgba(255, 255, 255, 0.38), transparent 72%),
+    radial-gradient(ellipse 34% 56% at 68% 76%, rgba(55, 194, 128, 0.3), transparent 75%);
   content: '';
 }
 

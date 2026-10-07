@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { smootherstep } from '../HeroScene/scrollShrink.js'
+import { DEMO_HOVER_PATH } from '../RequestDemoButton/RequestDemoButton.jsx'
 import { WORLD_MODEL_ABSORBED_EVENT, WORLD_MODEL_RETURN_EVENT } from '../WorldModelSection/worldModelHandoff.js'
 import './physicsBehaviorSection.css'
 
@@ -16,6 +17,8 @@ const TIMELINE_SCALE = (27 / 13) * (900 / 720)
 const STATE_SEQUENCE_START = 0.47 / TIMELINE_SCALE
 const MAX_STATE_PROGRESS_PER_SECOND = 0.42
 const MAX_STATE_REVERSE_PER_SECOND = 0.48
+const MAX_PORTAL_PROGRESS_PER_SECOND = 0.08
+const MAX_PORTAL_REVERSE_PER_SECOND = 0.09
 const INTRO_REST = 0.44 / TIMELINE_SCALE
 const STATE_ONE_REST = 0.80 / TIMELINE_SCALE
 const STATE_TWO_REST = 1.29 / TIMELINE_SCALE
@@ -33,6 +36,7 @@ const STATE_RESTS = [
   PORTAL_REST,
 ]
 const STATE_GLIDE_DURATION = 0.58
+const CLICK_REST_PAUSE = 0.72
 const WHEEL_GESTURE_GAP = 180
 
 // Figma 450:6576. Coordinates live inside the 1280×720 rounded panel.
@@ -61,6 +65,7 @@ export default function PhysicsBehaviorSection({
   const sectionRef = useRef(null)
   const panelRef = useRef(null)
   const copyRef = useRef(null)
+  const glideToRestRef = useRef(() => {})
   const onCrystalAnchorRef = useRef(onCrystalAnchor)
   const onSectionVisibilityChangeRef = useRef(onSectionVisibilityChange)
   onCrystalAnchorRef.current = onCrystalAnchor
@@ -94,6 +99,10 @@ export default function PhysicsBehaviorSection({
     let stateScrollTween
     let stateGlideActive = false
     let lastWheelAt = 0
+    // Once block five is on screen, the document scrolls natively in both
+    // directions through every later section. The stepped block-four
+    // sequence only takes the wheel back after the page moves above that panel.
+    let nativeTail = false
 
     const updateAnchor = () => {
       const rect = section.getBoundingClientRect()
@@ -161,7 +170,10 @@ export default function PhysicsBehaviorSection({
       stateThree = descentEase(clamp01((timeline - 1.32) / 0.14))
       stateFour = descentEase(clamp01((timeline - 1.72) / 0.14))
       cleanFrame = descentEase(clamp01((timeline - 2.0) / 0.13))
-      portal = descentEase(clamp01((timeline - 2.17) / 0.28))
+      // A camera move rather than a linear scale-up: power3.inOut leaves
+      // both the four-facet composition and the destination field at rest,
+      // then accelerates decisively through the middle of the crystal.
+      portal = descentEase(clamp01((timeline - 2.17) / 0.32))
 
       const scrollIntroCopy = smootherstep(clamp01((timeline - 0.365) / 0.045))
       // `autoArrival` is the same time-based landing that moves and grows
@@ -188,7 +200,14 @@ export default function PhysicsBehaviorSection({
         * (1 - smootherstep(clamp01((timeline - 1.72) / 0.08)))
       const stateFourRail = smootherstep(clamp01((timeline - 1.72) / 0.08))
         * cleanCopyExit
-      const portalField = smootherstep(clamp01((portal - 0.34) / 0.58))
+      // Let the hero palette bloom behind the still-visible crystal before
+      // the camera reaches it. The final pale field comes later, so the
+      // light reads as depth around the object instead of a flat crossfade.
+      const portalAura = smootherstep(clamp01((portal - 0.46) / 0.38))
+      // Do not expose the final rounded rectangle while the viewer is still
+      // approaching the crystal. It appears only after the enlarged glass
+      // and staggered panes already cover the frame.
+      const portalField = smootherstep(clamp01((portal - 0.92) / 0.08))
       section.style.setProperty('--physics-reveal', reveal.toFixed(4))
       section.style.setProperty('--physics-descent', descent.toFixed(4))
       section.style.setProperty('--physics-focus', focus.toFixed(4))
@@ -198,9 +217,29 @@ export default function PhysicsBehaviorSection({
       section.style.setProperty('--physics-state-four', stateFour.toFixed(4))
       section.style.setProperty('--physics-clean-frame', cleanFrame.toFixed(4))
       section.style.setProperty('--physics-portal', portal.toFixed(4))
+      section.style.setProperty('--physics-portal-aura', portalAura.toFixed(4))
       section.style.setProperty('--physics-portal-field', portalField.toFixed(4))
-      section.style.setProperty('--physics-portal-scale', (0.72 + portalField * 0.28).toFixed(4))
-      section.style.setProperty('--physics-portal-blur', `${((1 - portalField) * 18).toFixed(2)}px`)
+      const portalScale = (0.64 + portalField * 0.36).toFixed(4)
+      const portalBlur = `${(24 * (1 - portalField)).toFixed(2)}px`
+      section.style.setProperty('--physics-portal-scale', portalScale)
+      section.style.setProperty('--physics-portal-blur', portalBlur)
+      // Block five's panel is the zoom target. It occupies the portal slot
+      // while the crystal arrives, then drops back into the page so the
+      // rest of the document scrolls normally.
+      // Release the sticky/WebGL handoff from the visual playhead, not from
+      // the physical scroll position. The document reaches its destination
+      // before the deliberately slower panes → crystal → panel animation;
+      // using scroll geometry here hid the crystal halfway through the move
+      // and produced a one-frame flash.
+      const released = nativeTail || value >= PORTAL_REST - 0.001
+      section.dataset.released = released ? 'true' : 'false'
+      const rules = document.querySelector('.rules-section')
+      if (rules) {
+        rules.style.setProperty('--physics-portal-field', portalField.toFixed(4))
+        rules.style.setProperty('--physics-portal-scale', portalScale)
+        rules.style.setProperty('--physics-portal-blur', portalBlur)
+        rules.classList.toggle('rules-section--arriving', !released && portal > 0.002)
+      }
       section.style.setProperty('--physics-copy', introCopy.toFixed(4))
       section.style.setProperty('--physics-state-one-copy', stateOneCopy.toFixed(4))
       section.style.setProperty('--physics-state-two-copy', stateTwoCopy.toFixed(4))
@@ -210,6 +249,12 @@ export default function PhysicsBehaviorSection({
       section.style.setProperty('--physics-state-two-rail', stateTwoRail.toFixed(4))
       section.style.setProperty('--physics-state-three-rail', stateThreeRail.toFixed(4))
       section.style.setProperty('--physics-state-four-rail', stateFourRail.toFixed(4))
+      section.style.setProperty(
+        '--physics-rail-hit',
+        Math.max(stateOneRail, stateTwoRail, stateThreeRail, stateFourRail) > 0.35
+          ? 'auto'
+          : 'none',
+      )
       section.style.setProperty('--physics-state-one-offset', `${((1 - stateOneCopy) * 28).toFixed(2)}px`)
       section.style.setProperty('--physics-state-two-offset', `${((1 - stateTwoCopy) * -28).toFixed(2)}px`)
       section.style.setProperty('--physics-state-three-offset', `${((1 - stateThreeCopy) * 28).toFixed(2)}px`)
@@ -252,9 +297,18 @@ export default function PhysicsBehaviorSection({
       const distance = targetProgress - progress
       let step = distance * follow
       if (progress >= STATE_SEQUENCE_START) {
-        const maxRate = distance >= 0
-          ? MAX_STATE_PROGRESS_PER_SECOND
-          : MAX_STATE_REVERSE_PER_SECOND
+        const enteringPortal = distance >= 0
+          && progress >= CLEAN_FRAME_REST - 0.01
+        const reversingPortal = distance < 0
+          && progress > CLEAN_FRAME_REST + 0.001
+          && targetProgress <= CLEAN_FRAME_REST + 0.001
+        const maxRate = enteringPortal
+          ? MAX_PORTAL_PROGRESS_PER_SECOND
+          : reversingPortal
+            ? MAX_PORTAL_REVERSE_PER_SECOND
+            : distance >= 0
+              ? MAX_STATE_PROGRESS_PER_SECOND
+              : MAX_STATE_REVERSE_PER_SECOND
         const maxStep = maxRate * delta
         step = Math.min(maxStep, Math.max(-maxStep, step))
       }
@@ -269,6 +323,8 @@ export default function PhysicsBehaviorSection({
     const moveTimelineTo = (value, immediate = false) => {
       targetProgress = value
       if (reduceMotion || immediate) {
+        window.cancelAnimationFrame(progressRaf)
+        progressRaf = 0
         progress = value
         writeProgress(progress)
         return
@@ -298,29 +354,16 @@ export default function PhysicsBehaviorSection({
     }
 
     // One deliberate wheel/trackpad gesture advances exactly one authored
-    // state and then coasts to its rest. Momentum packets from that same
-    // gesture are consumed, so they cannot accidentally skip the next state.
-    const handleStateWheel = (event) => {
-      if (event.defaultPrevented || snapSuspended || Math.abs(event.deltaY) < 0.5) return
-      const rect = section.getBoundingClientRect()
-      if (rect.top > 2 || rect.bottom <= window.innerHeight) return
-
-      const now = performance.now()
-      const freshGesture = now - lastWheelAt > WHEEL_GESTURE_GAP
-      lastWheelAt = now
-      const currentIndex = nearestRestIndex(targetProgress)
-      const direction = event.deltaY > 0 ? 1 : -1
-      const nextIndex = currentIndex + direction
-
-      // Release the wheel at the two outer edges: up from the intro returns
-      // to block three, down from the final facet continues to block five.
-      if ((!stateGlideActive && freshGesture)
-        && (nextIndex < 0 || nextIndex >= STATE_RESTS.length)) return
-
-      event.preventDefault()
-      if (stateGlideActive || !freshGesture) return
-
-      const nextRest = STATE_RESTS[nextIndex]
+    // state and then coasts to its rest. A tab click repeats that same
+    // glide, with a hold on every state it passes, so nothing is rushed.
+    let clickSequence = 0
+    let clickPauseTween
+    const cancelClickSequence = () => {
+      clickSequence += 1
+      clickPauseTween?.kill()
+    }
+    const playRestGlide = (restIndex, onComplete) => {
+      const nextRest = STATE_RESTS[restIndex]
       const destination = scrollYForRest(nextRest)
       const proxy = { y: window.scrollY }
       stateScrollTween?.kill()
@@ -334,10 +377,112 @@ export default function PhysicsBehaviorSection({
         onUpdate: () => window.scrollTo(0, proxy.y),
         onComplete: () => {
           window.scrollTo(0, destination)
-          stateGlideActive = false
+          onComplete?.()
         },
       })
     }
+    const glideToRest = (restIndex) => {
+      if (snapSuspended) return
+      const rect = section.getBoundingClientRect()
+      if (rect.top > 2 || rect.bottom <= window.innerHeight * 0.45) return
+      if (restIndex < 0 || restIndex >= STATE_RESTS.length) return
+      cancelClickSequence()
+      const sequence = clickSequence
+      const run = () => {
+        if (sequence !== clickSequence || snapSuspended) return
+        const here = nearestRestIndex(targetProgress)
+        if (here === restIndex) {
+          stateGlideActive = false
+          return
+        }
+        const next = here + (restIndex > here ? 1 : -1)
+        playRestGlide(next, () => {
+          if (sequence !== clickSequence) return
+          if (next === restIndex) {
+            stateGlideActive = false
+            return
+          }
+          clickPauseTween = gsap.delayedCall(
+            reduceMotion ? 0 : CLICK_REST_PAUSE,
+            run,
+          )
+        })
+      }
+      run()
+    }
+    glideToRestRef.current = glideToRest
+
+    const handleStateWheel = (event) => {
+      if (event.defaultPrevented || snapSuspended || Math.abs(event.deltaY) < 0.5) return
+      const rect = section.getBoundingClientRect()
+      if (rect.top > 2 || rect.bottom <= window.innerHeight) return
+
+      const now = performance.now()
+      const freshGesture = now - lastWheelAt > WHEEL_GESTURE_GAP
+      lastWheelAt = now
+      const currentIndex = nearestRestIndex(targetProgress)
+      const direction = event.deltaY > 0 ? 1 : -1
+      const nextIndex = currentIndex + direction
+      // Use the real scroll position, not the playhead target. The glide to
+      // the portal sets that target immediately, and treating it as "arrived"
+      // would cancel the camera move on the next trackpad packet.
+      const scrollProgress = (window.innerHeight - rect.top) / Math.max(1, section.offsetHeight)
+      // Above the portal the stepped sequence returns. At the panel and
+      // everything after it, both directions stay native: snap and the
+      // one-rest glide were rubber-banding the page on the way out and on
+      // the way back.
+      if (scrollProgress < PORTAL_REST - 0.018) {
+        if (nativeTail) {
+          nativeTail = false
+          cancelClickSequence()
+          stateScrollTween?.kill()
+          stateGlideActive = false
+          moveTimelineTo(scrollProgress, true)
+        }
+      } else if (
+        scrollProgress > PORTAL_REST + 0.01
+        || (!stateGlideActive && freshGesture && scrollProgress >= PORTAL_REST - 0.012)
+      ) {
+        nativeTail = true
+      }
+      const releaseWheel = (
+        nativeTail && scrollProgress >= PORTAL_REST - 0.018
+      ) || (
+        !stateGlideActive && freshGesture && nextIndex < 0
+      )
+      if (releaseWheel) {
+        if (stateGlideActive) {
+          cancelClickSequence()
+          stateScrollTween?.kill()
+          stateGlideActive = false
+        }
+        if (nativeTail && progress < PORTAL_REST - 0.001) {
+          moveTimelineTo(PORTAL_REST, true)
+        }
+        return
+      }
+
+      event.preventDefault()
+      if (nextIndex < 0 || nextIndex >= STATE_RESTS.length) return
+      if (stateGlideActive || !freshGesture) return
+
+      cancelClickSequence()
+      playRestGlide(nextIndex, () => {
+        stateGlideActive = false
+      })
+    }
+
+    // Seed from the current physical scroll position before ScrollTrigger is
+    // created. Waiting for its first `onRefresh` is unsafe: in some browsers
+    // that first refresh does not arrive until the portal changes clipping,
+    // which used to snap the visual playhead straight to the final panel.
+    const initialScrollProgress = clamp01(
+      (window.innerHeight - section.getBoundingClientRect().top)
+        / Math.max(1, section.offsetHeight),
+    )
+    progress = reduceMotion ? 1 : initialScrollProgress
+    targetProgress = progress
+    writeProgress(progress)
 
     const trigger = ScrollTrigger.create({
       trigger: section,
@@ -369,7 +514,9 @@ export default function PhysicsBehaviorSection({
           if (value >= CLEAN_FRAME_REST - 0.045 && value < CLEAN_FRAME_REST + 0.05) {
             return CLEAN_FRAME_REST
           }
-          if (value >= PORTAL_REST - 0.055) return PORTAL_REST
+          // Block five owns this frame and every position after it. Pulling
+          // those scrolls back onto the portal made both directions stick.
+          if (nativeTail || value >= PORTAL_REST - 0.018) return value
           return value
         },
         duration: { min: 0.4, max: 0.75 },
@@ -386,17 +533,45 @@ export default function PhysicsBehaviorSection({
       },
       onLeaveBack: () => setAutomaticArrival(false),
       onUpdate: (self) => {
-        if (snapSuspended) return
+        if (self.progress < PORTAL_REST - 0.018) {
+          if (nativeTail) {
+            nativeTail = false
+            cancelClickSequence()
+            stateScrollTween?.kill()
+            stateGlideActive = false
+            moveTimelineTo(self.progress, true)
+            return
+          }
+        } else if (!stateGlideActive && (nativeTail || self.progress > PORTAL_REST + 0.01)) {
+          nativeTail = true
+          if (snapSuspended) return
+          // Keep the handoff parked while the reader moves through block
+          // five and the sections under it. Following this scroll with the
+          // slow portal rate made the panel pin itself and the page crawl.
+          moveTimelineTo(Math.max(self.progress, PORTAL_REST), true)
+          return
+        }
+        if (snapSuspended || stateGlideActive) return
+        // `playRestGlide` already set the authored destination. Its GSAP
+        // scroll tween only moves the physical document to the same rest;
+        // feeding every intermediate scroll position back into the visual
+        // playhead would replace that destination and disable the slower
+        // portal rate after the first frame.
         moveTimelineTo(reduceMotion ? 1 : self.progress)
       },
       onRefresh: (self) => {
         if (snapSuspended) return
-        moveTimelineTo(reduceMotion ? 1 : self.progress, true)
+        // Refreshes can fire while the portal changes clipping/layout. They
+        // may update the destination, but must never snap the visual
+        // playhead; the staged panes → crystal → panel sequence remains in
+        // charge of the visible timing.
+        moveTimelineTo(reduceMotion ? 1 : self.progress)
       },
     })
 
     const onWorldReturn = () => {
       snapSuspended = true
+      cancelClickSequence()
       stateScrollTween?.kill()
       stateGlideActive = false
       arrivalTween?.kill()
@@ -447,6 +622,7 @@ export default function PhysicsBehaviorSection({
     return () => {
       trigger.kill()
       arrivalTween?.kill()
+      cancelClickSequence()
       stateScrollTween?.kill()
       window.cancelAnimationFrame(progressRaf)
       observer.disconnect()
@@ -479,18 +655,33 @@ export default function PhysicsBehaviorSection({
         </div>
 
         <ol className="physics-behavior-section__state-rail" aria-label="Behavior model layers">
-          <li className="physics-behavior-section__state-rail-item physics-behavior-section__state-rail-item--one">
-            Foundational traits
-          </li>
-          <li className="physics-behavior-section__state-rail-item physics-behavior-section__state-rail-item--two">
-            Personal interpretation
-          </li>
-          <li className="physics-behavior-section__state-rail-item physics-behavior-section__state-rail-item--three">
-            Personal context
-          </li>
-          <li className="physics-behavior-section__state-rail-item physics-behavior-section__state-rail-item--four">
-            The event
-          </li>
+          {[
+            ['one', 'Foundational traits', 1],
+            ['two', 'Personal interpretation', 2],
+            ['three', 'Personal context', 3],
+            ['four', 'The event', 4],
+          ].map(([step, label, restIndex]) => (
+            <li
+              key={step}
+              className={`physics-behavior-section__state-rail-item physics-behavior-section__state-rail-item--${step}`}
+            >
+              <button
+                type="button"
+                className="physics-behavior-section__state-rail-button"
+                onClick={() => glideToRestRef.current(restIndex)}
+              >
+                <svg
+                  className="physics-behavior-section__state-rail-shape"
+                  viewBox="0 0 163.978 40"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  <path d={DEMO_HOVER_PATH} />
+                </svg>
+                <span>{label}</span>
+              </button>
+            </li>
+          ))}
         </ol>
 
         <article className="physics-behavior-section__state physics-behavior-section__state--one">
@@ -533,6 +724,7 @@ export default function PhysicsBehaviorSection({
           </div>
         </article>
 
+        <div className="physics-behavior-section__portal-aura" aria-hidden="true" />
         <div className="physics-behavior-section__portal" aria-hidden="true">
           {PORTAL_DOTS.map(([x, y], index) => (
             <span

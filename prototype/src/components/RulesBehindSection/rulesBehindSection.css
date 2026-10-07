@@ -1,6 +1,16 @@
 .rules-section {
+  --physics-portal-field: 0;
+  --physics-portal-scale: 1;
+  --physics-portal-blur: 0px;
   box-sizing: border-box;
   width: 100%;
+  /* Portal rest sits 33.333svh before the end of the 900svh block-four
+     track. Pull this panel up by that remainder plus one viewport so it
+     occupies the portal rectangle at the moment the crystal arrives. */
+  margin-top: -133.333svh;
+  /* The arriving panel is taken out of flow. This keeps block six at the
+     same distance while that panel is fixed over the portal. */
+  min-height: calc(80px + min(720px, 100svh - 80px));
   padding: 40px 80px;
   background: #ffffff;
   color: #000000;
@@ -9,14 +19,29 @@
 
 .rules-section__panel {
   position: relative;
-  height: 720px;
+  isolation: isolate;
+  height: min(720px, calc(100svh - 80px));
   overflow: hidden;
   border-radius: 24px;
   background:
-    radial-gradient(ellipse 62% 112% at 61% 18%, rgba(105, 255, 160, 0.72) 0%, rgba(129, 241, 177, 0.36) 31%, rgba(168, 237, 206, 0) 68%),
-    radial-gradient(ellipse 70% 115% at 96% 61%, rgba(126, 206, 230, 0.82) 0%, rgba(159, 224, 235, 0.44) 40%, rgba(210, 241, 241, 0) 72%),
-    radial-gradient(ellipse 68% 100% at 20% 90%, rgba(255, 255, 255, 0.98) 0%, rgba(246, 251, 251, 0.74) 44%, rgba(231, 246, 247, 0) 78%),
-    linear-gradient(103deg, #eaf8f7 0%, #e5f3f6 46%, #d4f0ee 100%);
+    radial-gradient(ellipse 78% 110% at 100% 42%, rgba(168, 210, 236, 0.72) 0%, rgba(206, 228, 242, 0.28) 42%, transparent 70%),
+    radial-gradient(ellipse 50% 70% at 12% 88%, rgba(255, 255, 255, 0.92) 0%, transparent 62%),
+    linear-gradient(102deg, #f6f7f9 0%, #eef2f6 52%, #d7e8f4 100%);
+}
+
+.rules-section--arriving .rules-section__panel {
+  position: fixed;
+  z-index: 44;
+  top: 40px;
+  right: 80px;
+  bottom: auto;
+  left: 80px;
+  height: min(720px, calc(100svh - 80px));
+  opacity: var(--physics-portal-field);
+  filter: blur(var(--physics-portal-blur));
+  transform: scale(var(--physics-portal-scale));
+  transform-origin: 50% 50%;
+  pointer-events: none;
 }
 
 .rules-section__field {
@@ -77,18 +102,33 @@
   -webkit-text-fill-color: transparent;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 680px) {
   .rules-section {
+    min-height: calc(48px + min(560px, 100svh - 48px));
     padding: 24px 20px;
   }
 
   .rules-section__panel {
-    height: 560px;
+    height: min(560px, calc(100svh - 48px));
     border-radius: 18px;
+  }
+
+  .rules-section--arriving .rules-section__panel {
+    top: 24px;
+    right: 20px;
+    bottom: auto;
+    left: 20px;
+    height: min(560px, calc(100svh - 48px));
   }
 
   .rules-section__title {
     font-size: 32px;
     letter-spacing: -0.64px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rules-section {
+    margin-top: 0;
   }
 }

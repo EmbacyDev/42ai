@@ -400,9 +400,11 @@ export default function WorldModelSection({
       // maps to the viewport centre, where the small shared mesh waits.
       section.style.setProperty('--world-mask-x', '50%')
       section.style.setProperty('--world-mask-y', '50%')
-      section.style.setProperty('--world-main-alpha', (0.42 + finish * 0.5 + leak * 0.4).toFixed(4))
-      section.style.setProperty('--world-main-mid-alpha', (0.3 + finish * 0.48 + leak * 0.42).toFixed(4))
-      section.style.setProperty('--world-main-soft-alpha', (0.07 + finish * 0.08 + leak * 0.28).toFixed(4))
+      // The opening stays soft. Once the field has covered the viewport the
+      // mask has to be solid, or the pinned block behind it ghosts through.
+      section.style.setProperty('--world-main-alpha', Math.min(1, 0.42 + finish * 0.58 + leak * 0.4).toFixed(4))
+      section.style.setProperty('--world-main-mid-alpha', Math.min(1, 0.3 + finish * 0.7 + leak * 0.42).toFixed(4))
+      section.style.setProperty('--world-main-soft-alpha', Math.min(1, 0.07 + finish * 0.93 + leak * 0.28).toFixed(4))
       section.style.setProperty('--world-soft-radius', `${(radius * softShare).toFixed(2)}px`)
       section.style.setProperty('--world-mid-radius', `${(radius * midShare).toFixed(2)}px`)
       section.style.setProperty('--world-core-radius', `${(radius * coreShare).toFixed(2)}px`)

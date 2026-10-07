@@ -84,8 +84,35 @@ function HeroBar() {
 }
 
 export default function SiteHeader({ ready = true }) {
+  const headerRef = useRef(null)
+
+  useEffect(() => {
+    const header = headerRef.current
+    if (!header) return undefined
+
+    const update = () => {
+      const band = header.getBoundingClientRect().height || 80
+      const onDark = ['.breakthroughs-section', '.site-footer'].some((selector) => {
+        const node = document.querySelector(selector)
+        if (!node) return false
+        const rect = node.getBoundingClientRect()
+        return rect.top < band && rect.bottom > 0
+      })
+      header.classList.toggle('site-header--on-dark', onDark)
+    }
+
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+    }
+  }, [])
+
   return (
     <header
+      ref={headerRef}
       className={`site-header site-header--top${ready ? '' : ' site-header--pending'}`}
       aria-hidden={!ready}
       inert={!ready}

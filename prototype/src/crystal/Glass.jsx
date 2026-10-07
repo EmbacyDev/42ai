@@ -83,6 +83,83 @@ function buildShellGeometry() {
 }
 
 /**
+ * Removes the flat centre of one authored face while preserving the bevels
+ * around it. The previous block-four hole was a depth mask plus a painted
+ * triangle, which could only ever read as another pale facet. Keeping this
+ * as real open geometry lets the coloured volume behind the shell supply the
+ * depth and avoids a solid-looking cap at oblique angles.
+ */
+function buildShellWithOpenFaces(sourceGeometry, faceDirections) {
+  const position = sourceGeometry.attributes.position
+  const normal = sourceGeometry.attributes.normal
+  const index = sourceGeometry.index
+  const triangleCount = index ? index.count / 3 : position.count / 3
+  const directions = faceDirections.map((faceDirection) => (
+    new THREE.Vector3(...faceDirection).normalize()
+  ))
+  const a = new THREE.Vector3()
+  const b = new THREE.Vector3()
+  const c = new THREE.Vector3()
+  const ab = new THREE.Vector3()
+  const ac = new THREE.Vector3()
+  const centroid = new THREE.Vector3()
+  const centroidDirection = new THREE.Vector3()
+  const faceNormal = new THREE.Vector3()
+  const positions = []
+  const normals = []
+
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    const i0 = index ? index.getX(triangle * 3) : triangle * 3
+    const i1 = index ? index.getX(triangle * 3 + 1) : triangle * 3 + 1
+    const i2 = index ? index.getX(triangle * 3 + 2) : triangle * 3 + 2
+    a.fromBufferAttribute(position, i0)
+    b.fromBufferAttribute(position, i1)
+    c.fromBufferAttribute(position, i2)
+    centroid.copy(a).add(b).add(c).divideScalar(3)
+    centroidDirection.copy(centroid).normalize()
+    ab.subVectors(b, a)
+    ac.subVectors(c, a)
+    faceNormal.crossVectors(ab, ac).normalize()
+    if (faceNormal.dot(centroid) < 0) faceNormal.negate()
+
+    // The inset centre of the selected icosahedron face keeps its original
+    // normal. Adjacent chamfers deliberately fall below this threshold, so
+    // they remain as a narrow physical rim around the opening.
+    const isOpeningFace = directions.some((direction) => (
+      faceNormal.dot(direction) > 0.995
+      && centroidDirection.dot(direction) > 0.94
+    ))
+    if (isOpeningFace) continue
+
+    for (const vertexIndex of [i0, i1, i2]) {
+      positions.push(
+        position.getX(vertexIndex),
+        position.getY(vertexIndex),
+        position.getZ(vertexIndex),
+      )
+      if (normal) {
+        normals.push(
+          normal.getX(vertexIndex),
+          normal.getY(vertexIndex),
+          normal.getZ(vertexIndex),
+        )
+      }
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  if (normals.length === positions.length) {
+    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
+  } else {
+    geometry.computeVertexNormals()
+  }
+  geometry.computeBoundingBox()
+  geometry.computeBoundingSphere()
+  return geometry
+}
+
+/**
  * Инсфера (радиус вписанной сферы) для ЛЮБОЙ выпуклой геометрии с
  * плоскими гранями и центром в начале координат: минимум расстояний от
  * центра до плоскости каждого треугольника. У разных форм кристалла
@@ -2071,7 +2148,7 @@ function FriendAuraPlume({ config, active, position, scale, rotation, phase }) {
           ref={material}
           uniforms={uniforms}
           transparent
-          depthTest
+          depthTest={false}
           depthWrite={false}
           side={THREE.DoubleSide}
           toneMapped={false}
@@ -4116,34 +4193,64 @@ function Material({ config, shared }) {
   return null
 }
 
-/**
- * A thin solid chip of the outer triangle. A paper-thin DoubleSide face
- * reads as a grey hairline at grazing angles; a real slab has coloured
- * edges instead of an outline.
- */
-function buildFacetChip(shard, thickness = 0.058) {
-  const pos = shard.geometry.attributes.position
-  const a = new THREE.Vector3().fromBufferAttribute(pos, 0)
-  const b = new THREE.Vector3().fromBufferAttribute(pos, 1)
-  const c = new THREE.Vector3().fromBufferAttribute(pos, 2)
-  const inset = new THREE.Vector3(...shard.direction).multiplyScalar(thickness)
-  const a2 = a.clone().add(inset)
-  const b2 = b.clone().add(inset)
-  const c2 = c.clone().add(inset)
-  const verts = []
-  const push = (p, q, r) => {
-    verts.push(p.x, p.y, p.z, q.x, q.y, q.z, r.x, r.y, r.z)
+// Only the outer triangular face, used to visually erase the corresponding
+// face from the intact shell after a pane detaches. It has no extruded sides,
+// so it cannot produce the grey bars/outline seen behind the crystal.
+function buildFacetOpening(shard, offset = 0.004, insetFraction = 0) {
+  const source = shard.geometry.attributes.position
+  const direction = new THREE.Vector3(...shard.direction).multiplyScalar(offset)
+  const center = new THREE.Vector3()
+  for (let index = 0; index < 3; index += 1) {
+    center.add(new THREE.Vector3().fromBufferAttribute(source, index))
   }
-  push(a2, b2, c2)
-  push(a, c, b)
-  push(a, b, b2)
-  push(a, b2, a2)
-  push(b, c, c2)
-  push(b, c2, b2)
-  push(c, a, a2)
-  push(c, a2, c2)
+  center.divideScalar(3)
+  const vertices = []
+  for (let index = 0; index < 3; index += 1) {
+    const point = new THREE.Vector3()
+      .fromBufferAttribute(source, index)
+      .lerp(center, insetFraction)
+      .add(direction)
+    vertices.push(point.x, point.y, point.z)
+  }
   const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3))
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
+  geometry.setAttribute('aBarycentric', new THREE.Float32BufferAttribute([
+    1, 0, 0,
+    0, 1, 0,
+    0, 0, 1,
+  ], 3))
+  geometry.computeVertexNormals()
+  return geometry
+}
+
+// Figma's detached pieces are perspective-shaped crops rather than perfect
+// equilateral faces. Apply a small in-plane affine transform while retaining
+// the original face normal and barycentric coordinates for the light shader.
+function buildFacetSurface(shard, offset, shape) {
+  const geometry = buildFacetOpening(shard, offset)
+  const position = geometry.attributes.position
+  const a = new THREE.Vector3().fromBufferAttribute(position, 0)
+  const b = new THREE.Vector3().fromBufferAttribute(position, 1)
+  const c = new THREE.Vector3().fromBufferAttribute(position, 2)
+  const center = a.clone().add(b).add(c).divideScalar(3)
+  const normal = new THREE.Vector3(...shard.direction).normalize()
+  const axisX = b.clone().sub(a).normalize()
+  const axisY = normal.clone().cross(axisX).normalize()
+  const point = new THREE.Vector3()
+  const delta = new THREE.Vector3()
+  const transformed = new THREE.Vector3()
+  for (let index = 0; index < 3; index += 1) {
+    point.fromBufferAttribute(position, index)
+    delta.copy(point).sub(center)
+    const x = delta.dot(axisX)
+    const y = delta.dot(axisY)
+    transformed
+      .copy(center)
+      .addScaledVector(axisX, x * shape.shapeX + y * shape.skew)
+      .addScaledVector(axisY, y * shape.shapeY)
+    position.setXYZ(index, transformed.x, transformed.y, transformed.z)
+  }
+  position.needsUpdate = true
   geometry.computeVertexNormals()
   return geometry
 }
@@ -4157,11 +4264,11 @@ const PHYSICS_FACET_LAYOUTS = [
     { x: 1.36, y: 0.62, z: 0.18, scale: 0.70, roll: -0.20 },
     { x: 1.71, y: 0.49, z: 0.18, scale: 0.84, roll: 0.08 },
     { x: -1.82, y: 0.25, z: 0.18, scale: 0.62, roll: 0.25 },
-    { x: 0.66, y: 1.52, z: 0.18, scale: 1.00, roll: 0.12 },
+    { x: 0.66, y: 1.52, z: 0.18, scale: 1.00, roll: 2.15 },
   ],
   [
-    { x: -0.38, y: -1.28, z: 0.20, scale: 1.02, roll: -0.15 },
-    { x: -0.38, y: -1.28, z: 0.20, scale: 1.02, roll: -0.15 },
+    { x: -0.38, y: -2.18, z: 0.20, scale: 1.02, roll: -0.15 },
+    { x: -0.38, y: -2.18, z: 0.20, scale: 1.02, roll: -0.15 },
     { x: -0.38, y: -1.22, z: 0.20, scale: 0.92, roll: 0.61 },
     { x: 1.56, y: 0.25, z: 0.20, scale: 0.62, roll: -0.27 },
     { x: -1.66, y: 0.48, z: 0.20, scale: 0.75, roll: -0.10 },
@@ -4178,17 +4285,28 @@ const PHYSICS_FACET_LAYOUTS = [
     { x: -0.22, y: -2.10, z: 0.20, scale: 0.75, roll: 0.05 },
     { x: -0.22, y: -2.10, z: 0.20, scale: 0.75, roll: 0.05 },
     { x: -0.22, y: -2.10, z: 0.20, scale: 0.75, roll: 0.05 },
-    { x: -0.16, y: -1.44, z: 0.20, scale: 0.75, roll: 0.05 },
+    { x: -0.16, y: -1.50, z: 0.20, scale: 0.81, roll: 0.05 },
   ],
 ]
 
 const PHYSICS_PARENT_QUATERNIONS = [
   [-0.14, 0, -0.34],
-  [0.08, -0.34, -0.03],
+  [0.14, -0.4, -0.07],
   [0.20, 0.10, -0.05],
   [0.18, 0.34, 0.06],
   [0.08, -0.34, -0.03],
 ].map(([x, y, z]) => new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, 'XYZ')))
+
+// Each detached pane crosses the virtual camera on its own beat. Values are
+// deterministic functions of the reversible portal playhead, so reverse
+// scroll reconstructs the exact four-fragment composition without springs
+// retaining stale velocity.
+const PHYSICS_FACET_PORTAL = [
+  { delay: 0.02, span: 0.28, scale: 1.45, driftX: -0.18, driftY: 0.12, depth: -0.08, offsetY: -0.28, tiltX: -0.3, tiltY: 0.2, firstTwist: -0.08, twist: -0.72, shapeX: 1.06, shapeY: 0.67, skew: -0.38 },
+  { delay: 0.18, span: 0.28, scale: 2.10, driftX: 0.16, driftY: -0.18, depth: -0.12, offsetY: 0, tiltX: 0.2, tiltY: -0.36, firstTwist: 0, twist: 1.62, shapeX: 0.9, shapeY: 1.04, skew: -0.08 },
+  { delay: 0.34, span: 0.28, scale: 2.55, driftX: 0.08, driftY: 0.22, depth: 0.3, offsetY: 0, tiltX: -0.27, tiltY: 0.33, firstTwist: 0, twist: -1.88, shapeX: 0.84, shapeY: 1.08, skew: 0.1 },
+  { delay: 0.50, span: 0.26, scale: 1.72, driftX: -0.12, driftY: -0.14, depth: -0.24, offsetY: 0.18, tiltX: 0.34, tiltY: 0.13, firstTwist: 0, twist: 2.4, shapeX: 0.88, shapeY: 1.02, skew: -0.12 },
+]
 
 /**
  * Same brand palette as the living crystal, painted on the detached chip
@@ -4197,29 +4315,86 @@ const PHYSICS_PARENT_QUATERNIONS = [
  */
 function FeaturedFacet({ shard, state, config, motionRef }) {
   const groupRef = useRef(null)
+  const cutoutRef = useRef(null)
   const openingRef = useRef(null)
+  const rimRef = useRef(null)
+  const facetPaintRef = useRef(null)
   const progressRef = useRef(0)
   const basePosition = useMemo(() => new THREE.Vector3(...shard.position), [shard])
   const direction = useMemo(() => new THREE.Vector3(...shard.direction), [shard])
   const layout = PHYSICS_FACET_LAYOUTS[state - 1]
-  const chipGeometry = useMemo(() => buildFacetChip(shard), [shard])
-  useEffect(() => () => chipGeometry.dispose(), [chipGeometry])
+  const profile = PHYSICS_FACET_PORTAL[state - 1]
+  // The outer mask removes the complete source facet from both the glass and
+  // its colour projection. A second plane with that exact full-face outline
+  // sits deeper in the body and supplies a translucent inner surface. The
+  // detached pane may be stylised in perspective, but the opening must still
+  // consume the entire selected crystal face without leaving a coloured tip.
+  const cutoutGeometry = useMemo(
+    () => buildFacetOpening(shard, 0.038),
+    [shard],
+  )
+  const openingGeometry = useMemo(
+    // A compact surface lives well inside the body: the shell opening and
+    // its bevel remain visibly three-dimensional, while the moving colour
+    // reads as something deeper in the crystal rather than a replacement
+    // pane pasted into the missing face.
+    () => buildFacetOpening(
+      shard,
+      state === 1 ? -0.34 : -0.40,
+      state === 1 ? 0.46 : 0.50,
+    ),
+    [shard, state],
+  )
+  const rimGeometry = useMemo(
+    () => buildFacetOpening(shard, 0.012, state === 1 ? 0.015 : 0.06),
+    [shard, state],
+  )
+  const chipSurfaceGeometry = useMemo(
+    () => buildFacetSurface(shard, 0.061, profile),
+    [profile, shard],
+  )
+  const facetPaintUniforms = useMemo(() => ({
+    uTime: { value: 0 },
+    uOpacity: { value: 1 },
+    uPhase: { value: state * 1.37 },
+    uCyan: { value: new THREE.Color(config.friendFlowColor1 ?? '#76dcf2') },
+    uGreen: { value: new THREE.Color(config.friendFlowColor2 ?? '#08df68') },
+    uBlue: { value: new THREE.Color(config.friendFlowColor3 ?? '#55a9eb') },
+    uYellow: { value: new THREE.Color(config.friendFlowColor4 ?? '#e5f2ad') },
+  }), [config, state])
+  useEffect(() => () => {
+    cutoutGeometry.dispose()
+    openingGeometry.dispose()
+    rimGeometry.dispose()
+    chipSurfaceGeometry.dispose()
+  }, [cutoutGeometry, openingGeometry, rimGeometry, chipSurfaceGeometry])
   const restQuaternion = useMemo(() => new THREE.Quaternion(), [])
   const targetPosition = useMemo(() => new THREE.Vector3(), [])
   const parentQuaternion = useMemo(() => new THREE.Quaternion(), [])
   const inverseParentQuaternion = useMemo(() => new THREE.Quaternion(), [])
   const targetQuaternion = useMemo(() => new THREE.Quaternion(), [])
+  const tiltQuaternion = useMemo(() => new THREE.Quaternion(), [])
+  const tiltEuler = useMemo(() => new THREE.Euler(), [])
   const desiredNormal = useMemo(() => new THREE.Vector3(), [])
   const rollQuaternion = useMemo(() => new THREE.Quaternion(), [])
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }, delta) => {
     const group = groupRef.current
     if (!group) return
+    if (facetPaintRef.current) {
+      const uniforms = facetPaintRef.current.uniforms
+      uniforms.uTime.value = clock.elapsedTime
+      uniforms.uCyan.value.set(config.friendFlowColor1 ?? '#76dcf2')
+      uniforms.uGreen.value.set(config.friendFlowColor2 ?? '#08df68')
+      uniforms.uBlue.value.set(config.friendFlowColor3 ?? '#55a9eb')
+      uniforms.uYellow.value.set(config.friendFlowColor4 ?? '#e5f2ad')
+    }
     const fourth = motionRef?.current?.fourth
     const stateOne = Math.min(Math.max(fourth?.stateOne ?? 0, 0), 1)
     const stateTwo = Math.min(Math.max(fourth?.stateTwo ?? 0, 0), 1)
     const stateThree = Math.min(Math.max(fourth?.stateThree ?? 0, 0), 1)
     const stateFour = Math.min(Math.max(fourth?.stateFour ?? 0, 0), 1)
+    const portal = Math.min(Math.max(fourth?.portal ?? 0, 0), 1)
     const states = [stateOne, stateTwo, stateThree, stateFour]
     // The introductory frame stays whole. Detachment starts only when the
     // first centred reading state begins; later states add panes cumulatively.
@@ -4228,12 +4403,25 @@ function FeaturedFacet({ shard, state, config, motionRef }) {
     progressRef.current += (target - progressRef.current) * follow
     const progress = progressRef.current
     group.visible = progress > 0.012
+    // All four reading states now use genuine missing faces in the shell.
+    // The old depth masks stay mounted only to avoid churn during HMR.
+    if (cutoutRef.current) cutoutRef.current.visible = false
+    if (rimRef.current) {
+      // The bevel retained by the genuinely open shell is the only edge.
+      // Extra line loops read as a second pane once the crystal rotates.
+      rimRef.current.visible = false
+      rimRef.current.material.opacity = 0
+    }
 
     let x = layout[0].x
     let y = layout[0].y
     let z = layout[0].z
     let facetScale = layout[0].scale
     let roll = layout[0].roll
+    // The first Figma frame is a deliberately composed hero crop, not part
+    // of the later random spatial fan. Keep its single pane almost frontal
+    // and introduce the stronger 3D orientation only as state two arrives.
+    const spatialRandomness = state === 1 ? stateTwo : 1
     for (let phase = 1; phase < layout.length; phase += 1) {
       const phaseProgress = states[phase - 1]
       x += (layout[phase].x - x) * phaseProgress
@@ -4242,83 +4430,257 @@ function FeaturedFacet({ shard, state, config, motionRef }) {
       facetScale += (layout[phase].scale - facetScale) * phaseProgress
       roll += (layout[phase].roll - roll) * phaseProgress
     }
+    // Figma uses four very different in-plane angles rather than a regular
+    // radial fan. The perspective tilt is handled independently below.
+    roll += profile.firstTwist * (1 - spatialRandomness)
+      + profile.twist * spatialRandomness
+    if (state === 2) roll += 0.07 * (1 - stateThree)
 
     parentQuaternion.copy(PHYSICS_PARENT_QUATERNIONS[0])
     for (let phase = 1; phase < PHYSICS_PARENT_QUATERNIONS.length; phase += 1) {
       parentQuaternion.slerp(PHYSICS_PARENT_QUATERNIONS[phase], states[phase - 1])
     }
     inverseParentQuaternion.copy(parentQuaternion).invert()
-    targetPosition.set(x, y, z).applyQuaternion(inverseParentQuaternion)
+    targetPosition
+      .set(
+        x,
+        y + profile.offsetY * spatialRandomness,
+        z + profile.depth * spatialRandomness,
+      )
+      .applyQuaternion(inverseParentQuaternion)
     group.position.copy(basePosition).lerp(targetPosition, progress)
+    // Preserve an unmistakable air gap under the crystal in state two.
+    // Applying it after the parent-space transform prevents the authored
+    // crystal rotation from pushing the shard's top point back into the
+    // silhouette. Fade it out as the third composition takes over.
+    if (state === 2) {
+      group.position.y -= 0.45 * progress * (1 - stateThree)
+    }
 
-    desiredNormal.set(0, 0, 1).applyQuaternion(inverseParentQuaternion).normalize()
+    const firstTiltX = state === 1 ? -0.06 : profile.tiltX
+    const firstTiltY = state === 1 ? 0.08 : profile.tiltY
+    tiltEuler.set(
+      firstTiltX + (profile.tiltX - firstTiltX) * spatialRandomness,
+      firstTiltY + (profile.tiltY - firstTiltY) * spatialRandomness,
+      0,
+      'XYZ',
+    )
+    tiltQuaternion.setFromEuler(tiltEuler)
+    desiredNormal
+      .set(0, 0, 1)
+      .applyQuaternion(tiltQuaternion)
+      .applyQuaternion(inverseParentQuaternion)
+      .normalize()
     targetQuaternion.setFromUnitVectors(direction, desiredNormal)
     rollQuaternion.setFromAxisAngle(desiredNormal, roll)
     targetQuaternion.premultiply(rollQuaternion)
     group.quaternion.slerpQuaternions(restQuaternion, targetQuaternion, progress)
-    group.scale.setScalar(1 + (facetScale - 1) * progress)
+    const portalFlight = smootherstep(Math.min(Math.max(
+      (portal - profile.delay) / profile.span,
+      0,
+    ), 1))
+    // The apparent depth comes from unequal enlargement plus a slight
+    // outward drift. Avoid a literal Z push: the whole crystal is already
+    // scaling toward the camera, and adding local Z at that scale would hit
+    // the near plane and create the large rectangular/triangular glitches.
+    group.position.x += profile.driftX * portalFlight
+    group.position.y += profile.driftY * portalFlight
+    const readingScale = 1 + (facetScale - 1) * progress
+    group.scale.setScalar(readingScale * (1 + profile.scale * portalFlight))
+    if (facetPaintRef.current) {
+      // Each pane completes its own camera pass, then disappears behind the
+      // rectangular aperture before the parent crystal starts moving. This
+      // prevents the already-flown panes from inheriting the body's zoom.
+      const paneExit = smootherstep(Math.min(Math.max(
+        (portalFlight - 0.62) / 0.38,
+        0,
+      ), 1))
+      facetPaintRef.current.uniforms.uOpacity.value = progress * (1 - paneExit)
+    }
     if (openingRef.current) {
+      const openingUniforms = openingRef.current.material.uniforms
       openingRef.current.visible = progress > 0.012
-      openingRef.current.material.opacity = progress * 0.78
+      openingUniforms.uOpacity.value = progress * (state === 1 ? 0.42 : 0.38)
+      openingUniforms.uTime.value = clock.elapsedTime
+      openingUniforms.uCyan.value.set(config.friendFlowColor1 ?? '#76dcf2')
+      openingUniforms.uGreen.value.set(config.friendFlowColor2 ?? '#08df68')
+      openingUniforms.uBlue.value.set(config.friendFlowColor3 ?? '#55a9eb')
     }
   })
 
   return (
     <>
       <mesh
+        ref={cutoutRef}
+        geometry={cutoutGeometry}
+        position={shard.position}
+        visible={false}
+        renderOrder={-20 + state * 0.01}
+        frustumCulled={false}
+      >
+        <meshBasicMaterial
+          colorWrite={false}
+          depthWrite
+          depthTest
+          side={THREE.DoubleSide}
+          polygonOffset
+          polygonOffsetFactor={-2}
+          polygonOffsetUnits={-2}
+        />
+      </mesh>
+      <mesh
         ref={openingRef}
-        geometry={chipGeometry}
+        geometry={openingGeometry}
         position={shard.position}
         visible={false}
         renderOrder={5.1}
         frustumCulled={false}
       >
-        <meshBasicMaterial
-          color="#ffffff"
+        <shaderMaterial
+          transparent
+          depthTest
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          blending={THREE.NormalBlending}
+          toneMapped={false}
+          uniforms={{
+            uOpacity: { value: 0 },
+            uTime: { value: 0 },
+            uFirstOpening: { value: state === 1 ? 1 : 0 },
+            uCyan: { value: new THREE.Color(config.friendFlowColor1 ?? '#76dcf2') },
+            uGreen: { value: new THREE.Color(config.friendFlowColor2 ?? '#08df68') },
+            uBlue: { value: new THREE.Color(config.friendFlowColor3 ?? '#55a9eb') },
+          }}
+          vertexShader={`
+            attribute vec3 aBarycentric;
+            varying vec3 vBarycentric;
+            varying vec3 vLocalPosition;
+            void main() {
+              vBarycentric = aBarycentric;
+              vLocalPosition = position;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `}
+          fragmentShader={`
+            uniform float uOpacity;
+            uniform float uTime;
+            uniform float uFirstOpening;
+            uniform vec3 uCyan;
+            uniform vec3 uGreen;
+            uniform vec3 uBlue;
+            varying vec3 vBarycentric;
+            varying vec3 vLocalPosition;
+            void main() {
+              float edgeDistance = min(vBarycentric.x, min(vBarycentric.y, vBarycentric.z));
+              vec2 uv = vec2(vBarycentric.y, vBarycentric.z);
+              float wave = sin(uv.x * 7.0 - uv.y * 4.5 + uTime * 0.7) * 0.5 + 0.5;
+              float blueFlow = sin((uv.x + uv.y) * 8.0 - uTime * 0.45) * 0.5 + 0.5;
+              vec3 colour = mix(uCyan, uGreen, wave * 0.7);
+              colour = mix(colour, uBlue, blueFlow * 0.34);
+              colour = mix(vec3(0.26, 0.77, 0.77), colour, 0.78);
+              float cavity = smoothstep(0.03, 0.28, edgeDistance);
+              vec3 firstDepth = mix(vec3(0.16, 0.72, 0.74), uGreen, wave * 0.38);
+              colour = mix(colour, firstDepth, uFirstOpening * cavity * 0.42);
+              // The physical bevel around the removed face supplies the
+              // highlight. Keeping this inner plane free of another white
+              // rim avoids the layered pane effect at every rotation.
+              // Fade the projected colour before the physical bevel. The
+              // animated field remains visible in the cavity, but its own
+              // triangular perimeter can no longer read as a grey pane.
+              float depthFade = smoothstep(0.08, 0.30, edgeDistance);
+              float alpha = uOpacity * depthFade;
+              gl_FragColor = vec4(colour, alpha);
+            }
+          `}
+        />
+      </mesh>
+      <lineLoop
+        ref={rimRef}
+        geometry={rimGeometry}
+        position={shard.position}
+        visible={false}
+        renderOrder={5.08}
+        frustumCulled={false}
+      >
+        <lineBasicMaterial
+          color="#effff6"
           transparent
           opacity={0}
           depthTest={false}
           depthWrite={false}
-          side={THREE.DoubleSide}
+          toneMapped={false}
         />
-      </mesh>
+      </lineLoop>
       <group
         ref={groupRef}
         position={shard.position}
         visible={false}
       >
-        <mesh geometry={chipGeometry} renderOrder={4.5} castShadow={false}>
-          <Material config={config} shared />
-        </mesh>
-        <FriendProjection
-          geometry={chipGeometry}
-          config={config}
-          coverScale={1}
-          renderOrder={4.7}
-        />
-        <mesh geometry={chipGeometry} renderOrder={4.9} castShadow={false}>
+        <mesh geometry={chipSurfaceGeometry} renderOrder={4.7} castShadow={false}>
           <shaderMaterial
+            ref={facetPaintRef}
+            uniforms={facetPaintUniforms}
             transparent
             depthWrite={false}
             side={THREE.DoubleSide}
+            toneMapped={false}
             vertexShader={`
-              varying vec3 vLocalPosition;
+              attribute vec3 aBarycentric;
+              varying vec3 vBarycentric;
               void main() {
-                vLocalPosition = position;
+                vBarycentric = aBarycentric;
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
               }
             `}
             fragmentShader={`
-              varying vec3 vLocalPosition;
+              uniform float uTime;
+              uniform float uOpacity;
+              uniform float uPhase;
+              uniform vec3 uCyan;
+              uniform vec3 uGreen;
+              uniform vec3 uBlue;
+              uniform vec3 uYellow;
+              varying vec3 vBarycentric;
+
               void main() {
-                float vertical = smoothstep(-0.7, 0.7, vLocalPosition.y);
-                float lateral = smoothstep(-0.65, 0.65, vLocalPosition.x);
-                vec3 cyan = vec3(0.26, 0.78, 1.0);
-                vec3 mint = vec3(0.38, 1.0, 0.64);
-                vec3 pearl = vec3(0.82, 0.90, 1.0);
-                vec3 colour = mix(cyan, mint, vertical);
-                colour = mix(colour, pearl, lateral * 0.36);
-                gl_FragColor = vec4(colour, 0.46);
+                vec2 uv = vec2(vBarycentric.y, vBarycentric.z);
+                vec2 p = (uv - vec2(0.34, 0.31)) * 2.25;
+                float t = uTime * 0.16 + uPhase;
+                float warp = sin(p.y * 2.35 + t * 0.83) * 0.28
+                           + sin((p.x - p.y) * 3.1 - t * 0.57) * 0.16;
+                float current = sin(p.x * 2.0 + p.y * 1.15 + warp + t * 0.72);
+
+                float cyanField = exp(-pow((p.y + warp * 0.36) * 1.22, 2.0));
+                float blueField = exp(-pow((p.x - p.y * 0.42 + warp * 0.22) * 1.42, 2.0));
+                vec2 greenPoint = p - vec2(-0.08 + sin(t * 0.31) * 0.13, -0.22);
+                float greenField = exp(-dot(greenPoint * vec2(1.32, 1.58), greenPoint * vec2(1.32, 1.58)));
+                greenField *= smoothstep(-0.62, 0.76, current);
+                vec2 yellowPoint = p - vec2(0.28, 0.18);
+                float yellowField = exp(-dot(yellowPoint * 1.85, yellowPoint * 1.85));
+
+                vec3 milk = vec3(0.91, 0.985, 0.965);
+                vec3 colour = mix(milk, uCyan, cyanField * 0.96);
+                colour = mix(colour, uBlue, blueField * 0.88);
+                colour = mix(colour, uGreen, greenField * 0.8);
+                colour = mix(colour, uYellow, yellowField * 0.42);
+
+                float whiteFacet = smoothstep(0.42, 0.86, vBarycentric.x)
+                                 * smoothstep(0.08, 0.48, vBarycentric.z);
+                colour = mix(colour, vec3(0.99, 1.0, 0.985), whiteFacet * 0.3);
+                float innerLight = cyanField * 0.08
+                                 + greenField * 0.07
+                                 + yellowField * 0.12;
+                colour += uCyan * cyanField * 0.1
+                        + uBlue * blueField * 0.1
+                        + uGreen * greenField * 0.12;
+                colour = mix(colour * 1.14, vec3(1.0, 0.995, 0.96), innerLight * 0.35);
+                float luminance = dot(colour, vec3(0.2126, 0.7152, 0.0722));
+                colour = clamp(mix(vec3(luminance), colour, 1.48) * 1.12, 0.0, 1.25);
+                float alpha = 0.86
+                            + cyanField * 0.07
+                            + blueField * 0.05
+                            + greenField * 0.06;
+                gl_FragColor = vec4(colour, min(alpha, 0.98) * uOpacity);
               }
             `}
           />
@@ -4337,6 +4699,11 @@ const Glass = forwardRef(function Glass({
   spinBlendRef,
 }, forwardedRef) {
   const group = useRef()
+  const closedShellRef = useRef(null)
+  const singleOpenShellRef = useRef(null)
+  const doubleOpenShellRef = useRef(null)
+  const tripleOpenShellRef = useRef(null)
+  const quadOpenShellRef = useRef(null)
   // Exposes the crystal's own group to whoever holds the forwarded ref
   // (CursorLight in App.jsx, to raycast against the actual geometry — see
   // the comment there) — group.current is the same live THREE.Object3D
@@ -4396,6 +4763,37 @@ const Glass = forwardRef(function Glass({
   }, [bevel, config.filletSegments, config.roundness])
 
   const exploded = config.explode > 0.001
+  const singleOpenSolid = useMemo(
+    () => buildShellWithOpenFaces(solid, [shards[19].direction]),
+    [shards, solid],
+  )
+  const doubleOpenSolid = useMemo(
+    () => buildShellWithOpenFaces(solid, [shards[19].direction, shards[6].direction]),
+    [shards, solid],
+  )
+  const tripleOpenSolid = useMemo(
+    () => buildShellWithOpenFaces(solid, [
+      shards[19].direction,
+      shards[6].direction,
+      // Third pane comes from the exposed left-side face, so its opening
+      // reads beside the detached shard instead of underneath pane two.
+      shards[4].direction,
+    ]),
+    [shards, solid],
+  )
+  const quadOpenSolid = useMemo(
+    () => buildShellWithOpenFaces(solid, [
+      shards[19].direction,
+      shards[6].direction,
+      shards[4].direction,
+      shards[10].direction,
+    ]),
+    [shards, solid],
+  )
+  useEffect(() => () => singleOpenSolid.dispose(), [singleOpenSolid])
+  useEffect(() => () => doubleOpenSolid.dispose(), [doubleOpenSolid])
+  useEffect(() => () => tripleOpenSolid.dispose(), [tripleOpenSolid])
+  useEffect(() => () => quadOpenSolid.dispose(), [quadOpenSolid])
 
   useFrame((state, delta) => {
     photoBackdropRef.current?.update(Math.min(delta, 0.05))
@@ -4404,6 +4802,29 @@ const Glass = forwardRef(function Glass({
     const fourthFrameLocked = Boolean(
       rotationLockRef?.current?.fourth?.reveal > 0.004,
     )
+    const firstHoleOpen = Boolean(
+      rotationLockRef?.current?.fourth?.stateOne > 0.012,
+    )
+    const secondHoleOpen = Boolean(
+      rotationLockRef?.current?.fourth?.stateTwo > 0.012,
+    )
+    const thirdHoleOpen = Boolean(
+      rotationLockRef?.current?.fourth?.stateThree > 0.012,
+    )
+    const fourthHoleOpen = Boolean(
+      rotationLockRef?.current?.fourth?.stateFour > 0.012,
+    )
+    if (closedShellRef.current) closedShellRef.current.visible = !firstHoleOpen
+    if (singleOpenShellRef.current) {
+      singleOpenShellRef.current.visible = firstHoleOpen && !secondHoleOpen
+    }
+    if (doubleOpenShellRef.current) {
+      doubleOpenShellRef.current.visible = secondHoleOpen && !thirdHoleOpen
+    }
+    if (tripleOpenShellRef.current) {
+      tripleOpenShellRef.current.visible = thirdHoleOpen && !fourthHoleOpen
+    }
+    if (quadOpenShellRef.current) quadOpenShellRef.current.visible = fourthHoleOpen
     if (rotationLocked || fourthFrameLocked) {
       // Block four uses one deterministic, front-lit authored angle. Reset
       // the accumulated child rotation every frame so neither a previous
@@ -4492,42 +4913,72 @@ const Glass = forwardRef(function Glass({
         && <FriendLightCore config={config} />}
 
       {!exploded && (
-        <mesh geometry={solid} castShadow={config.материал !== 'friend'}>
-          <Material config={config} shared={false} />
-        </mesh>
-      )}
-
-      {!exploded && config.материал === 'friend' && (
         <>
-          {/* Keep the silhouette clean. The enlarged back-face light-leak
-              shell intentionally extended beyond the geometry and read as
-              a grey outline at the large block-four scale. */}
-          <FriendProjection geometry={solid} config={config} />
+          <group ref={closedShellRef}>
+            <mesh geometry={solid} castShadow={config.материал !== 'friend'}>
+              <Material config={config} shared={false} />
+            </mesh>
+            {config.материал === 'friend' && (
+              <FriendProjection geometry={solid} config={config} />
+            )}
+          </group>
+          <group ref={singleOpenShellRef} visible={false}>
+            <mesh geometry={singleOpenSolid} castShadow={config.материал !== 'friend'}>
+              <Material config={config} shared={false} />
+            </mesh>
+            {config.материал === 'friend' && (
+              <FriendProjection geometry={singleOpenSolid} config={config} />
+            )}
+          </group>
+          <group ref={doubleOpenShellRef} visible={false}>
+            <mesh geometry={doubleOpenSolid} castShadow={config.материал !== 'friend'}>
+              <Material config={config} shared={false} />
+            </mesh>
+            {config.материал === 'friend' && (
+              <FriendProjection geometry={doubleOpenSolid} config={config} />
+            )}
+          </group>
+          <group ref={tripleOpenShellRef} visible={false}>
+            <mesh geometry={tripleOpenSolid} castShadow={config.материал !== 'friend'}>
+              <Material config={config} shared={false} />
+            </mesh>
+            {config.материал === 'friend' && (
+              <FriendProjection geometry={tripleOpenSolid} config={config} />
+            )}
+          </group>
+          <group ref={quadOpenShellRef} visible={false}>
+            <mesh geometry={quadOpenSolid} castShadow={config.материал !== 'friend'}>
+              <Material config={config} shared={false} />
+            </mesh>
+            {config.материал === 'friend' && (
+              <FriendProjection geometry={quadOpenSolid} config={config} />
+            )}
+          </group>
         </>
       )}
 
       {!exploded && rotationLockRef && (
         <>
           <FeaturedFacet
-            shard={shards[5]}
+            shard={shards[19]}
             state={1}
             config={config}
             motionRef={rotationLockRef}
           />
           <FeaturedFacet
-            shard={shards[4]}
+            shard={shards[6]}
             state={2}
             config={config}
             motionRef={rotationLockRef}
           />
           <FeaturedFacet
-            shard={shards[14]}
+            shard={shards[4]}
             state={3}
             config={config}
             motionRef={rotationLockRef}
           />
           <FeaturedFacet
-            shard={shards[11]}
+            shard={shards[10]}
             state={4}
             config={config}
             motionRef={rotationLockRef}

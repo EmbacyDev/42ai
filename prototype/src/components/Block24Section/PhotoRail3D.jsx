@@ -12,13 +12,13 @@ import { useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 import { layoutBlock24 } from './block24Layout.js'
 
-const CARD_WIDTH = 227
-const CARD_HEIGHT = 270.24
-const CARD_TOP = 282.88
+const CARD_WIDTH = 290
+const CARD_HEIGHT = 346
+const CARD_TOP = 246
 // Give the optical hinge room to breathe: the active card remains locked to
 // the viewport centre while only the inactive rail shifts farther right.
 const FIRST_CARD_LEFT = 920.5
-const SLOT_STEP = 259
+const SLOT_STEP = 322
 // Active card is the Figma 336×400 frame. The flight still eases onto
 // these bounds; only the landing size changed.
 const HERO_HEIGHT = 400
@@ -184,44 +184,12 @@ const fragmentShader = /* glsl */ `
   varying float vEdgeWarp;
 
   vec4 sampleCard(vec2 uv) {
-    // Block 3's landscape gradient is cropped into portrait cards. Each slide
-    // receives a stable pseudo-random window into the same field, so the rail
-    // feels related without showing repeated tiles or changing on re-render.
-    float seedA = sin(uGradientSeed * 12.9898) * 43758.5453;
-    float seedB = sin((uGradientSeed + 3.17) * 78.233) * 12415.873;
-    float randomA = fract(seedA);
-    float randomB = fract(seedB);
-    float cropX = mix(0.38, 0.52, randomA);
-    float cropY = mix(0.82, 1.0, randomB);
-    vec2 gradientCenter = vec2(
-      mix(0.27, 0.73, randomB),
-      mix(0.44, 0.56, randomA)
-    );
-    vec2 gradientUv = (uv - 0.5) * vec2(cropX, cropY) + gradientCenter;
-    gradientUv = clamp(gradientUv, vec2(0.003), vec2(0.997));
-    vec3 gradientColor = texture2D(uGradientTexture, gradientUv).rgb;
-    float tint = mix(0.94, 1.07, fract(randomA + randomB));
-    gradientColor = clamp(gradientColor * tint, 0.0, 1.0);
-
-    // A large, breathing light source inspired by the reference. The core is
-    // mint-white, while the halo stays inside the existing cyan/emerald
-    // palette. Every card gets a different phase so the rail never looks
-    // like repeated animated tiles.
-    float lightPhase = uTime * 0.24 + uGradientSeed * 1.83;
-    vec2 lightCenter = vec2(
-      0.06 + sin(lightPhase) * 0.11,
-      0.43 + cos(lightPhase * 0.79) * 0.13
-    );
-    vec2 lightDelta = (uv - lightCenter) * vec2(1.0, 0.72);
-    float lightDistance = dot(lightDelta, lightDelta);
-    float breathing = 0.88 + sin(uTime * 0.48 + uGradientSeed * 2.31) * 0.12;
-    float halo = exp(-lightDistance * 4.8) * breathing;
-    float core = exp(-lightDistance * 15.5) * breathing;
-    vec3 aquaHalo = vec3(0.20, 0.98, 0.78);
-    vec3 mintCore = vec3(0.92, 1.0, 0.97);
-    gradientColor = mix(gradientColor, aquaHalo, halo * 0.38);
-    gradientColor = mix(gradientColor, mintCore, core * 0.82);
-    gradientColor = clamp(gradientColor, 0.0, 1.0);
+    // Inactive cards use their own cover, already framed to the card.
+    // Sample it edge to edge so the designed gradient stays intact.
+    vec3 gradientColor = texture2D(
+      uGradientTexture,
+      clamp(uv, vec2(0.003), vec2(0.997))
+    ).rgb;
 
     // Do not crossfade the whole card uniformly. A soft glass-light front
     // travels from the edge nearest the active card and optically develops
@@ -437,20 +405,24 @@ function wrapLabelLines(ctx, text, maxWidth) {
   return lines
 }
 
-function createInactiveLabelTexture(text, color) {
+// Figma inactive card is 227×270 with 18px type in a 153px measure.
+// Scale those values onto the larger rail card so the wrap stays the same.
+const LABEL_SCALE = CARD_WIDTH / 227
+
+function createInactiveLabelTexture(text) {
   const ratio = 4
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(CARD_WIDTH * ratio)
   canvas.height = Math.round(CARD_HEIGHT * ratio)
   const ctx = canvas.getContext('2d')
   ctx.clearRect(0, 0, canvas.width, canvas.height)
-  const fontSize = 18 * ratio
+  const fontSize = 18 * LABEL_SCALE * ratio
   ctx.font = `500 ${fontSize}px "TT Hoves Pro Trial Variable", sans-serif`
-  ctx.fillStyle = color
+  ctx.fillStyle = '#ffffff'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  if ('letterSpacing' in ctx) ctx.letterSpacing = `${-0.36 * ratio}px`
-  const lines = wrapLabelLines(ctx, text, 153 * ratio)
+  if ('letterSpacing' in ctx) ctx.letterSpacing = `${-0.36 * LABEL_SCALE * ratio}px`
+  const lines = wrapLabelLines(ctx, text, 153 * LABEL_SCALE * ratio)
   const lineHeight = fontSize * 1.15
   const originY = canvas.height / 2 - ((lines.length - 1) * lineHeight) / 2
   lines.forEach((line, index) => {
@@ -466,6 +438,7 @@ function createInactiveLabelTexture(text, color) {
 }
 
 function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, labelTexture, register }) {
+  const meshRef = useRef(null)
   const uniforms = useMemo(() => ({
     uTexture: { value: texture },
     uGradientTexture: { value: gradientTexture },
@@ -498,9 +471,24 @@ function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, labelTextu
   uniforms.uGradientSeed.value = gradientSeed
   uniforms.uLabel.value = labelTexture
 
+  // R3F copies shader uniforms once, when the material is created. Writing
+  // the new slide onto that copy is what lets the travelling card develop
+  // its own photo instead of the picture it was born with.
+  useLayoutEffect(() => {
+    const material = meshRef.current?.material
+    if (!material?.uniforms) return
+    material.uniforms.uTexture.value = texture
+    material.uniforms.uGradientTexture.value = gradientTexture
+    material.uniforms.uLabel.value = labelTexture
+    material.uniforms.uGradientSeed.value = gradientSeed
+  }, [gradientSeed, gradientTexture, labelTexture, texture])
+
   return (
     <mesh
-      ref={(node) => register(offset, node)}
+      ref={(node) => {
+        meshRef.current = node
+        register(offset, node)
+      }}
       frustumCulled={false}
       renderOrder={20 - offset}
     >
@@ -520,14 +508,12 @@ function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, labelTextu
 
 function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
   const sources = useMemo(() => slides.map((slide) => slide.image), [slides])
+  const coverSources = useMemo(() => slides.map((slide) => slide.cover), [slides])
   const textures = useTexture(sources)
-  const gradientTexture = useTexture('/images/gradient.jpg')
+  const coverTextures = useTexture(coverSources)
   const [labelRevision, setLabelRevision] = useState(0)
   const labelTextures = useMemo(
-    () => slides.map((slide) => createInactiveLabelTexture(
-      slide.tab,
-      slide.labelColor || '#ffffff',
-    )),
+    () => slides.map((slide) => createInactiveLabelTexture(slide.tab)),
     [slides, labelRevision],
   )
 
@@ -830,7 +816,7 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
         key={offset}
         offset={offset}
         texture={textures[slideIndex]}
-        gradientTexture={gradientTexture}
+        gradientTexture={coverTextures[slideIndex]}
         labelTexture={labelTextures[slideIndex]}
         gradientSeed={(slideIndex + 1) * 1.371}
         register={register}
