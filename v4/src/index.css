@@ -1,0 +1,89 @@
+@font-face {
+  font-family: "TT Hoves Pro Trial";
+  src: url("/fonts/TT_Hoves_Pro_Trial_Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+/* TT Hoves as static cuts cut from the variable trial (wdth 100, slnt 0),
+   one file per weight the page uses, with unique internal names. Safari
+   was dropping the variable file; static faces under a family name that
+   no installed font shares load everywhere. */
+@font-face {
+  font-family: "TT Hoves Web";
+  src: url("/fonts/TT_Hoves_Pro_Trial_400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "TT Hoves Web";
+  src: url("/fonts/TT_Hoves_Pro_Trial_450.woff2") format("woff2");
+  font-weight: 450;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "TT Hoves Web";
+  src: url("/fonts/TT_Hoves_Pro_Trial_460.woff2") format("woff2");
+  font-weight: 460;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "TT Hoves Web";
+  src: url("/fonts/TT_Hoves_Pro_Trial_500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "TT Hoves Web";
+  src: url("/fonts/TT_Hoves_Pro_Trial_550.woff2") format("woff2");
+  font-weight: 550;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "TT Hoves Web";
+  src: url("/fonts/TT_Hoves_Pro_Trial_700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Figma's body copy is 42dot Sans. It previously fell through to the
+   browser's generic sans-serif because the actual font was not bundled. */
+@font-face {
+  font-family: "42dot Sans";
+  src: url("/fonts/42dotSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+body {
+  background: #ffffff;
+  color: #121110;
+}

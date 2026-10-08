@@ -1,0 +1,71 @@
+// The prototype's own copy of tab 01, with its own slower rotation. The
+// page never reads a crystal payload from the tuning tool or from the URL.
+export const DEFAULT_CRYSTAL_CONFIG = Object.freeze({
+  материал: 'friend',
+  friendVersion: 'milky-projection',
+
+  envIntensity: 0,
+  friendTransparency: 1,
+  friendMatte: 0.12,
+  friendFrost: 0.07,
+  friendGlassBlur: 0.17,
+  friendSpecular: 1.18,
+  friendInnerShade: 0.74,
+  friendShadeColor: '#a1e9fc',
+  friendEdgeClarity: 0.9,
+  friendLightDiffusion: 0.2,
+
+  friendCoreSize: 0.15,
+  friendVolumeScale: 2.18,
+  friendCoreStretch: 1.8,
+  friendCenterPower: 1.69,
+  friendCenterSize: 0.26,
+  friendPulse: 0.095,
+  friendLightMotion: 0.13,
+  friendFlow: 1.5,
+  friendPaintFlow: 2.2,
+  friendFlowDrift: 0.3,
+  friendLightSpread: 0.15,
+  friendWindSpeed: 1.56,
+  friendWindAmount: 2.5,
+
+  friendCenterColor: '#fff4e8',
+  friendColorCount: 4,
+  friendColorSplit: 0,
+  friendColorMotion: 1,
+  // v4: more saturated liquid, so it reads against the milky shell.
+  friendColorBoost: 1.6,
+  friendFlowColor1: '#756cff',
+  friendFlowColor2: '#29ae57',
+  friendFlowColor3: '#1d81ed',
+  friendFlowColor4: '#f0ff1f',
+  friendFlowColor5: '#7f4cff',
+
+  // Hero background from the approved Figma frame: a cool blue atmosphere
+  // at the top that opens into clean white behind the copy.
+  friendBackgroundMode: 'linear',
+  friendBackgroundColor1: '#d4e7f8',
+  friendBackgroundColor2: '#edf6fd',
+  friendBackgroundUseThird: true,
+  friendBackgroundColor3: '#ffffff',
+  friendBackgroundAngle: 90,
+  friendBackgroundCenterX: 0.5,
+  friendBackgroundCenterY: 0.5,
+  friendBackgroundPosition: 0.52,
+  friendBackgroundSoftness: 0.8,
+
+  bevel: 0.15,
+  // v4: rounded edges instead of two hard flat cuts.
+  filletSegments: 3,
+  roundness: 0,
+  bloom: 0,
+  bloomThreshold: 0.94,
+  explode: 0,
+  explodeDistance: 1.4,
+  explodeTwist: 0.6,
+  autoRotate: true,
+  // Hero tumble, 1.2× slower than the original 0.5 / 1.5.
+  rotateSpeed: 0.5 / 1.5 / 1.2,
+  samples: 10,
+  resolution: 512,
+})

@@ -1,0 +1,96 @@
+/* Presentation tokens from 42ai V.2 / UIKIT. Motion lives in the scene modules. */
+:root {
+  --color-ink: #121212;
+  --color-grey: #7c8083;
+  --color-surface: #f0f1f2;
+  --font-heading: "TT Hoves Web", sans-serif;
+  --font-body: "42dot Sans", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+}
+.hero-content__title { font-family: var(--font-heading); font-size: 42px; font-weight: 450; letter-spacing: -.84px; color: var(--color-ink); }
+.hero-content__text { color: var(--color-grey); }
+.block24-section__tablet-tabs { display: none; }
+.hero-content__reveal { margin-top: 24px; }
+.hero-label { border-radius: 8px; background: #cacaca33; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 0; box-shadow: none; white-space: normal; align-items: center; }
+[data-label-id="reading-people"], [data-label-id="optimizing-decisions"] { justify-content: center; text-align: center; }
+.hero-label__copy { margin: 0; font: 500 12px/1.2 var(--font-mono); letter-spacing: .6px; text-transform: uppercase; }
+.site-header__logo { width: 95.739px; height: 36px; }
+.site-header__logo img { width: auto; height: auto; }
+.page-tail .scroll-reveal { opacity: 1; translate: none; filter: none; }
+.prove-section { padding: 40px 80px 80px; }
+.prove-section__card { background: #f0f1f2 url('/images/figma/cta-gradient.png') center / cover no-repeat; }
+.prove-section__copy h2, .prove-section__copy h2 .prove-section__line { background: none; color: var(--color-ink); -webkit-text-fill-color: currentColor; font-weight: 460; line-height: 1.2; }
+.prove-section__copy p { background: none; color: var(--color-grey); -webkit-text-fill-color: currentColor; line-height: 1.1; font-weight: 450; }
+.breakthroughs-section { background: var(--color-ink); }
+.breakthroughs-section__copy h2 { width: min(628px,100%); font-size: 42px; line-height: 1.15; font-weight: 450; background: none; -webkit-text-fill-color: currentColor; }
+.breakthroughs-section__eyebrow { font-size: 13px; color: #868a8d; letter-spacing: .65px; }
+.breakthroughs-section__cta { box-sizing: border-box; width: var(--demo-width); height: 40px; font-size: 14px; letter-spacing: .75px; }
+.breakthroughs-section__card { border-radius: 8px; }
+.breakthroughs-section__card h3 { font-size: 26px; font-weight: 450; line-height: 1.25; letter-spacing: -.52px; color: white; }
+.breakthroughs-section__card--photo h3 { max-width: calc(100% - 72px); }
+.breakthroughs-section__meta { font-weight: 500; line-height: 1.2; }
+.breakthroughs-section__card--photo .breakthroughs-section__meta { color: var(--color-ink); }
+.breakthroughs-section__arrow { position: absolute; right: 0; bottom: 0; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: #ffffff40; color: white; text-decoration: none; }
+.breakthroughs-section__arrow svg { width: 7.64px; height: 12.73px; margin-left: 1.6px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linejoin: bevel; }
+/* Figma 450:4655: the button sits on the subtitle's baseline, not the card centre. */
+@media (min-width: 981px) {
+  .prove-section__cta { align-self: flex-end; margin: 0 0 119px; }
+}
+@media (max-width: 1100px) and (min-width: 981px) {
+  .prove-section__card { padding: 40px; gap: 24px; }
+  .prove-section__copy { min-width: 0; flex: 1; }
+  .prove-section__copy h2 { font-size: 42px; }
+  .prove-section__copy p { font-size: 23px; }
+}
+@media (max-width: 980px) {
+  .block24-section__tabs { display: none; }
+  .block24-section__tablet-tabs { position: absolute; display: flex; gap: 32px; top: calc(156px - var(--block24-origin-y)); left: calc(-1 * var(--block24-origin-x)); width: 100vw; padding: 0 40px; box-sizing: border-box; overflow-x: auto; scrollbar-width: none; pointer-events: auto; }
+  .block24-section__tablet-tabs::before, .block24-section__tablet-tabs::after { content: ''; flex: 0 0 calc(50% - 120px); }
+  .block24-section__tablet-tabs button { flex: none; border: 0; padding: 0; background: none; color: #bebfc1; font: 450 18px/1.15 var(--font-heading); cursor: pointer; }
+  .block24-section__tablet-tabs button[aria-selected="true"] { color: var(--color-ink); }
+  .site-header__bar { height: 80px; padding: 0 40px; }
+  .site-header__main { gap: 24px; }
+  .site-header__logo { width: 95.739px; height: 36px; }
+  .site-header__links { gap: 24px; }
+  .site-header__links a { font-size: 12px; letter-spacing: .6px; }
+  .site-header__cta.request-demo { --demo-width: 148px; --demo-hover-width: 160px; --demo-height: 38px; --demo-shape-width: 151.9px; font-size: 13px; }
+  .hero-content__title { font-size: 42px; }
+  .hero-content__text { max-width: 540px; }
+  /* Figma 479:10091: a left-aligned list, 8px under the active plate then 4px apart. */
+  /* Figma 480:11047: an 820px panel flush with the section top, title at 680px. */
+  .prove-section { padding: 80px 20px; }
+  .prove-section__card { min-height: 423px; box-sizing: border-box; padding: 64px 40px; align-items: center; justify-content: center; gap: 48px; }
+  .prove-section__copy { width: min(538px,100%); align-items: center; text-align: center; gap: 20px; }
+  .prove-section__copy h2 { display: block; width: 100%; font-size: 48px; letter-spacing: -.96px; }
+  .prove-section__copy p { width: 100%; font-size: 28px; letter-spacing: -.56px; }
+  .prove-section__line { display: inline; white-space: normal; }
+  .prove-section__line + .prove-section__line::before { content: ' '; }
+  .prove-section__cta { margin-top: 0; }
+  .breakthroughs-section { padding: 120px 0 80px; overflow: hidden; }
+  .breakthroughs-section__inner { width: calc(100% - 80px); gap: 56px; }
+  .breakthroughs-section__header { gap: 40px; }
+  .breakthroughs-section__copy h2 { font-size: 40px; max-width: 548px; }
+  .breakthroughs-section__row { height: 372px; flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .breakthroughs-section__card { height: 372px; width: 392px; padding: 32px; }
+  .breakthroughs-section__card--photo h3 { max-width: 346px; }
+  /* Figma 479:9367: frosted fade over the scroller's right edge. It lives on
+     the non-scrolling column so it stays put while the cards swipe. */
+  .breakthroughs-section__inner { position: relative; }
+  .breakthroughs-section__inner::after { content: ''; position: absolute; right: -40px; bottom: -29px; width: 205px; height: 430px; background: linear-gradient(90deg, #12121200 0%, #121212 62.536%); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); -webkit-mask-image: linear-gradient(90deg, transparent, #000 45%); mask-image: linear-gradient(90deg, transparent, #000 45%); pointer-events: none; }
+  .breakthroughs-section__card--photo { width: 513px; }
+  .breakthroughs-section__card--slate { display: flex; }
+  .breakthroughs-section__arrow { width: 48px; height: 48px; }
+}
+@media (max-width: 600px) {
+  .site-header__bar { padding: 0 20px; }
+  .hero-content__title { font-size: 32px; }
+  .hero-content__text { font-size: 16px; }
+  .prove-section__card { padding: 48px 24px; }
+  .prove-section__copy h2 { font-size: 36px; }
+  .prove-section__copy p { font-size: 23px; }
+  .breakthroughs-section__inner { width: calc(100% - 40px); }
+  .breakthroughs-section__inner::after { right: -20px; width: 120px; }
+  .breakthroughs-section__copy h2 { font-size: 32px; }
+  .breakthroughs-section__copy br { display: none; }
+  .breakthroughs-section__card--photo { width: 85vw; }
+}

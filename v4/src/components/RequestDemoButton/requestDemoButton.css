@@ -1,0 +1,57 @@
+.request-demo {
+  /* Every page button: 40px tall, the 165x44 footprint scaled down. */
+  --demo-width: 150px;
+  --demo-hover-width: 162.7px;
+  --demo-height: 40px;
+  --demo-shape-width: 154px;
+  font-size: 14px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--demo-width);
+  height: var(--demo-height);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  text-decoration: none;
+  overflow: visible;
+  transition: width 0.26s cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+.request-demo--hot,
+.request-demo:hover,
+.request-demo:focus-visible {
+  width: var(--demo-hover-width);
+}
+
+.request-demo--compact {
+  --demo-width: 128px;
+  --demo-hover-width: 139px;
+  --demo-height: 34px;
+  --demo-shape-width: 131.4px;
+}
+
+.request-demo__shape {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  overflow: visible;
+  width: var(--demo-shape-width);
+  height: var(--demo-height);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.request-demo__label {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .request-demo {
+    transition-duration: 0.01ms;
+  }
+}

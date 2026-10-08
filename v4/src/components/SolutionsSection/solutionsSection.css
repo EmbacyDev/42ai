@@ -1,0 +1,43 @@
+.solutions-section {
+  padding: 120px 40px 80px;
+  min-height: 905px;
+  box-sizing: border-box;
+  color: var(--color-ink);
+  background: white;
+}
+.solutions-section__intro { display: flex; align-items: center; flex-direction: column; text-align: center; }
+.solutions-section__title { margin: 0; font: 450 42px/1.15 var(--font-heading); letter-spacing: -.84px; }
+.solutions-section__lead { margin: 24px 0 40px; font: 400 17px/1.45 var(--font-body); color: var(--color-grey); letter-spacing: -.17px; }
+.solutions-section__tabs { display: flex; max-width: 100%; gap: 8px; padding: 6px; border-radius: 116px; background: var(--color-surface); overflow-x: auto; }
+.solutions-section__tab { flex: none; height: 36px; padding: 8px 20px; border: 0; border-radius: 57px; background: transparent; color: var(--color-grey); font: 500 13px/1.2 var(--font-mono); letter-spacing: .65px; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+.solutions-section__tab--active { background: var(--color-ink); color: white; }
+.solutions-section__body { display: grid; grid-template-columns: 267px minmax(0,1fr); align-items: start; gap: 56px; max-width: 957px; margin: 56px auto 0; }
+.solutions-section__image { height: 312px; overflow: hidden; border-radius: 8px; }
+.solutions-section__image img { width: 100%; height: 100%; object-fit: cover; }
+/* Figma 581:449: the icy glass folders overflow the 267×312 frame. */
+.solutions-section__body--brokers .solutions-section__image { position: relative; }
+.solutions-section__body--brokers .solutions-section__image img { position: absolute; left: -67px; top: -23px; width: 382px; height: 287px; max-width: none; object-fit: cover; }
+.solutions-section__benefits { margin: 0; padding: 0; list-style: none; }
+.solutions-section__benefits li { padding: 24px 0; font: 450 26px/1.25 var(--font-heading); letter-spacing: -.52px; }
+.solutions-section__benefits li + li { border-top: 1px solid #80808033; }
+.solutions-section__more { display: inline-flex; align-items: center; justify-content: center; width: 165px; height: 44px; margin-top: 40px; border-radius: 63px; background: var(--color-surface); color: var(--color-ink); font: 500 15px/1.1 var(--font-mono); letter-spacing: .75px; text-transform: uppercase; text-decoration: none; }
+.solutions-section__tab:focus-visible, .solutions-section__more:focus-visible { outline: 2px solid #557da1; outline-offset: 3px; }
+@media (max-width: 980px) {
+  .solutions-section { min-height: 1145px; padding: 120px 40px 80px; }
+  .solutions-section__title { max-width: 100%; }
+  .solutions-section__lead { max-width: 570px; }
+  /* Figma 479:9990: the strip starts on the 40px gutter and runs off the right edge. */
+  .solutions-section__tabs { align-self: stretch; margin: 8px -40px 0 0; border-radius: 116px 0 0 116px; scrollbar-width: none; }
+  .solutions-section__body { grid-template-columns: 1fr; max-width: 571px; gap: 24px; margin-top: 48px; }
+  .solutions-section__image { height: 320px; }
+  .solutions-section__body--brokers .solutions-section__image img { position: static; display: block; margin: 0 auto; width: 100%; height: 100%; object-fit: contain; }
+  .solutions-section__benefits li { padding: 20px 0; }
+  .solutions-section__more { margin-top: 20px; }
+}
+@media (max-width: 600px) {
+  .solutions-section { padding: 80px 20px; min-height: 0; }
+  .solutions-section__tabs { margin-right: -20px; }
+  .solutions-section__title { font-size: 32px; }
+  .solutions-section__title br { display: none; }
+  .solutions-section__benefits li { font-size: 23px; }
+}

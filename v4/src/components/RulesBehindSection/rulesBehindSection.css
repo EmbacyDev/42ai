@@ -1,0 +1,134 @@
+.rules-section {
+  --physics-portal-field: 0;
+  --physics-portal-scale: 1;
+  --physics-portal-blur: 0px;
+  box-sizing: border-box;
+  width: 100%;
+  /* Portal rest sits 33.333svh before the end of the 900svh block-four
+     track. Pull this panel up by that remainder plus one viewport so it
+     occupies the portal rectangle at the moment the crystal arrives. */
+  margin-top: -133.333svh;
+  /* The arriving panel is taken out of flow. This keeps block six at the
+     same distance while that panel is fixed over the portal. */
+  min-height: calc(80px + min(720px, 100svh - 80px));
+  padding: 40px 80px;
+  background: #ffffff;
+  color: #000000;
+  -webkit-font-smoothing: antialiased;
+}
+
+.rules-section__panel {
+  position: relative;
+  isolation: isolate;
+  height: min(720px, calc(100svh - 80px));
+  overflow: hidden;
+  border-radius: 24px;
+  background:
+    radial-gradient(ellipse 78% 110% at 100% 42%, rgba(168, 210, 236, 0.72) 0%, rgba(206, 228, 242, 0.28) 42%, transparent 70%),
+    radial-gradient(ellipse 50% 70% at 12% 88%, rgba(255, 255, 255, 0.92) 0%, transparent 62%),
+    linear-gradient(102deg, #f6f7f9 0%, #eef2f6 52%, #d7e8f4 100%);
+}
+
+.rules-section--arriving .rules-section__panel {
+  position: fixed;
+  z-index: 44;
+  top: 40px;
+  right: 80px;
+  bottom: auto;
+  left: 80px;
+  height: min(720px, calc(100svh - 80px));
+  opacity: var(--physics-portal-field);
+  filter: blur(var(--physics-portal-blur));
+  transform: scale(var(--physics-portal-scale));
+  transform-origin: 50% 50%;
+  pointer-events: none;
+}
+
+.rules-section__field {
+  position: absolute;
+  inset: 0;
+}
+
+.rules-section__point {
+  position: absolute;
+  width: 6.6px;
+  height: 6.6px;
+  transform: translate(-50%, -50%);
+}
+
+.rules-section__dot {
+  display: block;
+  width: 6.6px;
+  height: 6.6px;
+  border-radius: 50%;
+  background: rgba(44, 69, 70, 0.2);
+}
+
+.rules-section__date {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(44, 69, 70, 0.22);
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 9.6px;
+  font-weight: 500;
+  letter-spacing: 0.48px;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rules-section__title {
+  position: absolute;
+  top: 75%;
+  left: 50%;
+  width: min(679px, 86%);
+  margin: 0;
+  transform: translateX(-50%);
+  background-image: linear-gradient(
+    170.549deg,
+    rgb(0 0 0) 27.174%,
+    rgb(0 0 0 / 0) 129.46%
+  );
+  background-clip: text;
+  font-family: "TT Hoves Web", sans-serif;
+  font-size: 42px;
+  font-weight: 400;
+  letter-spacing: -0.84px;
+  line-height: 1.2;
+  text-align: center;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (max-width: 680px) {
+  .rules-section {
+    min-height: calc(48px + min(560px, 100svh - 48px));
+    padding: 24px 20px;
+  }
+
+  .rules-section__panel {
+    height: min(560px, calc(100svh - 48px));
+    border-radius: 18px;
+  }
+
+  .rules-section--arriving .rules-section__panel {
+    top: 24px;
+    right: 20px;
+    bottom: auto;
+    left: 20px;
+    height: min(560px, calc(100svh - 48px));
+  }
+
+  .rules-section__title {
+    font-size: 32px;
+    letter-spacing: -0.64px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rules-section {
+    margin-top: 0;
+  }
+}
