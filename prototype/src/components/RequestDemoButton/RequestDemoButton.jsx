@@ -16,7 +16,7 @@ function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2
 }
 
-function pathAt(amount) {
+export function demoShapePathAt(amount) {
   let index = 0
   return PATH_TEMPLATE.replace(/#/g, () => {
     const value = REST_VALUES[index] + (HOVER_VALUES[index] - REST_VALUES[index]) * amount
@@ -37,7 +37,7 @@ export function useDemoShape(active) {
     const to = active ? 1 : 0
     if (reduced || from === to) {
       amountRef.current = to
-      pathRef.current?.setAttribute('d', pathAt(to))
+      pathRef.current?.setAttribute('d', demoShapePathAt(to))
       return undefined
     }
 
@@ -46,7 +46,7 @@ export function useDemoShape(active) {
       const t = Math.min(1, (now - started) / MORPH_MS)
       const amount = from + (to - from) * easeInOutCubic(t)
       amountRef.current = amount
-      pathRef.current?.setAttribute('d', pathAt(amount))
+      pathRef.current?.setAttribute('d', demoShapePathAt(amount))
       if (t < 1) frameRef.current = requestAnimationFrame(tick)
     }
     frameRef.current = requestAnimationFrame(tick)

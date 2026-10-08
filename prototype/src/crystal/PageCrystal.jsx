@@ -384,6 +384,7 @@ function TravellingCrystal({
 }) {
   const groupRef = useRef(null)
   const physicsSectionRef = useRef(null)
+  const fadeSectionRef = useRef(null)
   const introProgressRef = useRef(introReady ? 1 : 0)
   const introDelayRef = useRef(0)
   const visualRef = useRef(null)
@@ -716,9 +717,18 @@ function TravellingCrystal({
         physicsSectionRef.current = document.querySelector('.physics-behavior-section')
       }
       const physics = physicsSectionRef.current
+      // Block 4 normally fades the canvas as it leaves. While that section
+      // is unmounted, use block 3 so the crystal does not stay painted over
+      // every screen after it.
+      if (!fadeSectionRef.current?.isConnected) {
+        fadeSectionRef.current = physics?.isConnected
+          ? physics
+          : document.querySelector('.world-model-section')
+      }
+      const fadeSection = fadeSectionRef.current
       let pageFade = introReady ? 1 : 0
-      if (physics) {
-        const bottom = physics.getBoundingClientRect().bottom
+      if (fadeSection) {
+        const bottom = fadeSection.getBoundingClientRect().bottom
         const fadeEnd = vh * 0.12
         const span = Math.max(1, vh - fadeEnd)
         const t = Math.min(1, Math.max(0, (bottom - fadeEnd) / span))

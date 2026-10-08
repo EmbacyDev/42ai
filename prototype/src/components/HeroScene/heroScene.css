@@ -31,8 +31,8 @@
   background: linear-gradient(
     180deg,
     color-mix(in srgb, #d4e7f8 calc((1 - var(--hero-wash)) * 100%), #ffffff) 0%,
-    color-mix(in srgb, #edf6fd calc((1 - var(--hero-wash)) * 100%), #ffffff) 34%,
-    #ffffff 76%
+    color-mix(in srgb, #edf6fd calc((1 - var(--hero-wash)) * 100%), #ffffff) 46%,
+    #ffffff 100%
   );
   color: #121110;
   -webkit-font-smoothing: antialiased;

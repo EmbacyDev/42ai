@@ -40,6 +40,12 @@ body {
   overflow-x: clip;
 }
 
+/* The canvas behind the page. Body stays white for the light sections;
+   overscroll past the dark footer uses this color instead of flashing white. */
+html {
+  background: #121212;
+}
+
 body {
   background: #ffffff;
   color: #121110;

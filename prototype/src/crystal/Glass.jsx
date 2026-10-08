@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Billboard, MeshTransmissionMaterial } from '@react-three/drei'
 import * as THREE from 'three'
@@ -3983,8 +3983,12 @@ function FriendProjection({ geometry, config, coverScale = 1.0025, renderOrder =
             // is untouched.
             float alphaCeilingContinuous = mix(0.94, 0.82, uLegacyPainted);
             float alphaCeiling = mix(0.72, alphaCeilingContinuous, uContinuousColor);
+            // The shell used to stay opaque right up to the polygon, which
+            // read as a grey stroke around the crystal. Grazing pixels fade
+            // out; the light inside the faces stays.
+            float silhouette = smoothstep(0.0, 0.34, facing);
             gl_FragColor = vec4(color,
-              clamp(alpha, 0.1, alphaCeiling));
+              clamp(alpha, 0.1, alphaCeiling) * silhouette);
             #include <colorspace_fragment>
           }
         `}
@@ -4008,7 +4012,7 @@ function FriendProjection({ geometry, config, coverScale = 1.0025, renderOrder =
  * as soon as the mesh grows large enough for those grazing rays to read.
  * A white background is used only inside that extra pass.
  */
-const TRANSMISSION_BACKGROUND = new THREE.Color('#f7f7f6')
+const TRANSMISSION_BACKGROUND = new THREE.Color('#ffffff')
 
 function Material({ config, shared }) {
   // Drives the optional "animate thickness" toggle in Photo — see the
@@ -4040,6 +4044,31 @@ function Material({ config, shared }) {
     const t = (Math.sin(thicknessPhase.current) + 1) / 2
     setAnimatedThickness(THREE.MathUtils.lerp(thicknessMin, thicknessMax, t))
   })
+
+  const transmissionRef = useRef(null)
+  useLayoutEffect(() => {
+    const material = transmissionRef.current
+    if (!material || material.userData.silhouetteFade) return
+    const previous = material.onBeforeCompile
+    material.onBeforeCompile = function onBeforeCompile(shader, renderer) {
+      previous.call(this, shader, renderer)
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <opaque_fragment>',
+        `
+          float silhouette = abs(dot(normalize(normal), normalize(vViewPosition)));
+          diffuseColor.a *= smoothstep(0.0, 0.34, silhouette);
+          #include <opaque_fragment>
+        `,
+      )
+    }
+    const previousKey = material.customProgramCacheKey
+    material.customProgramCacheKey = function customProgramCacheKey() {
+      const base = previousKey ? previousKey.call(this) : ''
+      return `${base}|silhouetteFade`
+    }
+    material.userData.silhouetteFade = true
+    material.needsUpdate = true
+  }, [])
 
   if (config.материал === 'фигура') {
     // Та же механика, что дала понравившийся кадр с фото: тонкое чистое
@@ -4099,6 +4128,7 @@ function Material({ config, shared }) {
     const lerp = THREE.MathUtils.lerp
     return (
       <MeshTransmissionMaterial
+        ref={transmissionRef}
         transmissionSampler={shared}
         background={TRANSMISSION_BACKGROUND}
         samples={config.samples}
@@ -4117,9 +4147,10 @@ function Material({ config, shared }) {
         chromaticAberration={0}
         clearcoat={lerp(0.12, 0.05, diffuser)}
         clearcoatRoughness={lerp(0.38, 0.72, diffuser)}
-        // Колбе нужен свет, чтобы читалась форма, но выше этого студия
-        // снова выбивает грани в белое.
-        envMapIntensity={lerp(0.22, 0.34, diffuser)}
+        // The studio room is a flat grey. On a transparent page canvas that
+        // reflection sat on the silhouette as a grey outline. The interior
+        // light is painted by the projection, so the shell does not need it.
+        envMapIntensity={0}
         attenuationColor="#fff0dc"
         attenuationDistance={10}
         backside={false}

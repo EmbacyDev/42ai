@@ -351,7 +351,7 @@ export default function WorldModelSection({
           lastArrivalWheelAt = performance.now()
           if (target === 1 && queuedExitAfterRoll) {
             queuedExitAfterRoll = false
-            playExit()
+            if (!continuePastHiddenBlockFour()) playExit()
           } else if (target === 0 && queuedHomeAfterRoll) {
             queuedHomeAfterRoll = false
             flyBackToBlock2()
@@ -437,6 +437,17 @@ export default function WorldModelSection({
       section.classList.toggle('world-model-section--gathering', exitValue > 0.2)
       applyColourField()
       updateAnchor()
+    }
+
+    const blockFourPresent = () => Boolean(document.querySelector('.physics-behavior-section'))
+    // Block 4 is temporarily unmounted. Reaching the end of this copy used
+    // to fly into that section and then hijack upward scrolls anywhere
+    // below it. Without the section, release the hold and let the page
+    // continue into the screens that are still mounted.
+    const continuePastHiddenBlockFour = () => {
+      if (blockFourPresent()) return false
+      handedOff = true
+      return true
     }
 
     const fourthIntroScrollY = () => {
@@ -1067,7 +1078,7 @@ export default function WorldModelSection({
         return
       }
       if (handedOff) {
-        if (event.deltaY < -50) {
+        if (event.deltaY < -50 && blockFourPresent()) {
           const fourth = document.querySelector('.physics-behavior-section')
           const stateOne = Number.parseFloat(
             fourth ? getComputedStyle(fourth).getPropertyValue('--physics-state-one') : '',
@@ -1134,6 +1145,10 @@ export default function WorldModelSection({
         }
         if (holdExit || !freshGesture) return
         tailOverscroll = 0
+        if (continuePastHiddenBlockFour()) {
+          window.scrollBy(0, event.deltaY)
+          return
+        }
         playExit()
         return
       }
@@ -1173,7 +1188,7 @@ export default function WorldModelSection({
         return
       }
       if (handedOff) {
-        if (reverseKey) {
+        if (reverseKey && blockFourPresent()) {
           const fourth = document.querySelector('.physics-behavior-section')
           const stateOne = Number.parseFloat(
             fourth ? getComputedStyle(fourth).getPropertyValue('--physics-state-one') : '',
@@ -1196,6 +1211,10 @@ export default function WorldModelSection({
             ? TAIL_CENTER_SLOT
             : 2
           nudgeWheelByPixels(jump * Math.max(32, cylinderPitchPx))
+          return
+        }
+        if (continuePastHiddenBlockFour()) {
+          window.scrollBy(0, window.innerHeight * 0.85)
           return
         }
         playExit()
@@ -1306,7 +1325,12 @@ export default function WorldModelSection({
         }
       }
       const seam = yForProgress(1)
-      if (handedOff && nextScrollY < lastScrollY - 24 && nextScrollY < seam - 64) {
+      if (
+        blockFourPresent()
+        && handedOff
+        && nextScrollY < lastScrollY - 24
+        && nextScrollY < seam - 64
+      ) {
         lastScrollY = nextScrollY
         returnToFinishedCopy()
         return

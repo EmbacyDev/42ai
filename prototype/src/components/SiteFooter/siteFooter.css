@@ -1,8 +1,7 @@
 .site-footer {
   box-sizing: border-box;
   width: 100%;
-  min-height: 460px;
-  padding: 69px 0 40px;
+  padding: 69px 0 0;
   background: #121212;
   color: #868a8d;
   -webkit-font-smoothing: antialiased;
@@ -14,7 +13,6 @@
   justify-content: space-between;
   gap: 28px;
   width: min(1126px, calc(100% - 80px));
-  min-height: 353px;
   margin: 0 auto;
 }
 
@@ -53,19 +51,139 @@
 }
 
 .site-footer__mark {
+  --mx: 0.42;
+  --my: 0.48;
+  --light: 0;
+  --spread: 0;
   position: relative;
+  isolation: isolate;
   width: 100%;
   aspect-ratio: 1128.27 / 239.504;
+  overflow: hidden;
 }
 
-.site-footer__mark img:first-child {
+.site-footer__shine,
+.site-footer__hover-light,
+.site-footer__light-core {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  -webkit-mask: url("/images/v2/footer-mark-mask.svg") center / 100% 100% no-repeat;
+  mask: url("/images/v2/footer-mark-mask.svg") center / 100% 100% no-repeat;
+}
+
+.site-footer__shine {
+  /* At rest the exact Figma asset remains the dominant read: nearly black
+     glass with only a restrained coating and edge. The full optical stack
+     opens only when the pointer injects light into the mark. */
+  opacity: 0.42;
+}
+
+.site-footer__hover-light {
+  /* Crystal colours live only in the pointer light. At rest this layer is
+     fully transparent, so the logo keeps its original dark glass. */
+  opacity: calc(var(--light) * 1);
+  background: radial-gradient(
+    ellipse calc(52% + var(--spread) * 28%) calc(150% + var(--spread) * 40%) at calc(var(--mx) * 100%) calc(var(--my) * 100%),
+    rgba(255, 255, 255, 0.34) 0%,
+    rgba(126, 210, 255, 0.4) 18%,
+    rgba(72, 198, 146, 0.3) 42%,
+    rgba(198, 210, 86, 0.18) 68%,
+    transparent 100%
+  );
+  filter: blur(14px) saturate(1.3) brightness(1.08);
+  mix-blend-mode: screen;
+}
+
+.site-footer__glass,
+.site-footer__iridescence {
+  position: absolute;
+  inset: 0;
+}
+
+.site-footer__glass {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.29) 0%, rgba(255, 255, 255, 0.055) 35%, rgba(0, 0, 0, 0.34) 100%),
+    linear-gradient(112deg, rgba(255, 255, 255, 0.2) 0%, transparent 25%, rgba(177, 213, 233, 0.09) 68%, rgba(255, 255, 255, 0.13) 100%);
+  -webkit-backdrop-filter: blur(9.861px) saturate(1.22);
+  backdrop-filter: blur(9.861px) saturate(1.22);
+}
+
+.site-footer__iridescence {
+  opacity: 0.28;
+  background:
+    radial-gradient(ellipse at 17% 20%, rgba(169, 231, 255, 0.18), transparent 34%),
+    radial-gradient(ellipse at 42% 88%, rgba(111, 94, 255, 0.13), transparent 35%),
+    radial-gradient(ellipse at 78% 15%, rgba(103, 255, 208, 0.1), transparent 32%),
+    linear-gradient(122deg, transparent 15%, rgba(255, 255, 255, 0.12) 37%, transparent 54%);
+  filter: blur(7px);
+  mix-blend-mode: screen;
+  transition: opacity 0.6s ease;
+}
+
+.site-footer__hover-light canvas {
   display: block;
   width: 100%;
   height: 100%;
 }
 
+.site-footer__light-core {
+  opacity: calc(var(--light) * 1);
+  background: radial-gradient(
+    ellipse calc(90px + var(--spread) * 120px) calc(70px + var(--spread) * 50px) at calc(var(--mx) * 100%) calc(var(--my) * 100%),
+    rgba(255, 255, 255, 0.94) 0%,
+    rgba(255, 255, 255, 0.5) 28%,
+    rgba(255, 255, 255, 0.12) 62%,
+    transparent 100%
+  );
+  filter: blur(calc(14px + var(--spread) * 8px)) saturate(0.4) brightness(1.2);
+  pointer-events: none;
+}
+
+.site-footer__mark > img {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  filter:
+    drop-shadow(0 0 0.55px rgba(255, 255, 255, 0.42))
+    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+  transition: opacity 0.6s ease, filter 0.6s ease;
+}
+
+/* A true hollow rim rather than another translucent copy of the fill. The
+   second mask is subtracted from the first, leaving a thin glass edge around
+   every outer and inner contour (including the A and icon cut-outs). */
+.site-footer__rim {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  opacity: 0.62;
+  background:
+    linear-gradient(180deg, rgba(246, 253, 255, 0.92) 0%, rgba(165, 204, 224, 0.42) 34%, rgba(16, 20, 25, 0.78) 78%, rgba(211, 239, 250, 0.38) 100%);
+  -webkit-mask:
+    url("/images/v2/footer-mark-mask.svg") center / 100% 100% no-repeat,
+    url("/images/v2/footer-mark-mask.svg") center / calc(100% - 3px) calc(100% - 3px) no-repeat;
+  -webkit-mask-composite: xor;
+  mask:
+    url("/images/v2/footer-mark-mask.svg") center / 100% 100% no-repeat,
+    url("/images/v2/footer-mark-mask.svg") center / calc(100% - 3px) calc(100% - 3px) no-repeat;
+  mask-composite: exclude;
+  filter:
+    drop-shadow(0 -0.65px 0.4px rgba(255, 255, 255, 0.72))
+    drop-shadow(0 1.25px 0.65px rgba(0, 0, 0, 0.92))
+    drop-shadow(0 0 1.5px rgba(167, 222, 246, 0.34));
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
 .site-footer__chip {
   position: absolute;
+  z-index: 2;
   top: 21.1%;
   left: 39.7%;
   display: inline-flex;
@@ -89,7 +207,7 @@
   content: "";
   position: absolute;
   right: -8%;
-  bottom: -6%;
+  bottom: 0;
   left: -8%;
   height: 38%;
   background: linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, #121212 78%);
@@ -98,13 +216,11 @@
 
 @media (max-width: 720px) {
   .site-footer {
-    min-height: 0;
     padding-top: 48px;
   }
 
   .site-footer__inner {
     width: min(1126px, calc(100% - 40px));
-    min-height: 0;
   }
 
   .site-footer__nav {

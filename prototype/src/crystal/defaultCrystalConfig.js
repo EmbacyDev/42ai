@@ -50,8 +50,8 @@ export const DEFAULT_CRYSTAL_CONFIG = Object.freeze({
   friendBackgroundAngle: 90,
   friendBackgroundCenterX: 0.5,
   friendBackgroundCenterY: 0.5,
-  friendBackgroundPosition: 0.34,
-  friendBackgroundSoftness: 0.7,
+  friendBackgroundPosition: 0.52,
+  friendBackgroundSoftness: 0.8,
 
   bevel: 0.15,
   filletSegments: 0,

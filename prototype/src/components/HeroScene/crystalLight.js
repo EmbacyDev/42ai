@@ -120,16 +120,16 @@ function createGlowTexture() {
 // behind every card and keeps depth testing, none of this is painted over
 // the photographs themselves.
 function createFlowVeil(config) {
+  const violet = new THREE.Color(config.friendFlowColor1 ?? '#756cff')
   const green = new THREE.Color(config.friendFlowColor2 ?? '#29ae57')
   const blue = new THREE.Color(config.friendFlowColor3 ?? '#1d81ed')
   const yellow = new THREE.Color(config.friendFlowColor4 ?? '#f0ff1f')
   const white = new THREE.Color('#ffffff')
-  const warmWhite = new THREE.Color(config.friendCenterColor ?? '#fff8e8')
-  const paleGreen = green.clone().lerp(white, 0.48)
-  const paleBlue = blue.clone().lerp(white, 0.44)
-  // Blue and green carry the field. White shapes the highlights; acid
-  // yellow is a separate low-weight accent rather than a base colour.
-  const colors = [blue, green, paleBlue, paleGreen, warmWhite]
+  const paleGreen = green.clone().lerp(white, 0.22)
+  const paleBlue = blue.clone().lerp(white, 0.18)
+  // The crystal palette carries the field. White only lifts the highlights;
+  // acid yellow stays an accent so it does not flood the ribbons.
+  const colors = [blue, green, violet, paleBlue, paleGreen]
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
@@ -217,8 +217,10 @@ function createFlowVeil(config) {
       }
 
       void main() {
-        vec2 p = (vUv - 0.5) * 2.0;
-        p.x *= 1.68;
+        // The plane is larger than the view so its edge stays off screen.
+        // Coordinates stay locked to the original field size.
+        vec2 world = (vUv - 0.5) * vec2(26.0, 16.0);
+        vec2 p = vec2(world.x * (3.36 / 14.5), world.y * (2.0 / 8.6));
 
         float r0 = rayShape(p, 0.08, 0.105, 2.08, 0.11, 5.6, 0.4);
         float r1 = rayShape(p, 0.72, 0.18, 1.04, 0.15, 4.2, 1.7);
@@ -230,7 +232,7 @@ function createFlowVeil(config) {
         float r7 = rayShape(p, 4.92, 0.155, 1.16, 0.145, 4.6, 8.9);
         float r8 = rayShape(p, 5.62, 0.13, 1.54, 0.12, 5.2, 10.1);
 
-        float yellowAccent = r6 * 0.2;
+        float yellowAccent = r6 * 0.36;
         float weight = r0 + r1 + r2 + r3 + r4 + r5
                      + yellowAccent + r7 + r8;
         vec3 light = uColor0 * r0
@@ -246,15 +248,26 @@ function createFlowVeil(config) {
         // Keep the palette chromatic on the pale hero background. Gamma
         // lifts its luminance; normalising by the strongest channel keeps
         // blue and green distinct instead of averaging to grey.
-        light = pow(max(light, vec3(0.001)), vec3(0.72));
+        light = pow(max(light, vec3(0.001)), vec3(0.84));
         light /= max(max(light.r, light.g), light.b);
-        light = mix(light, vec3(1.0), 0.2);
+        // White flares sit on the brightest ribbons and drift through the
+        // same field, so the colour stays but the peaks open into light.
+        float ribbonPeak = smoothstep(0.28, 0.95, weight);
+        vec2 flareA = vec2(sin(uTime * 0.19 + 0.4), cos(uTime * 0.15)) * vec2(0.42, 0.28);
+        vec2 flareB = vec2(cos(uTime * 0.13 + 2.1), sin(uTime * 0.17 + 1.2)) * vec2(0.55, 0.32);
+        vec2 flareC = vec2(sin(uTime * 0.11 + 4.0), cos(uTime * 0.21 + 2.6)) * vec2(0.36, 0.24);
+        float blooms = exp(-dot(p - flareA, p - flareA) * 4.8) * 0.9
+                     + exp(-dot(p - flareB, p - flareB) * 5.6) * 0.75
+                     + exp(-dot(p - flareC, p - flareC) * 4.2) * 0.65;
+        float flare = blooms * (0.45 + ribbonPeak);
+        // Soft pool under the crystal. A flat white step here was reading
+        // as a hard shape in the lower corners.
+        float lower = exp(-pow((p.y + 0.62) * 1.35, 2.0));
+        float bottomPool = lower * exp(-pow(p.x * 0.72, 2.0));
+        float whiteLight = clamp(bottomPool * 0.85 + flare * 0.7, 0.0, 1.0);
+        light = mix(light, vec3(1.0), whiteLight);
 
-        float edge = smoothstep(0.0, 0.055, vUv.x)
-                   * smoothstep(0.0, 0.055, vUv.y)
-                   * smoothstep(0.0, 0.055, 1.0 - vUv.x)
-                   * smoothstep(0.0, 0.055, 1.0 - vUv.y);
-        float alpha = min(weight * 0.25, 0.31) * edge * uOpacity;
+        float alpha = min(weight * 0.32 + flare * 0.14 + bottomPool * 0.42, 0.72) * uOpacity;
         if (alpha < 0.003) discard;
         gl_FragColor = vec4(light, alpha);
       }
@@ -265,7 +278,7 @@ function createFlowVeil(config) {
     toneMapped: false,
     blending: THREE.NormalBlending,
   })
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(14.5, 8.6), material)
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(26, 16), material)
   // Just behind the furthest portrait, close enough that the ribbons still
   // read as originating at the crystal instead of as a distant wallpaper.
   mesh.position.set(0, 0, -3.72)
@@ -313,6 +326,131 @@ function createFlowVeil(config) {
 // Light leaving the crystal toward the camera, the same idea as the
 // flash in the third block: a hot centre in front of the glass, crystal
 // colours only, fading before it becomes a wash.
+// White light spinning around Z. One arm stays on the background. A second
+// shaft sits in front of the glass and is rotated on Z, so the light aimed
+// at the viewer turns with the same sweep instead of orbiting the backdrop.
+const Z_LIGHT_SHADER = /* glsl */ `
+  varying vec2 vUv;
+  uniform float uTime;
+  uniform float uOpacity;
+  uniform vec2 uSize;
+  uniform float uGain;
+
+  void main() {
+    vec2 q = (vUv - 0.5) * uSize;
+    float sweep = uTime * 0.7;
+    vec2 dir = vec2(cos(sweep), sin(sweep));
+    vec2 d = q - dir * 2.6;
+    float along = dot(d, dir);
+    float across = dot(d, vec2(-dir.y, dir.x));
+    // Round spot on the background. A wedge had a straight side that
+    // cut the lower corners into a white shape.
+    float spot = exp(-pow(along * 0.46, 2.0) - pow(across * 0.7, 2.0));
+    float beam = spot * uOpacity * uGain;
+    gl_FragColor = vec4(vec3(beam), beam);
+  }
+`
+
+function createZLightMaterial(size, gain, blending, premultiplied) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uOpacity: { value: 0 },
+      uSize: { value: size },
+      uGain: { value: gain },
+    },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: Z_LIGHT_SHADER,
+    transparent: true,
+    depthWrite: false,
+    depthTest: !premultiplied,
+    toneMapped: false,
+    blending,
+    premultipliedAlpha: premultiplied,
+  })
+}
+
+const USER_BEAM_SHADER = /* glsl */ `
+  varying vec2 vUv;
+  uniform float uOpacity;
+  uniform float uGain;
+
+  void main() {
+    float across = (vUv.y - 0.5) * 2.0;
+    float along = vUv.x;
+    float arm = exp(-pow(across / 0.24, 2.0));
+    // Peak stays where it was. The ends of the sheet go dark before the
+    // rectangle, so that edge cannot draw a white corner.
+    float body = exp(-pow((along - 0.36) * 7.4, 2.0));
+    float beam = arm * body * uOpacity * uGain;
+    if (beam < 0.001) discard;
+    gl_FragColor = vec4(vec3(beam), beam);
+  }
+`
+
+function createUserBeamMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uOpacity: { value: 0 },
+      uGain: { value: 0.78 },
+    },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: USER_BEAM_SHADER,
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    toneMapped: false,
+    blending: THREE.NormalBlending,
+    premultipliedAlpha: true,
+    side: THREE.DoubleSide,
+  })
+}
+
+function createZLight() {
+  const backMaterial = createZLightMaterial(
+    new THREE.Vector2(26, 16),
+    0.72,
+    THREE.AdditiveBlending,
+    false,
+  )
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(26, 16), backMaterial)
+  back.position.set(0, 0, -3.68)
+  back.renderOrder = -3
+
+  const beamMaterial = createUserBeamMaterial()
+  const beamGeometry = new THREE.PlaneGeometry(7.4, 3.2)
+  const pivot = new THREE.Group()
+  const beam = new THREE.Mesh(beamGeometry, beamMaterial)
+  // Tilt the shaft toward the camera so rotation around Z swings it
+  // across the viewer, not around the backdrop.
+  beam.position.set(1.45, 0, 1.35)
+  beam.rotation.y = -0.62
+  beam.renderOrder = 4
+  beam.layers.set(1)
+  const beamCross = new THREE.Mesh(beamGeometry, beamMaterial)
+  beamCross.position.set(1.45, 0, 1.35)
+  beamCross.rotation.order = 'YXZ'
+  beamCross.rotation.y = -0.62
+  beamCross.rotation.x = 1.05
+  beamCross.renderOrder = 4
+  beamCross.layers.set(1)
+  pivot.add(beam)
+  pivot.add(beamCross)
+  return { back, backMaterial, pivot, beamGeometry, beamMaterial }
+}
+
 function createFacingGlow(config) {
   const material = new THREE.ShaderMaterial({
     uniforms: {
@@ -549,6 +687,9 @@ export function createCrystalLight(crystalPosition, config) {
   const glowColor = new THREE.Color()
   const flowVeil = createFlowVeil(config)
   root.add(flowVeil.mesh)
+  const zLight = createZLight()
+  root.add(zLight.back)
+  root.add(zLight.pivot)
 
   const rayGeometry = createRayGeometry(rayLength, rayWidth)
   const rayTexture = createRayTexture()
@@ -786,6 +927,7 @@ export function createCrystalLight(crystalPosition, config) {
     object: root,
     isFrontActive() {
       return frontStrength > 0.004
+        || zLight.beamMaterial.uniforms.uOpacity.value > 0.04
     },
     update(time, aim = null, { heroReady = false } = {}) {
       // Nothing leaves the crystal during its own grow or while portraits
@@ -797,6 +939,8 @@ export function createCrystalLight(crystalPosition, config) {
       // pointer activates one of the portrait hit areas.
       core.intensity = 0
       flowVeil.material.uniforms.uTime.value = time
+      zLight.backMaterial.uniforms.uTime.value = time
+      zLight.pivot.rotation.z = time * 0.7
       hoverBeam.material.uniforms.uTime.value = time
       hoverBeamBack.material.uniforms.uTime.value = time
       ambientRays.material.uniforms.uTime.value = time
@@ -820,6 +964,8 @@ export function createCrystalLight(crystalPosition, config) {
         dynamicSpot.intensity = 0
         glow.material.opacity = 0
         flowVeil.material.uniforms.uOpacity.value = 0
+        zLight.backMaterial.uniforms.uOpacity.value = 0
+        zLight.beamMaterial.uniforms.uOpacity.value = 0
         softAura.material.uniforms.uOpacity.value = 0
         facingGlow.material.uniforms.uOpacity.value = 0
         hoverBeam.material.uniforms.uOpacity.value = 0
@@ -899,7 +1045,9 @@ export function createCrystalLight(crystalPosition, config) {
       lastAimTime = time
       const fieldTarget = heroReady ? 1 : 0
       fieldStrength += (fieldTarget - fieldStrength) * (1 - Math.exp(-1.25 * dt))
-      flowVeil.material.uniforms.uOpacity.value = 0.76 * fieldStrength
+      flowVeil.material.uniforms.uOpacity.value = 1.05 * fieldStrength
+      zLight.backMaterial.uniforms.uOpacity.value = 0.85 * fieldStrength
+      zLight.beamMaterial.uniforms.uOpacity.value = 0.7 * fieldStrength
       softAura.material.uniforms.uOpacity.value = 0.84 * fieldStrength
       const pulseWave = 0.5 + 0.5 * Math.sin(time * 0.46)
       const glowPulse = 0.82 + 0.18 * pulseWave
@@ -1088,6 +1236,10 @@ export function createCrystalLight(crystalPosition, config) {
       facingGlow.material.dispose()
       flowVeil.mesh.geometry.dispose()
       flowVeil.material.dispose()
+      zLight.back.geometry.dispose()
+      zLight.backMaterial.dispose()
+      zLight.beamGeometry.dispose()
+      zLight.beamMaterial.dispose()
       for (const orbiter of orbiters) {
         orbiter.ray.material.dispose()
       }

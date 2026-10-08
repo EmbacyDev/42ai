@@ -27,7 +27,9 @@ export default function PageTail({ onVisibilityChange }) {
 
   return (
     <div ref={rootRef}>
-      <RulesBehindSection />
+      {/* Temporarily unmounted with block 4. Block 5 is the portal that
+          section scrolls into, and it was stalling the screens below. */}
+      {false && <RulesBehindSection />}
       <SolutionsSection />
       <ProveSection />
       <BreakthroughsSection />

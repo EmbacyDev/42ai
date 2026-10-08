@@ -24,8 +24,9 @@ function tint(neutral, color, gray) {
 export default function Studio({ intensity = 1, neutral = false, children }) {
   return (
     <Environment resolution={512}>
-      {/* Нейтральная база чуть темнее середины — чтобы яркие карты читались */}
-      <color attach="background" args={['#9a9aa6']} />
+      {/* White, not mid-grey: the page crystal samples this room in its
+          fresnel, and a grey room drew a grey stroke around the silhouette. */}
+      <color attach="background" args={['#ffffff']} />
 
       {/* ТЁМНЫЕ КАРТЫ. Рисуют глубокие грани и контраст между фасками.
           Именно их не хватало: без тьмы в окружении стекло не имеет формы. */}

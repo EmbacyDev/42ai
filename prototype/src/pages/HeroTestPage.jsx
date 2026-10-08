@@ -63,11 +63,16 @@ export default function HeroTestPage() {
           sectionAnchorsRef.current.third = { x, y, ...meta }
         }}
       />
-      <PhysicsBehaviorSection
-        onCrystalAnchor={(x, y, meta) => {
-          sectionAnchorsRef.current.fourth = { x, y, ...meta }
-        }}
-      />
+      {/* Temporarily unmounted. Block 4 is a 900svh scroll track with a
+          capture-phase wheel lock; while it stays in the page it stalls
+          the screens around it. Put this back when that track is ready. */}
+      {false && (
+        <PhysicsBehaviorSection
+          onCrystalAnchor={(x, y, meta) => {
+            sectionAnchorsRef.current.fourth = { x, y, ...meta }
+          }}
+        />
+      )}
       <PageTail />
       {/* Hidden for now — still on the old placeholder card set (see
           src/carousel/cards.js), not yet updated to match the rest of the
