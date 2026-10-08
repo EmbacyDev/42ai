@@ -424,7 +424,7 @@ function createInactiveLabelTexture(text, color) {
   const ctx = canvas.getContext('2d')
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   const fontSize = 18 * ratio
-  ctx.font = `400 ${fontSize}px "TT Hoves Web", sans-serif` // v4: 500 read too heavy on the cards
+  ctx.font = `450 ${fontSize}px "Public Sans", sans-serif` // Figma: Public Sans Medium at 450
   ctx.fillStyle = color
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
@@ -528,7 +528,7 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
 
   useEffect(() => {
     let alive = true
-    const ready = document.fonts?.load?.('400 72px "TT Hoves Web"')
+    const ready = document.fonts?.load?.('450 72px \"Public Sans\"')
       ?? Promise.resolve()
     ready.then(() => {
       if (alive) setLabelRevision((value) => value + 1)
@@ -541,6 +541,16 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
   useEffect(() => () => {
     labelTextures.forEach((texture) => texture.dispose())
   }, [labelTextures])
+  // v4: upload every photo, gradient and label to the GPU up front. They
+  // used to upload the first time a card animated, and that frame of delay
+  // — with the DOM photo already hidden for the swap — read as the first
+  // card blinking.
+  const { gl: rendererForUpload } = useThree()
+  useEffect(() => {
+    ;[...textures, ...gradientTextures, ...labelTextures].forEach((texture) => {
+      rendererForUpload.initTexture(texture)
+    })
+  }, [rendererForUpload, textures, gradientTextures, labelTextures])
   const cardRefs = useRef(new Map())
   const progressRef = useRef(1)
   const timeRef = useRef(0)

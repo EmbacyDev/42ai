@@ -26,7 +26,7 @@ export default function ProveSection() {
           data-reveal="1"
           href="#request-demo"
           label="Request demo"
-          fit="stretch"
+          widen={6.922}
         />
       </div>
     </section>

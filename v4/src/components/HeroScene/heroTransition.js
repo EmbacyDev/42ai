@@ -22,6 +22,9 @@ export function easeInOutCubic(t) {
  * onto block 2 on its own — the crystal is not left waiting for extra
  * scrolling.
  */
+// v4: a wheel packet after this long a pause starts a new gesture.
+const FRESH_GESTURE_GAP = 250
+
 export function createHeroTransition({ heroEl, onProgress }) {
   const progress = { current: 0 }
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -155,10 +158,26 @@ export function createHeroTransition({ heroEl, onProgress }) {
       inertia.current = progress.current
       inertia.target = progress.current
     }
-    inertia.target = Math.min(1, Math.max(0, inertia.target + event.deltaY / pinSpan()))
+    // v4: one gesture, one move. The first packet commits the whole flight
+    // (down → block two, up → hero) as a single eased landing. Before, the
+    // crystal followed the wheel, braked with it, and only then a separate
+    // landing accelerated it again — two steps with a pause in between.
+    const now = performance.now()
     inertia.lastDelta = event.deltaY
-    inertia.lastWheelAt = performance.now()
-    inertia.snap = null
+    inertia.lastWheelAt = now
+    const goal = event.deltaY > 0 ? 1 : 0
+    // Only a fresh gesture may start (or reverse) the flight. Trackpad
+    // momentum left over from another screen's gesture (e.g. arriving back
+    // on block two from three) used to commit a flight to the hero.
+    const fresh = gapBeforeThisWheel > FRESH_GESTURE_GAP
+    if (!inertia.active && !fresh) return
+    if (inertia.snap !== goal && Math.abs(event.deltaY) > 0.5 && (fresh || inertia.snap == null)) {
+      inertia.snap = goal
+      inertia.landFrom = inertia.current
+      inertia.landStart = now
+      inertia.landDuration = 0.5 + Math.abs(goal - inertia.current) * 1.1
+      inertia.target = goal
+    }
     startLoop()
   }
 
@@ -169,6 +188,16 @@ export function createHeroTransition({ heroEl, onProgress }) {
     progress.current = trigger.progress
   }
 
+  // Every wheel packet, including ones other sections swallow, so the
+  // gap before a packet tells a new gesture from momentum.
+  let lastSeenWheelAt = 0
+  let gapBeforeThisWheel = Infinity
+  const noteWheel = () => {
+    const now = performance.now()
+    gapBeforeThisWheel = now - lastSeenWheelAt
+    lastSeenWheelAt = now
+  }
+  window.addEventListener('wheel', noteWheel, { passive: true, capture: true })
   window.addEventListener('wheel', handleWheel, { passive: false })
   window.addEventListener('scroll', handleScroll, { passive: true })
   const onLeaveHero = () => stopLoop()
@@ -189,6 +218,7 @@ export function createHeroTransition({ heroEl, onProgress }) {
     dispose() {
       stopLoop()
       window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('wheel', noteWheel, { capture: true })
       window.removeEventListener('scroll', handleScroll)
       window.removeEventListener('42ai-block-handoff', onLeaveHero)
       trigger.kill()

@@ -31,6 +31,8 @@
   width: calc(1440px * var(--block24-scale));
   height: calc(786px * var(--block24-scale));
   opacity: calc(var(--block24-enter-content) * (1 - var(--block24-exit-content)));
+  /* v4 band transition: carried up the screen by the rising band. */
+  transform: translateY(calc(var(--block24-exit-scroll, 0) * -100vh));
   pointer-events: none;
 }
 
@@ -79,9 +81,9 @@
   border: 0;
   background: transparent;
   color: #bebfc1;
-  font-family: "TT Hoves Web", sans-serif;
+  font-family: "Public Sans", sans-serif;
   font-size: max(14px, calc(18px * var(--block24-scale)));
-  font-weight: 500;
+  font-weight: 450;
   line-height: 1.15;
   letter-spacing: calc(-0.36px * var(--block24-scale));
   text-align: left;
@@ -129,6 +131,12 @@
   outline: 0;
   box-shadow: none;
   clip-path: inset(0 round calc(8px * var(--block24-scale)));
+}
+
+/* v4: keep the photos on their own layers from the start, so the first
+   card swap does not have to create them (and their blur) mid-animation. */
+.block24-section__hero-photo {
+  will-change: opacity, filter;
 }
 
 .block24-section__hero-photo.is-entering {
@@ -253,7 +261,7 @@
 .block24-section__title {
   margin: calc(12px * var(--block24-scale)) 0 0;
   color: #121110;
-  font-family: "TT Hoves Web", sans-serif;
+  font-family: "Public Sans", sans-serif;
   font-size: max(20px, calc(32px * var(--block24-scale)));
   font-weight: 450;
   line-height: 1.2;
@@ -264,18 +272,19 @@
   /* Same rest footprint as the grey pill: 150×40. The shape box is the
      shared viewBox scaled so that resting silhouette stays 150 wide, and
      the hover width uses the same ratio as the main button. */
-  /* Same 40px button as the rest of the page, not scaled with the block. */
-  --demo-width: 150px;
-  --demo-hover-width: 162.7px;
-  --demo-height: 40px;
-  --demo-shape-width: 154px;
+  /* Figma 559:605: the light "Learn more" is 135x36, 18px side padding,
+     12.27px with 5% tracking — not scaled with the block. */
+  --demo-width: 135px;
+  --demo-hover-width: 146.4px;
+  --demo-height: 36px;
+  --demo-shape-width: 138.6px;
   margin-top: calc(40px * var(--block24-scale));
   color: #121212;
   font-family: "Geist Mono", ui-monospace, monospace;
-  font-size: 14px;
+  font-size: 12.27px;
   font-weight: 500;
   line-height: 1.1;
-  letter-spacing: calc(0.682px * var(--block24-scale));
+  letter-spacing: 0.6135px;
   text-transform: uppercase;
   pointer-events: auto;
   cursor: pointer;
@@ -425,12 +434,12 @@
   }
 
   .block24-section__more.request-demo {
-    --demo-width: 150px;
-    --demo-hover-width: 162.7px;
-    --demo-height: 40px;
-    --demo-shape-width: 154px;
+    --demo-width: 135px;
+    --demo-hover-width: 146.4px;
+    --demo-height: 36px;
+    --demo-shape-width: 138.6px;
     margin-top: calc(32px * var(--block24-scale));
-    font-size: 14px;
-    letter-spacing: calc(0.6135px * var(--block24-scale));
+    font-size: 12.27px;
+    letter-spacing: 0.6135px;
   }
 }

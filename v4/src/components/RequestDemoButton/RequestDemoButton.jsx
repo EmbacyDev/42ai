@@ -17,7 +17,7 @@ function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2
 }
 
-function pathAt(amount) {
+export function demoShapePathAt(amount) {
   let index = 0
   return PATH_TEMPLATE.replace(/#/g, () => {
     const value = REST_VALUES[index] + (HOVER_VALUES[index] - REST_VALUES[index]) * amount
@@ -27,7 +27,29 @@ function pathAt(amount) {
   })
 }
 
-export function useDemoShape(active) {
+const VIEW_WIDTH = 163.978
+// A longer button keeps the shape's rounded ends as drawn and lengthens
+// only its straight middle: every x right of the centre moves by `extra`
+// viewBox units (H takes an x; M, L and C take x,y pairs).
+export function widenDemoPath(d, extra) {
+  if (!extra) return d
+  let command = ''
+  let index = 0
+  return d.replace(/[A-Za-z]|-?\d*\.?\d+/g, (token) => {
+    if (/[A-Za-z]/.test(token)) {
+      command = token
+      index = 0
+      return token
+    }
+    const isX = command === 'H' || (command !== 'V' && index % 2 === 0)
+    index += 1
+    const value = Number(token)
+    if (!isX || value <= VIEW_WIDTH / 2) return token
+    return String(Math.round((value + extra) * 1000) / 1000)
+  })
+}
+
+export function useDemoShape(active, extra = 0) {
   const pathRef = useRef(null)
   const amountRef = useRef(0)
   const frameRef = useRef(0)
@@ -38,7 +60,7 @@ export function useDemoShape(active) {
     const to = active ? 1 : 0
     if (reduced || from === to) {
       amountRef.current = to
-      pathRef.current?.setAttribute('d', pathAt(to))
+      pathRef.current?.setAttribute('d', widenDemoPath(demoShapePathAt(to), extra))
       return undefined
     }
 
@@ -47,12 +69,12 @@ export function useDemoShape(active) {
       const t = Math.min(1, (now - started) / MORPH_MS)
       const amount = from + (to - from) * easeInOutCubic(t)
       amountRef.current = amount
-      pathRef.current?.setAttribute('d', pathAt(amount))
+      pathRef.current?.setAttribute('d', widenDemoPath(demoShapePathAt(amount), extra))
       if (t < 1) frameRef.current = requestAnimationFrame(tick)
     }
     frameRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frameRef.current)
-  }, [active])
+  }, [active, extra])
 
   return pathRef
 }
@@ -67,11 +89,13 @@ export default function RequestDemoButton({
   href = '#request-demo',
   forceHover = false,
   shapeFill = '#000000',
+  // viewBox units added to the shape's straight middle (wider buttons).
+  widen = 0,
   ...anchorProps
 }) {
   const [hovering, setHovering] = useState(false)
   const hot = hovering || forceHover
-  const pathRef = useDemoShape(hot)
+  const pathRef = useDemoShape(hot, widen)
 
   return (
     <a
@@ -87,11 +111,11 @@ export default function RequestDemoButton({
     >
       <svg
         className="request-demo__shape"
-        viewBox="0 0 163.978 40"
+        viewBox={`0 0 ${VIEW_WIDTH + widen} 40`}
         preserveAspectRatio={fit === 'stretch' ? 'none' : undefined}
         aria-hidden="true"
       >
-        <path ref={pathRef} fill={shapeFill} d={REST_PATH} />
+        <path ref={pathRef} fill={shapeFill} d={widenDemoPath(REST_PATH, widen)} />
       </svg>
       <span className="request-demo__label">
         <ScrambleText text={label.toUpperCase()} active={hot} />

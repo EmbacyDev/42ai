@@ -27,15 +27,17 @@ export default function FacetLightLayer({ config }) {
     const scene = new THREE.Scene()
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     // One hover beam per facet; every facet that has left keeps its light.
-    // The light cycles flow colours 1-4 evenly; lead with green so violet
-    // (slot one of the crystal palette) stays an accent here too.
+    // Green, blue and white only: the violet slot (crystal colour one) made
+    // block four's light read too strong and purple, so it is replaced by a
+    // pale cyan-white here.
     const base = configRef.current || {}
     const lightConfig = {
       ...base,
       friendFlowColor1: base.friendFlowColor3 ?? '#29ae57',
-      friendFlowColor2: base.friendFlowColor2 ?? '#1d81ed',
+      // Cyan-blue instead of the crystal's #1d81ed, which mixed into violet.
+      friendFlowColor2: '#38b6e8',
       friendFlowColor3: base.friendFlowColor4 ?? '#29ae57',
-      friendFlowColor4: base.friendFlowColor1 ?? '#756cff',
+      friendFlowColor4: '#d9f6ff',
     }
     const lights = [1, 2, 3, 4].map(() => createHeroLight(lightConfig))
     lights.forEach((light) => scene.add(light.object))
@@ -69,6 +71,11 @@ export default function FacetLightLayer({ config }) {
         if ((facetBeamState.facets[state]?.progress ?? 0) > 0.35) { newest = state; break }
       }
       let firstLit = -1
+      // The hero's idle rays around the gem, here too, while block four
+      // holds the crystal (not on its way into the block-five portal).
+      const physics = document.querySelector('.physics-behavior-section')
+      const onFourth = (Number(physics?.style.getPropertyValue('--physics-reveal')) || 0) > 0.5
+        && (Number(physics?.style.getPropertyValue('--physics-portal')) || 0) < 0.15
       lights.forEach((light, index) => {
         const facet = facetBeamState.facets[index + 1]
         const hover = facet && facet.progress > 0.35
@@ -81,12 +88,13 @@ export default function FacetLightLayer({ config }) {
           crystal,
           hover,
           inHero: true,
-          idleOff: true,
+          idleOff: !(index === 0 && onFourth),
           volume: poured / 4,
           ringOn: index === Math.max(firstLit, 0) ? 1 : 0,
           // Every facet keeps its beam; the newest leads, earlier ones glow
           // quieter so stacked beams do not burn out the page.
-          gain: index + 1 === newest ? 0.85 : 0.4,
+          // Toned down from 0.85 / 0.4.
+          gain: index + 1 === newest ? 0.35 : index === 0 ? 0.3 : 0.15,
         })
       })
       // 4→5: this light fades together with the glass, while the swelling

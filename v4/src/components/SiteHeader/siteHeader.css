@@ -112,10 +112,13 @@ html.on-world-model .site-header__glyph--scramble {
 
 /* Exact Figma footprint, while keeping the existing path-morph hover. */
 .site-header__cta.request-demo {
-  --demo-width: 148px;
-  --demo-hover-width: 160px;
+  /* Figma 450:4194 (38px tall, 13px), 12px wider: the black pill is
+     145.8px. Its straight middle is lengthened (widen={3.5} in the JSX,
+     drawn at 38/40), so the rounded ends stay round. */
+  --demo-width: 154.5px;
+  --demo-hover-width: 167.6px;
   --demo-height: 38px;
-  --demo-shape-width: 151.9px;
+  --demo-shape-width: 159.1px;
   flex: none;
   color: #ffffff;
   font-family: "Geist Mono", ui-monospace, monospace;
@@ -191,10 +194,11 @@ html.on-world-model .site-header__glyph--scramble {
   }
 
   .site-header__cta.request-demo {
-    --demo-width: 116px;
-    --demo-hover-width: 124px;
+    /* Same shape at 34px tall: the pill is 130.5px. */
+    --demo-width: 131px;
+    --demo-hover-width: 142px;
     --demo-height: 34px;
-    --demo-shape-width: 120px;
+    --demo-shape-width: 142.4px;
     font-size: 10px;
     letter-spacing: 0.5px;
   }

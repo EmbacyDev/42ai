@@ -23,6 +23,7 @@ const GALAXY_TILT = 1.08
 const GALAXY_FACE_TILT = 0.22
 const SHAPE_CYCLE = 2300
 const CRYSTAL_EXTRA_HOLD = 1500
+const SPHERE_EXTRA_HOLD = 1500
 
 const LINK_LABELS = [
   '2025-04-18', 'OPENNESS', 'LOSS AVERSION', 'NEW ROLE',
@@ -77,7 +78,13 @@ function createField(count = 1560) {
     const ky = kFlat * Math.cos(GALAXY_TILT) - kDepth * Math.sin(GALAXY_TILT)
     const kz = kFlat * Math.sin(GALAXY_TILT) + kDepth * Math.cos(GALAXY_TILT)
 
+    // A cube's surface, the third figure of step two.
+    const cubeHalf = 1.25
+    const cubeAxis = index % 3
+    const cube = [(rng() * 2 - 1) * cubeHalf, (rng() * 2 - 1) * cubeHalf, (rng() * 2 - 1) * cubeHalf]
+    cube[cubeAxis] = (Math.floor(index / 3) % 2 ? 1 : -1) * cubeHalf
     points.push({
+      cube,
       sphere: [sx, sy, sz],
       crystal: [cx, cy, cz],
       galaxy: [gx, gy, gz],
@@ -143,26 +150,71 @@ const PATHS = buildPaths(FIELD)
 const TUNNEL = (() => {
   const rng = random(4307)
   const galaxies = []
-  const count = 20
+  const count = 14
+  // Chaotic placement: random over the screen, only kept a little apart
+  // from the ones already placed so they do not pile up.
+  const placed = []
   for (let index = 0; index < count; index += 1) {
     let bx = 0
     let by = 0
-    while (Math.hypot(bx, by * 1.4) < 0.42) {
-      bx = rng() * 2 - 1
-      by = rng() * 2 - 1
+    // The first two go near the middle, so the centre is never empty.
+    const reach = index < 2 ? 0.35 : 1
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      bx = (rng() * 2 - 1) * reach
+      by = (rng() * 2 - 1) * reach
+      if (placed.every(([px, py]) => Math.hypot(px - bx, py - by) > 0.42)) break
     }
-    const tilt = 0.75 + rng() * 0.7
-    const spin = rng() * TAU
+    placed.push([bx, by])
+    // Half are loose, scattered clouds (bigger); the rest are a sphere,
+    // the crystal or a cube — all 3D, turning slowly as they fly in.
+    const kind = index % 2 === 0 ? 'chaos' : ['sphere', 'crystal', 'cube'][(index >> 1) % 3]
+    const jitter = () => (rng() - 0.5) * 0.04
     const points = []
-    for (let p = 0; p < 560; p += 1) {
-      const r = 0.05 + Math.pow(rng(), 0.7)
-      const a = (p % 3) * TAU / 3 + r * 4.2 + (rng() - 0.5) * 0.35 + spin
-      const fx = Math.cos(a) * r
-      const fy = Math.sin(a) * r
-      const fz = (rng() - 0.5) * 0.08
-      points.push([fx, fy * Math.cos(tilt) - fz * Math.sin(tilt), rng()])
+    const total = 1500
+    if (kind === 'chaos') {
+      // Spread wide and thin: a scattered cluster, not a figure.
+      const lumps = Array.from({ length: 4 + Math.floor(rng() * 5) }, () => ({
+        x: (rng() - 0.5) * 2.0, y: (rng() - 0.5) * 1.5, z: (rng() - 0.5) * 1.4,
+        sx: 0.18 + rng() * 0.4, sy: 0.14 + rng() * 0.36, sz: 0.14 + rng() * 0.36,
+      }))
+      for (let p = 0; p < total; p += 1) {
+        const lump = lumps[p % lumps.length]
+        const g = () => Math.sqrt(-2 * Math.log(Math.max(1e-6, rng()))) * Math.cos(rng() * TAU)
+        points.push([lump.x + g() * lump.sx, lump.y + g() * lump.sy, lump.z + g() * lump.sz, rng()])
+      }
+    } else if (kind === 'sphere') {
+      for (let p = 0; p < total; p += 1) {
+        const z = rng() * 2 - 1
+        const a = rng() * TAU
+        const r = Math.sqrt(1 - z * z)
+        points.push([Math.cos(a) * r * 0.62 + jitter(), z * 0.62 + jitter(), Math.sin(a) * r * 0.62 + jitter(), rng()])
+      }
+    } else if (kind === 'crystal') {
+      // The gem's faces (same shard geometry as step two's crystal).
+      const faces = buildShards(0.62)
+      for (let p = 0; p < total; p += 1) {
+        const face = faces[p % faces.length]
+        const v = face.geometry.attributes.position.array
+        const u = Math.sqrt(rng())
+        const w = rng()
+        const k = [1 - u, u * (1 - w), u * w]
+        const at = (axis) => face.position[axis] + k[0] * v[axis] + k[1] * v[3 + axis] + k[2] * v[6 + axis]
+        points.push([at(0), at(1), at(2), rng()])
+      }
+      faces.forEach((face) => face.geometry.dispose())
+    } else {
+      const h = 0.5
+      for (let p = 0; p < total; p += 1) {
+        const c = [(rng() * 2 - 1) * h, (rng() * 2 - 1) * h, (rng() * 2 - 1) * h]
+        c[p % 3] = (Math.floor(p / 3) % 2 ? 1 : -1) * h
+        points.push([c[0], c[1], c[2], rng()])
+      }
     }
-    galaxies.push({ bx, by, offset: index / count + rng() * 0.04, size: 0.7 + rng() * 0.6, points })
+    galaxies.push({
+      id: index,
+      bx, by, offset: index / count + rng() * 0.06, size: (kind === 'chaos' ? 1.15 : 0.7) + rng() * 0.6,
+      points, spin: rng() * TAU, tilt: (rng() - 0.5) * 0.9, spinSpeed: 0.00012 + rng() * 0.00016,
+    })
   }
   return galaxies
 })()
@@ -220,14 +272,17 @@ export default function BehaviorNetworkTransition({ motionRef }) {
       if (!onScreen) return
       const stage = motionRef.current?.stage ?? 0
       const phase = stage / 4
-      const reveal = smooth(stage)
+      // Points come in early, so the field is never an empty background.
+      const reveal = smooth(stage * 1.8)
       const flight = smooth(stage - 3)
       if (stage >= 2.99 && loopStart === null) loopStart = time
       if (stage < 2.5) loopStart = null
       // Shape loop: crystal → sphere → galaxy. The crystal holds 1.5s longer
       // than the others before it rebuilds.
       const elapsed = reduced ? 0 : Math.max(0, time - (loopStart ?? time))
-      const durations = [SHAPE_CYCLE + CRYSTAL_EXTRA_HOLD, SHAPE_CYCLE, SHAPE_CYCLE]
+      // Sphere → crystal → cube (no galaxy). The sphere and the crystal
+      // both hold longer before they rebuild.
+      const durations = [SHAPE_CYCLE + SPHERE_EXTRA_HOLD, SHAPE_CYCLE + CRYSTAL_EXTRA_HOLD, SHAPE_CYCLE]
       const round = durations[0] + durations[1] + durations[2]
       let shapeIndex = 0
       let shapeLocal = elapsed % round
@@ -248,17 +303,21 @@ export default function BehaviorNetworkTransition({ motionRef }) {
       // no central galaxy remains, only the ones streaming past at the sides.
       const cameraPush = flight * 5.4
       const mainFade = 1 - smooth((flight - .3) / .55)
-      const rotation = time * 0.000035 + phase * 0.58
+      // Step two: the camera's perspective swings and the field swirls
+      // while it gathers into the sphere.
+      const swirl = smooth((stage - 1) / 2) * Math.PI * 0.9
+      const rotation = time * 0.000035 + phase * 0.58 + swirl
       const cos = Math.cos(rotation)
       const sin = Math.sin(rotation)
-      const assemblyShown = smooth(stage - 2)
+      const assemblyShown = smooth((stage - 1) / 2)
       const projected = FIELD.map((point, index) => {
-        const shapes = ['crystal', 'sphere', 'galaxy']
+        const shapes = ['sphere', 'crystal', 'cube']
         const from = shapes[shapeIndex]
         const to = shapes[(shapeIndex + 1) % 3]
         // Same 0.9s rebuild; each figure now holds 0.5s longer.
         const morph = smooth((shapeLocal - shapeHold - 216) / 900)
-        const assembly = smooth(stage - 2)
+        // Gathers over the whole of step two (stage 1 → 3).
+        const assembly = smooth((stage - 1) / 2)
         // While the galaxy is shown the field stops turning edge-on: the
         // spin around the vertical axis eases back to a frontal view.
         const galaxyWeight = from === 'galaxy' ? 1 - morph : to === 'galaxy' ? morph : 0
@@ -284,9 +343,10 @@ export default function BehaviorNetworkTransition({ motionRef }) {
         }
       })
 
-      const linkStage = smooth(stage - 1) * (1 - smooth(stage - 2))
+      // The relation lines keep drawing while the sphere forms.
+      const linkStage = smooth(stage - 1) * (1 - smooth(stage - 3))
       context.lineWidth = Math.max(0.55, width / 1900)
-      context.font = `${Math.max(7, width / 170)}px 'Geist Mono', monospace`
+      context.font = `${Math.max(6.5, width / 190)}px 'Geist Mono', monospace`
       context.textBaseline = 'middle'
 
       // Step one: faint labels everywhere, and a few bright, slightly larger
@@ -300,7 +360,7 @@ export default function BehaviorNetworkTransition({ motionRef }) {
           context.fillStyle = `rgba(232, 242, 250, ${(labelStage * .32).toFixed(3)})`
           context.fillText(LINK_LABELS[index % LINK_LABELS.length], item.x + 7, item.y - 7)
         }
-        const bigFont = `${Math.max(11, width / 96)}px 'Geist Mono', monospace`
+        const bigFont = `${Math.max(10, width / 108)}px 'Geist Mono', monospace`
         for (let slot = 0; slot < 4; slot += 1) {
           const span = 2600
           const local = (reduced ? 0 : time) + slot * span / 4
@@ -315,7 +375,7 @@ export default function BehaviorNetworkTransition({ motionRef }) {
           context.fillStyle = `rgba(255, 255, 255, ${(life * labelStage).toFixed(3)})`
           context.fillText(LINK_LABELS[(index + slot) % LINK_LABELS.length], item.x + 12, item.y - 12)
         }
-        context.font = `${Math.max(7, width / 170)}px 'Geist Mono', monospace`
+        context.font = `${Math.max(6.5, width / 190)}px 'Geist Mono', monospace`
       }
 
       // Step two: relations are drawn one chain at a time, point to point,
@@ -325,9 +385,10 @@ export default function BehaviorNetworkTransition({ motionRef }) {
       if (stage < .9) chainStart = null
       if (linkStage > .01) {
         const elapsed = reduced ? 4000 : time - (chainStart ?? time)
-        const gap = 900
-        const segment = 260
-        const life = 7600
+        // 1.2× slower than before.
+        const gap = 1080
+        const segment = 312
+        const life = 9120
         const first = Math.max(0, Math.floor((elapsed - life) / gap))
         const last = Math.floor(elapsed / gap)
         for (let chain = first; chain <= last; chain += 1) {
@@ -370,7 +431,12 @@ export default function BehaviorNetworkTransition({ motionRef }) {
         if (mainFade < .01) break
         if (!pointVisible(item.point, reveal)) continue
         if (item.z < -5.2) continue
-        const edgeFade = mainFade * clamp01(Math.min(item.x, width - item.x, item.y, height - item.y) / 42)
+        // The copy area (centre, lower part) stays mostly clear so the text
+        // reads on every step.
+        const inCopyX = clamp01(1 - Math.abs(item.x - width * .5) / (width * .34))
+        const inCopyY = smooth((item.y - height * .62) / (height * .1)) * (1 - smooth((item.y - height * .93) / (height * .05)))
+        const copyClear = 1 - .82 * smooth(inCopyX * 3) * inCopyY
+        const edgeFade = copyClear * mainFade * clamp01(Math.min(item.x, width - item.x, item.y, height - item.y) / 42)
         if (edgeFade <= 0) continue
         const radius = Math.max(0.9, item.point.size * item.perspective * (1.02 + flight * 0.42))
         // A share of the field is bright white; the rest keeps a soft range,
@@ -381,18 +447,25 @@ export default function BehaviorNetworkTransition({ motionRef }) {
         context.globalAlpha = Math.min(1, edgeFade * (base + lit))
         context.fillStyle = solid || lit > .2 ? '#ffffff' : item.index % 7 === 0 ? '#d6fff5' : item.index % 5 === 0 ? '#efe0ff' : '#e9f3ff'
         const triangleRotation = time * .00016 + item.index * 1.73
-        const triangleSize = radius * (1.45 + lit * 1.6)
+        // Step one's crystals are 1.2× smaller; from step two on the
+        // usual size returns.
+        const stepOneShrink = mix(1 / 1.2, 1, smooth(stage - 1))
+        const triangleSize = radius * (1.45 + lit * 1.6) * stepOneShrink
         if (lit > .05) {
-          const glow = context.createRadialGradient(item.x, item.y, 0, item.x, item.y, triangleSize * 4)
-          glow.addColorStop(0, `rgba(255,255,255,${(.45 * lit).toFixed(3)})`)
+          // A wide, soft halo rather than a visible disc.
+          const halo = triangleSize * 8
+          const glow = context.createRadialGradient(item.x, item.y, 0, item.x, item.y, halo)
+          glow.addColorStop(0, `rgba(255,255,255,${(.3 * lit).toFixed(3)})`)
+          glow.addColorStop(.35, `rgba(255,255,255,${(.1 * lit).toFixed(3)})`)
           glow.addColorStop(1, 'rgba(255,255,255,0)')
           context.fillStyle = glow
-          context.fillRect(item.x - triangleSize * 4, item.y - triangleSize * 4, triangleSize * 8, triangleSize * 8)
+          context.fillRect(item.x - halo, item.y - halo, halo * 2, halo * 2)
           context.fillStyle = '#ffffff'
         }
         context.beginPath()
-        for (let vertex = 0; vertex < 3; vertex += 1) {
-          const angle = triangleRotation + vertex * TAU / 3 - Math.PI / 2
+        // Our hexagonal crystal as the particle, not a triangle.
+        for (let vertex = 0; vertex < 6; vertex += 1) {
+          const angle = triangleRotation + vertex * TAU / 6 - Math.PI / 2
           const x = item.x + Math.cos(angle) * triangleSize
           const y = item.y + Math.sin(angle) * triangleSize
           if (vertex === 0) context.moveTo(x, y)
@@ -412,22 +485,67 @@ export default function BehaviorNetworkTransition({ motionRef }) {
           const p = (galaxy.offset + travel) % 1
           const depth = mix(16, .9, p)
           const scale = 5.8 / depth
-          const alpha = tunnel * smooth(p / .22) * (1 - smooth((p - .84) / .14))
+          // Far away they are only a faint haze; they gain brightness as
+          // they come closer instead of arriving already white.
+          const alpha = tunnel * smooth(p / .55) * smooth(p / .55) * (1 - smooth((p - .84) / .14))
           if (alpha < .01) continue
-          // Kept off the centre even in the distance: they pass at the sides.
-          const cx = width * .5 + galaxy.bx * width * (.2 + .1 * scale)
-          const cy = height * .44 + galaxy.by * height * (.18 + .09 * scale)
+          // Spread across the whole width, so clusters also pass close to
+          // the left and right edges; kept off the copy at the bottom.
+          // Even-random spread over the whole screen, drifting outward as
+          // they come closer.
+          const cx = width * .5 + galaxy.bx * width * (.44 + .05 * scale)
+          const cy = height * .44 + galaxy.by * height * (.4 + .05 * scale)
           const r = unit * .75 * galaxy.size * scale
+          // Clusters passing over the copy (centre, lower part) dim there,
+          // so the text stays readable.
+          const overCopyX = clamp01(1 - Math.abs(cx - width * .5) / (width * .34))
+          const overCopyY = smooth((cy - height * .55) / (height * .12))
+          const copyDim = 1 - .7 * smooth(overCopyX * 3) * overCopyY
+          const clusterAlpha = alpha * copyDim
+          // Each cluster turns slowly in 3D (its own axis and speed) and is
+          // drawn in perspective, so it reads as a volume.
+          const yaw = galaxy.spin + (reduced ? 0 : time * galaxy.spinSpeed)
+          const cy0 = Math.cos(yaw)
+          const sy0 = Math.sin(yaw)
+          const ct = Math.cos(galaxy.tilt)
+          const stt = Math.sin(galaxy.tilt)
+          const project = (point) => {
+            const [px, py, pz] = point
+            const x1 = px * cy0 + pz * sy0
+            const z1 = -px * sy0 + pz * cy0
+            const y2 = py * ct - z1 * stt
+            const z2 = py * stt + z1 * ct
+            const depthScale = 1 / (1 + z2 * 0.45)
+            return [cx + x1 * r * depthScale, cy + y2 * r * depthScale, depthScale]
+          }
           context.fillStyle = '#ffffff'
-          for (const [fx, fy, shade] of galaxy.points) {
-            const x = cx + fx * r
-            const y = cy + fy * r
+          for (const point of galaxy.points) {
+            const [x, y, depthScale] = project(point)
             if (x < -10 || x > width + 10 || y < -10 || y > height + 10) continue
-            const dot = Math.max(1, scale * (.6 + shade * .6))
-            context.globalAlpha = Math.min(1, alpha * (.55 + shade * .6))
-            context.fillRect(x - dot / 2, y - dot / 2, dot, dot)
+            const shade = point[3]
+            const dot = Math.max(.8, scale * (.45 + shade * .5) * depthScale)
+            context.globalAlpha = Math.min(1, clusterAlpha * (.45 + shade * .55) * Math.min(1.2, depthScale))
+            if (dot < 2.4) {
+              context.fillRect(x - dot / 2, y - dot / 2, dot, dot)
+            } else {
+              // Near the camera: the same hexagonal crystal particle.
+              context.beginPath()
+              for (let vertex = 0; vertex < 6; vertex += 1) {
+                const angle = vertex * TAU / 6 - Math.PI / 2
+                const hx = x + Math.cos(angle) * dot
+                const hy = y + Math.sin(angle) * dot
+                if (vertex === 0) context.moveTo(hx, hy)
+                else context.lineTo(hx, hy)
+              }
+              context.closePath()
+              context.fill()
+            }
           }
         }
+        // Relations run between the figures: each one links to its two
+        // nearest neighbours on screen, faint while they are far away.
+        context.globalAlpha = 1
+        context.lineWidth = Math.max(.6, width / 1700)
         context.globalAlpha = 1
       }
     }

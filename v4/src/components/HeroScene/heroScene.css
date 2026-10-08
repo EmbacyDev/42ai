@@ -255,9 +255,9 @@
      1.6MB and font-display:swap, so the headline — the only type visible
      on the preloader — was painting in the fallback and then jumping
      when the real face arrived. */
-  font-family: "TT Hoves Web", sans-serif;
+  font-family: "Public Sans", sans-serif;
   font-size: 44px;
-  font-weight: 400;
+  font-weight: 450;
   font-synthesis: none;
   line-height: 1.15;
   letter-spacing: -0.88px;
@@ -275,6 +275,12 @@
 }
 
 .hero-content__cta {
+  /* The black pill is 164px wide (40px tall): its straight middle is
+     lengthened by widen={14} in HeroContent.jsx, ends stay round. */
+  --demo-width: 164px;
+  --demo-hover-width: 177.9px;
+  --demo-height: 40px;
+  --demo-shape-width: 178px;
   margin-top: 32px;
   color: #ffffff;
   font-family: "Geist Mono", ui-monospace, monospace;
@@ -404,7 +410,8 @@
   background: linear-gradient(180deg, #d4e7f8 0%, #edf6fd 46%, #ffffff 100%);
 }
 .hero-loading-overlay__group {
-  top: calc(50% - 28px);
+  /* v4: the 3D crystal starts dead centre; the mark sits on it. */
+  top: 50%;
 }
 .hero-loading-overlay__bar {
   position: absolute;

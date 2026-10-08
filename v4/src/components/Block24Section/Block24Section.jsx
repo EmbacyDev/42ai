@@ -14,6 +14,21 @@ import PhotoRail3D, {
   BLOCK24_CARD_PHASES,
   BLOCK24_CARD_TRANSITION_DURATION,
 } from './PhotoRail3D.jsx'
+import {
+  BAND_TRANSITION,
+  MASK_TRANSITION,
+  MASK_BURST,
+  MASK_PRE_ZOOM,
+  MASK_DESCENT,
+  MASK_CONTENT_EXIT,
+  maskState,
+  BAND_IN,
+  BAND_PEEK,
+  BAND_STRETCH,
+  BAND_PEEK_SHARE,
+  bandState,
+  BAND_CREST_PER_UNIT,
+} from '../WorldModelSection/worldModelHandoff.js'
 import './block24Section.css'
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin)
@@ -30,8 +45,13 @@ const PIN_SCROLL_DISTANCE = '+=100%'
 // very end of the scroll, which left a long empty beat). At 0.85 the gem
 // and its glow were still passing over the centre card, which read as the
 // card blinking right after it appeared.
-const CONTENT_LAND_BLEND = 0.95
-const CONTENT_UNLAND_BLEND = 0.85
+// Not earlier than the very end of the scroll, though: while the page
+// was still settling onto the pin, the visible cards rode the last of the
+// scroll and the pin's snap — the first card read as rolling in and
+// blinking. Content now appears once the page has arrived, fast and with
+// no extra pause.
+const CONTENT_LAND_BLEND = 0.995
+const CONTENT_UNLAND_BLEND = 0.9
 const CONTENT_REVEAL_DELAY = 0
 // Cards fade in over ~0.9s after the crystal docks. The cinematic must
 // not arm until that reveal has actually landed — otherwise the same
@@ -165,6 +185,8 @@ export default function Block24Section({
     let handoffTween
     let handoffScrollTween
     let contentExitTween
+    // Band transition: cards + crystal fade/lift, 0 → 1 leaving block two.
+    const exitFade = { value: 0 }
     let handoffDelays = []
     // True from the flick until the page flight starts (see COLOUR_START).
     let flightPending = false
@@ -210,7 +232,10 @@ export default function Block24Section({
           sectionTop: rect.top,
           sectionBottom: rect.bottom,
           progress: pinProgress,
-          handoff: handoffProxy.value,
+          // Band transition: the crystal does not fly to the centre; it is
+          // carried up with the cards (`fade` = share of the viewport).
+          handoff: BAND_TRANSITION ? 0 : handoffProxy.value,
+          fade: BAND_TRANSITION ? exitFade.value : 0,
         },
       )
     }
@@ -265,6 +290,13 @@ export default function Block24Section({
         leaveGestures = 0
       }
       if (reduceMotion || instant) {
+        // Band transition: an instant reset must also bring the carried
+        // stage back on screen.
+        if (!next && BAND_TRANSITION) {
+          contentExitTween?.kill()
+          exitFade.value = 0
+          section.style.setProperty('--block24-exit-scroll', '0')
+        }
         handoffProxy.value = next ? 1 : 0
         section.style.setProperty('--block24-exit-content', handoffProxy.value.toFixed(4))
         setIsExiting(next)
@@ -278,7 +310,7 @@ export default function Block24Section({
       }
       handoffTween = gsap.to(handoffProxy, {
         value: next ? 1 : 0,
-        duration: reduceMotion || instant ? 0 : next ? STUDIO_HANDOFF_DURATION : 0.62,
+        duration: reduceMotion || instant ? 0 : next ? (MASK_TRANSITION ? MASK_DESCENT : STUDIO_HANDOFF_DURATION) : 0.62,
         ease: next ? studioEase : 'power3.in',
         overwrite: true,
         onUpdate: () => {
@@ -286,7 +318,10 @@ export default function Block24Section({
           // fifth of the flight, before the page scroll can carry them up.
           // The crystal still uses the full-length handoff value.
           // Leaving, the content has its own quick fade (contentExitTween).
-          if (!next) section.style.setProperty('--block24-exit-content', handoffProxy.value.toFixed(4))
+          if (!next && !BAND_TRANSITION) {
+            section.style.setProperty('--block24-exit-content', handoffProxy.value.toFixed(4))
+          }
+          if (next && BAND_TRANSITION) return
           setIsExiting((current) => {
             const showing = handoffProxy.value > 0.02
             return current === showing ? current : showing
@@ -303,25 +338,88 @@ export default function Block24Section({
       handoffDelays.forEach((call) => call.kill())
       handoffDelays = []
       flightPending = false
-      if (next) {
+      if (!next && BAND_TRANSITION) {
+        // Back from block three: the band sinks and block two comes down
+        // with it, from above the screen to its place.
+        section.style.setProperty('--block24-exit-content', '0')
+        contentExitTween = gsap.to(exitFade, {
+          value: 0,
+          duration: BAND_STRETCH + BAND_PEEK * 0.5,
+          ease: 'power3.inOut',
+          onUpdate: () => {
+            section.style.setProperty('--block24-exit-scroll', exitFade.value.toFixed(4))
+            updateAnchor()
+          },
+        })
+      }
+      if (next && BAND_TRANSITION) {
+        // Band transition: cards, copy and crystal lift a little and fade
+        // where they are, while block three's band rises from the bottom
+        // edge (WorldModelSection). Once the band covers the screen the page
+        // jumps to block three underneath it.
+        // The stage (and the crystal, via `fade`) is carried up in step
+        // with the band's top edge — a scroll, not an effect.
+        exitFade.value = 0
+        const writeCarry = () => {
+          section.style.setProperty('--block24-exit-scroll', exitFade.value.toFixed(4))
+          updateAnchor()
+        }
+        // Block two rides exactly on the dome's crest: its bottom edge is
+        // pushed up by the rising colour, so no white page shows between
+        // them (it ran ahead before, and the middle of the transition was
+        // an empty white screen).
+        const ride = () => {
+          exitFade.value = Math.min(1, bandState.value * BAND_CREST_PER_UNIT)
+          writeCarry()
+        }
+        gsap.ticker.add(ride)
+        contentExitTween = gsap.delayedCall(BAND_IN + 0.1, () => {
+          gsap.ticker.remove(ride)
+          exitFade.value = 1
+          writeCarry()
+        })
+        contentExitTween.eventCallback('onInterrupt', () => gsap.ticker.remove(ride))
+        flightPending = true
+        dispatchHandoff()
+        handoffDelays = [
+          gsap.delayedCall(BAND_IN + 0.03, () => {
+            flightPending = false
+            killScrollSnaps()
+            window.scrollTo(0, worldRestScrollY())
+          }),
+        ]
+      } else if (next) {
         // v4: the cards and copy are gone (CONTENT_EXIT) before the page
         // scroll starts, so nothing is seen riding upward. The colour
         // opening on block three starts just before they are fully gone.
         const fade = { value: 0 }
         contentExitTween = gsap.to(fade, {
           value: 1,
-          duration: CONTENT_EXIT,
+          duration: MASK_TRANSITION ? MASK_CONTENT_EXIT : CONTENT_EXIT,
           ease: 'none',
           onUpdate: () => section.style.setProperty('--block24-exit-content', fade.value.toFixed(4)),
         })
         flightPending = true
-        handoffDelays = [
-          gsap.delayedCall(COLOUR_START, dispatchHandoff),
-          gsap.delayedCall(COLOUR_START, () => {
-            flightPending = false
-            playHandoffScroll(true)
-          }),
-        ]
+        handoffDelays = MASK_TRANSITION
+          ? [
+            // v5 mask: the crystal has settled in the centre; block three
+            // bursts out of it (WorldModelSection, MASK_BURST). The page
+            // jumps to block three only once that covers the screen.
+            // The gem is in the centre once its descent has finished.
+            gsap.delayedCall(MASK_DESCENT, dispatchHandoff),
+            gsap.delayedCall(MASK_DESCENT + MASK_PRE_ZOOM + MASK_BURST + 0.03, () => {
+              flightPending = false
+              killScrollSnaps()
+              window.scrollTo(0, worldRestScrollY())
+            }),
+          ]
+          : [
+            gsap.delayedCall(COLOUR_START, dispatchHandoff),
+            gsap.delayedCall(COLOUR_START, () => {
+              flightPending = false
+              playHandoffScroll(true)
+            }),
+          ]
       }
     }
 
@@ -412,7 +510,7 @@ export default function Block24Section({
       enterTween?.kill()
       enterTween = gsap.to(enterProxy, {
         value: next ? 1 : 0,
-        duration: reduceMotion || instant ? 0 : next ? 0.6 : 0.28,
+        duration: reduceMotion || instant ? 0 : next ? 0.45 : 0.28,
         delay: reduceMotion || instant || !next ? 0 : CONTENT_REVEAL_DELAY,
         ease: next ? 'power2.out' : 'power2.in',
         overwrite: true,
@@ -446,7 +544,11 @@ export default function Block24Section({
 
     const updateContentEnter = (instant = false) => {
       const blend = crystalHeroBlend()
-      if (blend >= CONTENT_LAND_BLEND) setCrystalLanded(true, instant)
+      // v4: only once the section has actually arrived (its pin reached).
+      // The blend reaches 0.995 with the page still ~6% (≈50px) short, so
+      // the cards appeared and then rode up into place.
+      const arrived = window.scrollY >= crystalTravelRangePx() - 2
+      if (blend >= CONTENT_LAND_BLEND && arrived) setCrystalLanded(true, instant)
       else if (
         blend < CONTENT_UNLAND_BLEND
         && window.scrollY < crystalTravelRangePx() - 80
@@ -512,6 +614,7 @@ export default function Block24Section({
       if (
         movingUp
         && handoffOn
+        && !maskState.collapsing
         && worldTop > window.innerHeight * 0.72
       ) {
         returningFromWorld = true
@@ -570,7 +673,7 @@ export default function Block24Section({
         // Pin end is block 3's rest. Restore the cards only once the
         // world pane has actually given way and the editorial fills
         // the screen again.
-        if (returningFromWorld && handoffOn && self.progress <= 0.08) {
+        if (returningFromWorld && handoffOn && self.progress <= 0.08 && !maskState.collapsing) {
           killScrollSnaps()
           setHandoff(false)
         }
@@ -687,7 +790,38 @@ export default function Block24Section({
       commitHandoffFromGesture(event)
     }
 
-    const onReturnedHome = () => {
+    // v4 band transition: coming back from block three, the stage (cards,
+    // copy, the list on the left) and the crystal always come down to their
+    // places with the sinking band — whatever state the handoff flags are
+    // in. Relying on setHandoff(false) alone left them parked above the
+    // screen whenever that call was a no-op.
+    const bringStageBack = () => {
+      if (!BAND_TRANSITION) return
+      contentExitTween?.kill()
+      handoffDelays.forEach((call) => call.kill())
+      handoffDelays = []
+      flightPending = false
+      section.style.setProperty('--block24-exit-content', '0')
+      enterProxy.value = 1
+      section.style.setProperty('--block24-enter-content', '1')
+      setIsExiting(false)
+      contentExitTween = gsap.to(exitFade, {
+        value: 0,
+        duration: BAND_STRETCH + BAND_PEEK * 0.5,
+        ease: 'power3.inOut',
+        overwrite: true,
+        onUpdate: () => {
+          section.style.setProperty('--block24-exit-scroll', exitFade.value.toFixed(4))
+          updateAnchor()
+        },
+        onComplete: () => {
+          section.style.setProperty('--block24-exit-scroll', '0')
+          updateAnchor()
+        },
+      })
+    }
+
+    const onReturnedHome = (event) => {
       // v4: back on block two from three — upward scrolling is held for a
       // moment, so one long flick cannot carry on straight to the hero.
       returnHoldUntil = performance.now() + RETURN_HOLD_MS
@@ -696,7 +830,20 @@ export default function Block24Section({
       hasSettledOnBlock2 = true
       returningFromWorld = true
       queuedHandoff = false
+      if (event?.detail?.instant) {
+        // v5: back from block three by a plain scroll — block two is
+        // already at rest: cards shown, crystal on its seat.
+        setHandoff(false, true)
+        enterProxy.value = 1
+        section.style.setProperty('--block24-enter-content', '1')
+        crystalLanded = true
+        setContentReady(true)
+        return
+      }
       setHandoff(false)
+      bringStageBack()
+      crystalLanded = true
+      setContentReady(true)
     }
     window.addEventListener('wheel', handleWheel, { passive: false, capture: true })
     window.addEventListener('keydown', handleKeyDown)
@@ -728,6 +875,17 @@ export default function Block24Section({
       onSectionVisibilityChangeRef.current?.(false)
     }
   }, [])
+
+  // v4: decode every slide photo ahead of time, so the first card swap
+  // never waits on a fresh decode while the current photo is hidden.
+  useEffect(() => {
+    if (!heroReady) return
+    SLIDES.forEach((slide) => {
+      const image = new Image()
+      image.src = slide.image
+      image.decode?.().catch(() => {})
+    })
+  }, [heroReady])
 
   const activeSlide = SLIDES[activeIndex]
   const outgoingSlide = flight ? SLIDES[flight.outgoing] : null
@@ -1013,7 +1171,10 @@ export default function Block24Section({
         <div className="block24-section__hero">
           {outgoingSlide && (
             <img
-              key={`${flight.id}-hero-out`}
+              // v4: keyed by the slide, so the photo already on screen
+              // becomes the leaving one — no fresh element that takes a frame
+              // to appear (the first card blinked right there).
+              key={outgoingSlide.id}
               className="block24-section__hero-photo is-leaving"
               src={heroReady ? outgoingSlide.image : undefined}
               alt=""

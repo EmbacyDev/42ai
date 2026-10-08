@@ -13,7 +13,7 @@ export default function HeroContent() {
           Access the world’s first Behavioral World Model that predicts humans
           and agents’ behaviors in volatile, novel, and unprecedented scenarios.
         </p>
-        <RequestDemoButton className="hero-content__cta" />
+        <RequestDemoButton className="hero-content__cta" widen={14} />
       </div>
     </div>
   )

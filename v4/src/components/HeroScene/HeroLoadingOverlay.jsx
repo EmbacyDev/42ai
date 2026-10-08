@@ -3,6 +3,14 @@ import HeroLoadingBar from './HeroLoadingBar.jsx'
 import LogoMotionMark from './LogoMotionMark.jsx'
 import { MIN_LOADER_MS } from './loaderTiming.js'
 
+// PageCrystal.jsx: INTRO_START_SCALE 0.145, gem radius 0.98 world units,
+// camera fov 52° at z 4.94. Screen diameter of the gem at the hand-off.
+function crystalIntroDiameter() {
+  const vh = typeof window === 'undefined' ? 800 : window.innerHeight
+  const pxPerWorld = vh / (2 * Math.tan((52 * Math.PI) / 360) * 4.94)
+  return 2 * 0.145 * 0.98 * pxPerWorld
+}
+
 /**
  * Covers the whole hero section with a plain white sheet plus a small
  * spinning mark and the progress bar, from the very first frame — nothing
@@ -29,6 +37,15 @@ export default function HeroLoadingOverlay({ progress, hidden }) {
     return () => clearInterval(id)
   }, [])
   const shown = Math.min(progress, clock)
+  // v4: the mark matches the 3D crystal it hands over to (PageCrystal.jsx):
+  // centred on the viewport, as tall as the gem at its intro scale. The
+  // gem's height follows the viewport height, so the mark does too.
+  const [markSize, setMarkSize] = useState(() => crystalIntroDiameter())
+  useEffect(() => {
+    const onResize = () => setMarkSize(crystalIntroDiameter())
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
   return (
     <div
       className={`hero-loading-overlay${hidden ? ' hero-loading-overlay--hidden' : ''}`}
@@ -41,7 +58,7 @@ export default function HeroLoadingOverlay({ progress, hidden }) {
           on the screen in its own frosted pill. */}
       <div className="hero-loading-overlay__group">
         <div className="hero-loading-overlay__mark">
-          <LogoMotionMark size={58} />
+          <LogoMotionMark size={markSize} />
         </div>
       </div>
       <div className="hero-loading-overlay__bar">

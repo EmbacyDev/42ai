@@ -1,10 +1,12 @@
 .request-demo {
-  /* Every page button: 40px tall, the 165x44 footprint scaled down. */
+  /* Figma 450:4414: every page button is the 165x44 component at 0.909 —
+     150x40, 20px side padding, Geist Mono 13.636px with 5% tracking. */
   --demo-width: 150px;
   --demo-hover-width: 162.7px;
   --demo-height: 40px;
   --demo-shape-width: 154px;
-  font-size: 14px;
+  font-size: 13.636px;
+  letter-spacing: 0.682px;
   position: relative;
   display: inline-flex;
   align-items: center;

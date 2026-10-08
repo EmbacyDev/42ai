@@ -80,19 +80,30 @@ export default function HeroLightLayer({ config }) {
       const opening = Math.min(1, Math.max(0, crystalScreen.worldExpansion ?? 0))
       const onOpening = opening > 0.005
       const swell = opening * (1 - Math.min(1, Math.max(0, (opening - 0.85) / 0.15)))
+      // While the gem swells past the screen, its rays would start beyond
+      // the viewport (they begin at its rim). Anchor them to a capped
+      // radius instead, so they visibly pour out of it as it opens.
+      let crystalForLight = crystalScreen.valid ? crystalScreen : null
+      if (crystalForLight && onOpening) {
+        crystalForLight = { ...crystalScreen, r: Math.min(crystalScreen.r, Math.min(width, height) * 0.12) }
+      }
       light.update(clock.elapsedTime, delta, {
         width,
         height,
-        spread: onOpening ? 0.45 + 4 * opening : onBlock2 ? 0.45 : 1,
-        // v4: a quarter as strong on block two.
-        gain: onOpening ? 0.25 + 2.75 * swell : onBlock2 ? 0.25 : 1,
+        // Opening: the rays reach farther as the colour opens, in step
+        // with the field (both follow the same expansion value).
+        spread: onOpening ? 1 + 3 * opening : onBlock2 ? 0.45 : 1,
+        // v4: an eighth as strong on block two (its violet was too loud).
+        gain: onOpening ? 0.3 + 2.2 * swell : onBlock2 ? 0.125 : 1,
         // Toward block three's teal-mint field, so the light hands over
         // to that background without a change of colour.
-        tint: Math.min(1, opening * 2.5),
-        crystal: crystalScreen.valid ? crystalScreen : null,
+        tint: Math.min(1, opening * 4),
+        crystal: crystalForLight,
         // v4: no hover beam to the cards, only the idle rays behind the crystal.
         hover: null,
-        inHero: heroLightState.inHero || onBlock2 || onOpening,
+        // v4: no light behind the crystal on block two at all; it only
+        // returns for the 2→3 opening.
+        inHero: heroLightState.inHero || onOpening,
         masks: heroLightState.inHero ? heroLightState.masks : [],
       })
       if (light.object.visible) {

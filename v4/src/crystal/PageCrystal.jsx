@@ -7,6 +7,8 @@ import Glass from './Glass.jsx'
 import { crystalScreen } from '../components/HeroScene/crystalScreen.js'
 import { heroLightState } from '../components/HeroScene/heroLightState.js'
 import { crystalSlosh } from '../components/HeroScene/crystalSlosh.js'
+import { TRANSITION_MODE, MASK_SPIN_DESCENT, MASK_SPIN_ZOOM } from '../components/WorldModelSection/worldModelHandoff.js'
+import { FACET_STEP_TILT_X, FACET_TURN_END } from './facetBeamState.js'
 import HeroLightLayer from './HeroLightLayer.jsx'
 import FacetLightLayer from './FacetLightLayer.jsx'
 import {
@@ -123,7 +125,9 @@ const PHYSICS_HANDOFF_SCALE = 0.22
 // it move into the four centred Figma state frames.
 const PHYSICS_INTRO_CENTER_X = 0.5
 const PHYSICS_TARGET_SCALE = 1.06
-const PHYSICS_STATES_SCALE = 1.14
+// The opening frame under the heading: a bigger gem, set lower and cropped
+// by the bottom edge; it shrinks into the state pose as it turns.
+const PHYSICS_STATES_SCALE = 1.4
 const PHYSICS_TILT_X = 0.12
 const PHYSICS_TILT_Z = -0.04
 // State one follows Figma 450:5558: the crystal presents a
@@ -132,10 +136,10 @@ const PHYSICS_TILT_Z = -0.04
 // Every extracted facet advances the body through another clockwise turn
 // around its vertical axis. Keeping the values monotonic prevents the gem
 // from reversing between tabs and makes the previous opening rotate away.
-const STATE_ONE_ROTATION = { x: 0.12, y: -Math.PI / 2, z: -0.04 }
-const STATE_TWO_ROTATION = { x: 0.12, y: -Math.PI, z: -0.04 }
-const STATE_THREE_ROTATION = { x: 0.12, y: -Math.PI * 1.5, z: -0.04 }
-const STATE_FOUR_ROTATION = { x: 0.12, y: -Math.PI * 2, z: -0.04 }
+const STATE_ONE_ROTATION = { x: FACET_STEP_TILT_X[0], y: -Math.PI / 2, z: -0.04 }
+const STATE_TWO_ROTATION = { x: FACET_STEP_TILT_X[1], y: -Math.PI, z: -0.04 }
+const STATE_THREE_ROTATION = { x: FACET_STEP_TILT_X[2], y: -Math.PI * 1.5, z: -0.04 }
+const STATE_FOUR_ROTATION = { x: FACET_STEP_TILT_X[3], y: -Math.PI * 2, z: -0.04 }
 const STATE_ONE_SHIFT_X = -0.017
 const STATE_TWO_SHIFT_X = 0
 const STATE_THREE_SHIFT_X = 0.008
@@ -144,7 +148,7 @@ const STATE_ONE_CENTER_Y = 0.52
 // While the block-four heading is on screen the crystal waits below it
 // (this share of the viewport under the centre), then rises to the centre
 // as the heading leaves and the first facet separates.
-const PHYSICS_INTRO_DROP = 0.24
+const PHYSICS_INTRO_DROP = 0.32
 const STATE_TWO_CENTER_Y = 0.52
 const STATE_THREE_CENTER_Y = 0.52
 const STATE_FOUR_CENTER_Y = 0.52
@@ -199,6 +203,9 @@ const UNIFIED_CRYSTAL_COLOURS = Object.freeze({
 // the geometry reaches the camera; the matched colour field completes the
 // remaining apparent magnification without near-plane artefacts.
 const PHYSICS_PORTAL_SCALE = 5.6
+// v4: how far the docked gem swells during the 2→3 opening (block-two
+// dock radius ≈ 24px → about the whole viewport).
+const WORLD_OPEN_SCALE = 22
 // After the pin releases, the section's own top (and therefore its live
 // anchor) scrolls off the viewport; the 2→3 flight has to leave from this
 // stable dock instead, or the crystal rides the departing block into the
@@ -409,15 +416,22 @@ function TravellingCrystal({
   screenAnchorRef,
   pulseProgress,
   spinBlendRef,
+  materialKey,
   children,
 }) {
   const groupRef = useRef(null)
+  // The glass refracts a transmission buffer that is empty (black) until
+  // it has been drawn: on mount and whenever the material switches looks
+  // (block four's treatment on/off). Hold the gem hidden for those first
+  // frames and fade it in, instead of flashing a black crystal.
+  const warmRef = useRef({ key: undefined, frames: 0 })
   const physicsSectionRef = useRef(null)
   const introProgressRef = useRef(introReady ? 1 : 0)
   const introDelayRef = useRef(0)
   const visualRef = useRef(null)
   const fourthVisibleRef = useRef(false)
   const zSpinRef = useRef(null)
+  const crystalReturnRef = useRef(0)
   const { camera, size, gl } = useThree()
   // v4: press and hold the crystal in the hero to turn it by hand. The
   // drag adds an offset on top of the usual spin; after release it keeps a
@@ -492,6 +506,8 @@ function TravellingCrystal({
     const dockY = layoutBlock24(vw, vh).crystalCenterY
     const pinProgress = secondTarget?.progress ?? 0
     const toCenter = Math.min(1, Math.max(0, secondTarget?.handoff ?? 0))
+    // Read by block three: the burst waits until the gem is really centred.
+    crystalScreen.toCenter = toCenter
     let target = secondTarget || heroAnchorPx
     let thirdBlend = 0
     if (secondTarget) {
@@ -502,7 +518,8 @@ function TravellingCrystal({
       const fromY = dockY
       target = {
         x: secondTarget.x,
-        y: fromY + (vh * 0.5 - fromY) * toCenter,
+        // v4 band transition: carried up with the cards.
+        y: fromY + (vh * 0.5 - fromY) * toCenter - vh * (secondTarget.fade ?? 0),
       }
     }
     if (secondTarget && thirdTarget) {
@@ -546,6 +563,7 @@ function TravellingCrystal({
     // value revealed the crystal as soon as the copy faded, which broke the
     // illusion of a reverse 2→3 emission.
     const crystalReturn = smootherstep(Math.min(Math.max((absorb - 0.78) / 0.2, 0), 1))
+    crystalReturnRef.current = crystalReturn
     // Screen three no longer reforms the gem out of its light. Screen four
     // owns the re-entry and begins directly with its first separating facet.
     const handoffRevealEarly = fourthReveal
@@ -594,14 +612,17 @@ function TravellingCrystal({
     // size while the field is still a halo around it, then fade it in
     // place once that halo has clearly spilled past the silhouette.
     const expansion = thirdTarget?.expansion ?? 0
-    // v4: the glass shell dissolves together with the opening colour,
-    // not after it — the 3D form melts away while the light grows.
-    const spill = smootherstep(Math.min(Math.max((expansion - 0.05) / 0.55, 0), 1))
+    // v4: 2→3 borrows the 4→5 portal. While the colour opens, the gem
+    // (already centred) swells until its own inner light fills the screen
+    // (WORLD_OPEN_SCALE), and only near the end does it dissolve, leaving
+    // block three's field that has opened underneath it. Played backwards
+    // on the way up, so the light gathers back into the gem.
+    const spill = smootherstep(Math.min(Math.max((expansion - 0.55) / 0.4, 0), 1))
     const returned = crystalReturn
     const dissolve = fourthReveal > 0 ? 0 : spill * (1 - returned)
     // Shared with Glass.jsx (liquid blur) and HeroLightLayer (the light
     // behind the gem), which both swell with the block-three opening.
-    crystalScreen.worldExpansion = fourthReveal > 0 ? 0 : expansion * (1 - returned)
+    crystalScreen.worldExpansion = fourthReveal > 0 || TRANSITION_MODE !== 'light' ? 0 : expansion * (1 - returned)
     const handoffReveal = handoffRevealEarly
     let fullScale = baseScale
     if (fourthTarget && handoffReveal > 0) {
@@ -616,6 +637,15 @@ function TravellingCrystal({
       fullScale += (STATE_FOUR_SCALE * compactScale - fullScale) * fourthStateFour * fourthFocus
       fullScale += (PHYSICS_CLEAN_FRAME_SCALE * compactScale - fullScale) * fourthCleanFrame
       fullScale += (PHYSICS_PORTAL_SCALE * compactScale - fullScale) * crystalPortal
+    }
+    // v5 mask: the gem is pushed toward the camera (up to +35%) just before
+    // block three bursts out of it.
+    fullScale *= 1 + 0.2 * (crystalScreen.preZoom ?? 0)
+    {
+      const opening = fourthReveal > 0 || TRANSITION_MODE !== 'light' ? 0 : expansion * (1 - returned)
+      // Fills the screen by ~45% of the open, ahead of the field.
+      const swell = smootherstep(Math.min(Math.max(opening / 0.45, 0), 1))
+      fullScale *= 1 + (WORLD_OPEN_SCALE - 1) * swell
     }
     if (!introReady) {
       introDelayRef.current = 0
@@ -647,24 +677,28 @@ function TravellingCrystal({
     let targetTiltX = PHYSICS_TILT_X * handoffReveal
     let targetTiltZ = PHYSICS_TILT_Z * handoffReveal
     let targetTurnY = 0
+    // Each step turns (and tilts) the gem in its first part only; the pane
+    // leaves afterwards (Glass.jsx), from the face already in place.
+    const turnOf = (value) => smootherstep(Math.min(1, value / FACET_TURN_END))
+    const turnOne = turnOf(fourthStateOne)
+    const turnTwo = turnOf(fourthStateTwo)
+    const turnThree = turnOf(fourthStateThree)
+    const turnFour = turnOf(fourthStateFour)
     if (fourthTarget && handoffReveal > 0) {
-      targetTiltX += (STATE_ONE_ROTATION.x - targetTiltX) * fourthStateOne
-      targetTiltZ += (STATE_ONE_ROTATION.z - targetTiltZ) * fourthStateOne
-      targetTurnY += STATE_ONE_ROTATION.y * fourthStateOne
-      targetTiltX += (STATE_TWO_ROTATION.x - targetTiltX) * fourthStateTwo
-      targetTiltZ += (STATE_TWO_ROTATION.z - targetTiltZ) * fourthStateTwo
-      targetTurnY += (STATE_TWO_ROTATION.y - targetTurnY) * fourthStateTwo
-      targetTiltX += (STATE_THREE_ROTATION.x - targetTiltX) * fourthStateThree
-      targetTiltZ += (STATE_THREE_ROTATION.z - targetTiltZ) * fourthStateThree
-      targetTurnY += (STATE_THREE_ROTATION.y - targetTurnY) * fourthStateThree
-      targetTiltX += (STATE_FOUR_ROTATION.x - targetTiltX) * fourthStateFour
-      targetTiltZ += (STATE_FOUR_ROTATION.z - targetTiltZ) * fourthStateFour
-      targetTurnY += (STATE_FOUR_ROTATION.y - targetTurnY) * fourthStateFour
+      targetTiltX += (STATE_ONE_ROTATION.x - targetTiltX) * turnOne
+      targetTiltZ += (STATE_ONE_ROTATION.z - targetTiltZ) * turnOne
+      targetTiltX += (STATE_TWO_ROTATION.x - targetTiltX) * turnTwo
+      targetTiltZ += (STATE_TWO_ROTATION.z - targetTiltZ) * turnTwo
+      targetTiltX += (STATE_THREE_ROTATION.x - targetTiltX) * turnThree
+      targetTiltZ += (STATE_THREE_ROTATION.z - targetTiltZ) * turnThree
+      targetTiltX += (STATE_FOUR_ROTATION.x - targetTiltX) * turnFour
+      targetTiltZ += (STATE_FOUR_ROTATION.z - targetTiltZ) * turnFour
     }
     const fourthJustAppeared = handoffReveal > 0.004 && !fourthVisibleRef.current
     if (handoffReveal > .004) {
-      targetTurnY = -Math.PI / 2 * [fourthStateOne, fourthStateTwo, fourthStateThree, fourthStateFour]
-        .reduce((sum, value) => sum + smootherstep(Math.min(1, value / .65)), 0)
+      // Each step turns the gem in its first half; the facet only leaves
+      // in the second half (Glass.jsx), from the face already turned out.
+      targetTurnY = -Math.PI / 2 * (turnOne + turnTwo + turnThree + turnFour)
     }
     fourthVisibleRef.current = handoffReveal > 0.004
 
@@ -729,6 +763,26 @@ function TravellingCrystal({
       ;[visual.turnY, visual.vTurnY] = springChannel(visual.turnY, visual.vTurnY, targetTurnY, omega, dt)
       ;[visual.tiltX, visual.vTiltX] = springChannel(visual.tiltX, visual.vTiltX, targetTiltX, omega, dt)
       ;[visual.tiltZ, visual.vTiltZ] = springChannel(visual.tiltZ, visual.vTiltZ, targetTiltZ, omega, dt)
+      // v5: returning to block two by scroll, the gem is already on its
+      // seat — no flight back from the centre.
+      if (crystalScreen.snapToTarget) {
+        crystalScreen.snapToTarget = false
+        visual.x = targetX
+        visual.y = targetY
+        visual.scale = targetScale
+        visual.vx = 0
+        visual.vy = 0
+        visual.vScale = 0
+      }
+      // v4 band transition: while block two is carried up (or back down)
+      // the gem is pinned to its cards, not chased by the spring.
+      const carry = secondTarget?.fade ?? 0
+      if (carry > 0.0005 && thirdBlend < 0.5) {
+        visual.x = targetX
+        visual.y = targetY
+        visual.vx = 0
+        visual.vy = 0
+      }
       if (handoffReveal > 0.004 && (fourthTarget?.sectionTop ?? 0) > 0) {
         visual.y = targetY
         visual.vy = 0
@@ -805,7 +859,15 @@ function TravellingCrystal({
     groupRef.current.rotation.x = fourthIsVisible
       ? visual.tiltX
       : (visual.tiltX + Math.sin(pulseProgress * Math.PI) * 0.16) * heroMotion + dragX
-    groupRef.current.rotation.z = visual.tiltZ + (zSpinRef.current ?? 0)
+    // v5 mask: the gem turns anticlockwise as it drops to the centre and
+    // keeps turning while it is pushed toward the camera.
+    // Not in block four: that roll stayed on the gem there (270°) and threw
+    // every facet's opening off the side its pane leaves from. Block four
+    // is entered under the wave, so dropping it is never seen.
+    const maskSpin = TRANSITION_MODE === 'mask' && !fourthIsVisible
+      ? Math.PI * 2 * (MASK_SPIN_DESCENT * toCenter + MASK_SPIN_ZOOM * (crystalScreen.preZoom ?? 0))
+      : 0
+    groupRef.current.rotation.z = visual.tiltZ + (zSpinRef.current ?? 0) + maskSpin
     // Shared with the hero's crystal light so its rays turn with the gem.
     crystalScreen.spin = groupRef.current.rotation.y
     // v4: the liquid lags behind the hand and swings back like water in a
@@ -848,12 +910,9 @@ function TravellingCrystal({
       // move, even before its colour field becomes visible. Clipping the
       // fixed WebGL layer here also contains post-processing bloom, so neither
       // a pane nor the enlarged body can leak beyond the later rectangle.
-      const portalMaskActive = fourthPortal > 0.002
-      const portalInset = vw <= 680
-        ? 'inset(24px 20px round 18px)'
-        : 'inset(40px 80px round 24px)'
-      shell.style.clipPath = portalMaskActive ? portalInset : 'none'
-      shell.style.webkitClipPath = portalMaskActive ? portalInset : 'none'
+      // Block five is full screen: no card aperture to clip to.
+      shell.style.clipPath = 'none'
+      shell.style.webkitClipPath = 'none'
       // The mesh stays viewport-locked through block four. Once that
       // section scrolls away, fade the canvas so blocks 5+ stay readable.
       // The same opacity also fades the gem once its colour has spilled out.
@@ -876,7 +935,18 @@ function TravellingCrystal({
       // The glass fades while its light swells, before the card forms.
       const portalFade = 1 - smootherstep(Math.min(Math.max((crystalPortal - 0.22) / 0.4, 0), 1))
       const handedToBlockFive = physics?.dataset.released === 'true'
-      shell.style.opacity = (pageFade * gemFade * portalFade * (handedToBlockFive ? 0 : 1)).toFixed(3)
+      // 4→5: gone while the liquid covers it (portal .3–.68); its own
+      // zoom into the camera used to flash its colour once the liquid left.
+      const underLiquid = 1 - smootherstep(Math.min(Math.max((fourthPortal - 0.42) / 0.12, 0), 1))
+      // v5 mask: the gem vanishes the instant block three bursts out of it.
+      const warmState = warmRef.current
+      if (warmState.key !== materialKey) {
+        warmState.key = materialKey
+        warmState.frames = 0
+      }
+      warmState.frames += 1
+      const warm = Math.min(1, Math.max(0, (warmState.frames - 4) / 12))
+      shell.style.opacity = (warm * underLiquid * pageFade * gemFade * portalFade * (1 - (crystalScreen.maskHide ?? 0)) * (handedToBlockFive ? 0 : 1)).toFixed(3)
     }
   })
 
@@ -1160,6 +1230,7 @@ export default function PageCrystal({
             screenAnchorRef={screenAnchorRef}
             pulseProgress={pulseProgress}
             spinBlendRef={spinBlendRef}
+            materialKey={fourthActive}
           >
             <Glass
               config={shimmerConfig}

@@ -247,7 +247,9 @@ const fragmentShader = /* glsl */ `
     // First version: the hover beam only, no idle glow.
 
     float lum = dot(light, vec3(0.333));
-    light = mix(light, uTint * lum * 1.35, uTintAmount);
+    // v4: a saturated teal-green, not a tinted white — the light should
+    // read as the colour that then becomes block three's field.
+    light = mix(light, uTint * (0.35 + lum) * 1.6, uTintAmount);
     light *= 2.0;
     float peak = max(max(light.r, light.g), light.b);
     float alpha = clamp(peak, 0.0, 1.0);
@@ -288,7 +290,7 @@ export function createHeroLight(config) {
       uSpin: { value: 0 },
       uSpin2: { value: 0 },
       uSpread: { value: 1 },
-      uTint: { value: new THREE.Color('#2fb08e') },
+      uTint: { value: new THREE.Color('#13a57e') },
       uTintAmount: { value: 0 },
       uTime: { value: 0 },
       uC0: { value: new THREE.Color(config?.friendFlowColor1 ?? '#756cff') },

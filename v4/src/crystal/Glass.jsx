@@ -6,7 +6,7 @@ import { crystalScreen } from '../components/HeroScene/crystalScreen.js'
 import { Billboard, MeshTransmissionMaterial } from '@react-three/drei'
 import * as THREE from 'three'
 import { buildShards } from './shards.js'
-import { facetBeamState } from './facetBeamState.js'
+import { facetBeamState, FACET_STEP_TILT_X, FACET_DETACH_START } from './facetBeamState.js'
 import ColorCore from './ColorCore.jsx'
 import PhotoBackdrop from './PhotoBackdrop.jsx'
 import { parseMediaList } from './mediaList.js'
@@ -2354,7 +2354,9 @@ function FriendProjection({ geometry, config, coverScale = 1.0025, renderOrder =
     const live = material.current.uniforms
     live.uTime.value = clock.elapsedTime
     live.uSlosh.value.set(crystalSlosh.x, crystalSlosh.y, crystalSlosh.energy)
-    live.uMatte.value = config.friendMatte ?? 0.41
+    // v4: opening block three, the milky shell clears so the swelling
+    // gem fills the frame with colour, not white.
+    live.uMatte.value = THREE.MathUtils.lerp(config.friendMatte ?? 0.41, 0.02, Math.min(1, Math.max(0, crystalScreen.worldExpansion ?? 0)))
     // v4: opening block three, the liquid melts into a soft blur.
     const morph = Math.min(1, Math.max(0, crystalScreen.worldExpansion ?? 0))
     live.uBlur.value = THREE.MathUtils.lerp(config.friendGlassBlur ?? 0.37, 0.95, morph)
@@ -2381,7 +2383,7 @@ function FriendProjection({ geometry, config, coverScale = 1.0025, renderOrder =
     live.uRibbon.value = variant.ribbon ?? 0
     live.uColorSplit.value = config.friendColorSplit ?? 0.6
     live.uColorMotion.value = config.friendColorMotion ?? 0.5
-    live.uColorBoost.value = config.friendColorBoost ?? 0.5
+    live.uColorBoost.value = THREE.MathUtils.lerp(config.friendColorBoost ?? 0.5, 2.4, Math.min(1, Math.max(0, crystalScreen.worldExpansion ?? 0)))
     live.uWindSpeed.value = config.friendWindSpeed ?? 1
     live.uWindAmount.value = config.friendWindAmount ?? 1
     live.uInnerShade.value = config.friendInnerShade ?? 0.45
@@ -4534,6 +4536,7 @@ function FeaturedFacet({ shard, state, config, motionRef }) {
   const progressRef = useRef(0)
   const basePosition = useMemo(() => new THREE.Vector3(...shard.position), [shard])
   const direction = useMemo(() => new THREE.Vector3(...shard.direction), [shard])
+  const faceWorld = useMemo(() => new THREE.Vector3(), [])
   const layout = PHYSICS_FACET_LAYOUTS[state - 1]
   const profile = PHYSICS_FACET_PORTAL[state - 1]
   // The outer mask removes the complete source facet from both the glass and
@@ -4612,7 +4615,9 @@ function FeaturedFacet({ shard, state, config, motionRef }) {
     // first centred reading state begins; later states add panes cumulatively.
     // Spread over the whole state transition and chased gently, so the
     // pane visibly glides out of the gem instead of snapping late.
-    const target = smootherstep(Math.min(1, Math.max(0, ((states[state - 1] ?? 0) - .15) / .85)))
+    // Second half of the step only: the gem has finished turning (first
+    // half, PageCrystal), so the pane always leaves the face now in front.
+    const target = smootherstep(Math.min(1, Math.max(0, ((states[state - 1] ?? 0) - FACET_DETACH_START) / (1 - FACET_DETACH_START))))
     const follow = 1 - Math.exp(-5 * Math.min(delta, 0.05))
     progressRef.current += (target - progressRef.current) * follow
     const progress = progressRef.current
@@ -4653,14 +4658,16 @@ function FeaturedFacet({ shard, state, config, motionRef }) {
     // Read the actual body pose, so detached glass and its source opening
     // stay registered even while the parent's spring settles.
     group.parent.getWorldQuaternion(parentQuaternion)
-    // Each new pane comes out on the right, from the face that is turned
-    // there at that moment (see selectedShards); the panes already out
-    // step round the gem one quarter per state as it turns.
-    const turnsAfter = states.slice(state).reduce((sum, value) => sum + smootherstep(Math.min(1, value / .65)), 0)
-    const orbit = turnsAfter * Math.PI / 2
-    x = 1.65 * Math.cos(orbit)
-    y = .48 - 1.28 * Math.sin(orbit)
-    z = .24
+    // The pane flies straight out of its own face: the direction is that
+    // face's normal as the gem is turned right now, flattened onto the
+    // screen. So the white opening is always right next to its pane, and
+    // panes already out travel round with the gem as it keeps turning.
+    faceWorld.copy(direction).applyQuaternion(parentQuaternion)
+    const screenLength = Math.hypot(faceWorld.x, faceWorld.y)
+    const reach = 1 / Math.max(screenLength, .35)
+    x = 1.65 * faceWorld.x * reach
+    y = 1.45 * faceWorld.y * reach
+    z = .24 + Math.max(0, faceWorld.z) * .3
     facetScale = .74
     inverseParentQuaternion.copy(parentQuaternion).invert()
     targetPosition
@@ -4688,9 +4695,10 @@ function FeaturedFacet({ shard, state, config, motionRef }) {
     targetQuaternion.setFromUnitVectors(direction, desiredNormal)
     rollQuaternion.setFromAxisAngle(desiredNormal, roll)
     targetQuaternion.premultiply(rollQuaternion)
-    // The pane keeps the orientation it had in the shell and only leans a
-    // touch toward the camera: no flip or spin while it travels out.
-    group.quaternion.slerpQuaternions(restQuaternion, targetQuaternion, progress * 0.12)
+    // The pane leaves an upper-right face, which sits steeply in the
+    // shell; it turns most of the way toward the camera as it travels out
+    // so it reads as a pane, not an edge.
+    group.quaternion.slerpQuaternions(restQuaternion, targetQuaternion, progress * 0.65)
     const portalFlight = smootherstep(Math.min(Math.max(
       (portal - profile.delay) / profile.span,
       0,
@@ -4991,13 +4999,20 @@ const Glass = forwardRef(function Glass({
   const selectedShards = useMemo(() => {
     const used = new Set()
     return [1, 2, 3, 4].map(step => {
-      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(.12, -step * Math.PI / 2, -.04))
+      // The gem's real pose once this step has turned (PageCrystal).
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(FACET_STEP_TILT_X[step - 1], -step * Math.PI / 2, -.04))
       let best = -Infinity
       let selected = 0
       shards.forEach((shard, index) => {
         if (used.has(index)) return
         const n = new THREE.Vector3(...shard.direction).applyQuaternion(q)
-        const score = n.x * .75 + n.y * .25 + n.z * .6
+        // The pane flies out to the upper right, so its opening has to face
+        // the upper right of the turned gem too (it used to pick a face
+        // that ended low on the right, away from the pane).
+        // Steps one, three and four take an upper-right face; step two, with
+        // the gem tipped forward, takes one from its lower right.
+        const up = step === 2 ? -.7 : .6
+        const score = n.x * .55 + n.y * up + n.z * .55
         if (score > best) { best = score; selected = index }
       })
       used.add(selected)
@@ -5096,16 +5111,16 @@ const Glass = forwardRef(function Glass({
       rotationLockRef?.current?.fourth?.reveal > 0.004,
     )
     const firstHoleOpen = Boolean(
-      rotationLockRef?.current?.fourth?.stateOne > 0.65,
+      rotationLockRef?.current?.fourth?.stateOne > FACET_DETACH_START,
     )
     const secondHoleOpen = Boolean(
-      rotationLockRef?.current?.fourth?.stateTwo > 0.65,
+      rotationLockRef?.current?.fourth?.stateTwo > FACET_DETACH_START,
     )
     const thirdHoleOpen = Boolean(
-      rotationLockRef?.current?.fourth?.stateThree > 0.65,
+      rotationLockRef?.current?.fourth?.stateThree > FACET_DETACH_START,
     )
     const fourthHoleOpen = Boolean(
-      rotationLockRef?.current?.fourth?.stateFour > 0.65,
+      rotationLockRef?.current?.fourth?.stateFour > FACET_DETACH_START,
     )
     if (closedShellRef.current) closedShellRef.current.visible = !firstHoleOpen
     if (singleOpenShellRef.current) {

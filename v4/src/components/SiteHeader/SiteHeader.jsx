@@ -26,7 +26,7 @@ function HeroBar({ onDark }) {
           ))}
         </ul>
       </div>
-      <RequestDemoButton className="site-header__cta" fit="stretch" />
+      <RequestDemoButton className="site-header__cta" widen={3.5} />
     </nav>
   )
 }
@@ -40,7 +40,12 @@ export default function SiteHeader({ ready = true }) {
       const darkSections = // Block five's dark card starts below the header, which stays in its
       // regular colours there (black logo and button, grey links).
       document.querySelectorAll('.breakthroughs-section, .site-footer')
-      setOnDark(Array.from(darkSections).some((section) => {
+      // Block five (the full-screen network) is dark too.
+      const physics = document.querySelector('.physics-behavior-section')
+      const onBlockFive = physics?.dataset.darkCard === 'true'
+        && physics.getBoundingClientRect().top <= probeY
+        && physics.getBoundingClientRect().bottom > probeY
+      setOnDark(onBlockFive || Array.from(darkSections).some((section) => {
         const rect = section.getBoundingClientRect()
         return rect.top <= probeY && rect.bottom > probeY
       }))
@@ -48,7 +53,13 @@ export default function SiteHeader({ ready = true }) {
     updateTheme()
     window.addEventListener('scroll', updateTheme, { passive: true })
     window.addEventListener('resize', updateTheme)
+    // Block five turns dark inside a locked animation; follow its flag
+    // directly instead of waiting for the next scroll event.
+    const physics = document.querySelector('.physics-behavior-section')
+    const observer = physics ? new MutationObserver(updateTheme) : null
+    observer?.observe(physics, { attributes: true, attributeFilter: ['data-dark-card'] })
     return () => {
+      observer?.disconnect()
       window.removeEventListener('scroll', updateTheme)
       window.removeEventListener('resize', updateTheme)
     }

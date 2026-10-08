@@ -68,6 +68,19 @@
   font-display: swap;
 }
 
+/* Public Sans v2.001 (uswds/public-sans, OFL), variable weight. Its
+   stylistic set 01 — the straight "l" and the alternate "g" used in Figma —
+   is baked in as the default glyphs, so it also holds on canvas-drawn
+   titles, which cannot switch OpenType features. */
+@font-face {
+  font-family: "Public Sans";
+  src: url("/fonts/PublicSans-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+
 * {
   box-sizing: border-box;
 }

@@ -475,7 +475,7 @@ function drawUnifiedSurface(
   ctx.letterSpacing = '-0.64px'
 
   const titleSize = TITLE_FONT_SIZE
-  ctx.font = `400 ${titleSize}px "TT Hoves Web", sans-serif`
+  ctx.font = `450 ${titleSize}px "Public Sans", sans-serif`
 
   const titleTop = copyTop + 11 * 1.4 + 8.609
   slide.titleLines.forEach((line, index) => {
@@ -655,7 +655,7 @@ function UnifiedSurfaceMesh({
       loadImage(slide.image),
       loadImage(outgoingSlide.image),
       document.fonts?.load?.('500 13px "Geist Mono"') ?? Promise.resolve(),
-      document.fonts?.load?.('400 32px "TT Hoves Web"') ?? Promise.resolve(),
+      document.fonts?.load?.('450 32px \"Public Sans\"') ?? Promise.resolve(),
       document.fonts?.load?.('500 24px "Season Sans"') ?? Promise.resolve(),
     ]).then(([loadedImage, loadedOutgoingImage]) => {
       renderTextures(loadedImage, loadedOutgoingImage)

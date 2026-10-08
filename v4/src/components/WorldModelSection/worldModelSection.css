@@ -87,12 +87,14 @@
   width: 100%;
   height: 100vh;
   height: 100svh;
-  z-index: 31;
+  /* v4: under the page crystal (30). In the 2→3 opening the gem swells
+     over this field and then dissolves into it. */
+  z-index: 29;
   pointer-events: none;
 }
 
 .world-model-section--open .world-model-section__sticky {
-  z-index: 31;
+  z-index: 29;
 }
 
 /* The colour field stays in front of the crystal. A soft hole opens on
@@ -296,7 +298,8 @@
   --world-flash: 0;
   position: fixed;
   inset: 0;
-  z-index: 36;
+  /* v4: behind the swelling crystal, as its glow, not over it. */
+  z-index: 29;
   pointer-events: none;
 }
 
@@ -311,9 +314,9 @@
   /* v4: darker and more teal, toward the field's #14967a, so the flash
      hands over to the block-three background without a jump in colour. */
   background: radial-gradient(circle,
-    rgba(150, 236, 210, 0.92) 0%,
-    rgba(72, 200, 168, 0.82) 12%,
-    rgba(32, 168, 136, 0.7) 26%,
+    rgba(70, 214, 168, 0.95) 0%,
+    rgba(28, 184, 140, 0.88) 12%,
+    rgba(18, 160, 124, 0.76) 26%,
     rgba(20, 150, 122, 0.42) 44%,
     rgba(14, 120, 110, 0.14) 60%,
     transparent 76%);
@@ -482,9 +485,9 @@
   max-width: calc(100vw - 48px);
   margin: 0;
   transform: translate(-50%, -50%);
-  font-family: "TT Hoves Web", sans-serif;
+  font-family: "Public Sans", sans-serif;
   font-size: 52px;
-  font-weight: 400;
+  font-weight: 420;
   line-height: 1.25;
   letter-spacing: -1.56px;
   text-align: center;
@@ -642,10 +645,153 @@
   pointer-events: none;
   background: radial-gradient(
     ellipse 70% 70% at 50% 50%,
-    rgb(120, 222, 192) 0%,
-    rgb(52, 182, 150) 34%,
+    rgb(60, 206, 160) 0%,
+    rgb(30, 176, 138) 34%,
     rgb(26, 156, 126) 62%,
     rgb(20, 150, 122) 100%
   );
   opacity: var(--world-light-fill, 0);
+}
+
+/* v4 band transition: a full-screen WebGL layer (bandRenderer.js). */
+.world-model-band {
+  --world-band-opacity: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 33;
+  opacity: var(--world-band-opacity);
+  pointer-events: none;
+}
+
+.world-model-band__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* v5 mask transition: block three's field cut to the crystal's hexagon
+   (pointy top, like the gem's silhouette), centred where the gem waits,
+   growing from its size to past the screen corners (--mask-r). */
+.world-model-mask {
+  --mask-r: 0px;
+  --mask-zoom: 1;
+  --mask-opacity: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 33;
+  pointer-events: none;
+  opacity: var(--mask-opacity);
+}
+
+/* Soft edge of the cut. A filter on the clipped element itself runs
+   before its clip-path, so the rim stayed sharp; blurring this wrapper
+   blurs the already-cut hexagon, edge included. */
+.world-model-mask__soft {
+  position: absolute;
+  inset: 0;
+  filter: blur(200px);
+}
+
+.world-model-mask__clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  clip-path: polygon(
+    50% calc(50% - var(--mask-r)),
+    calc(50% + var(--mask-r) * 0.866) calc(50% - var(--mask-r) * 0.5),
+    calc(50% + var(--mask-r) * 0.866) calc(50% + var(--mask-r) * 0.5),
+    50% calc(50% + var(--mask-r)),
+    calc(50% - var(--mask-r) * 0.866) calc(50% + var(--mask-r) * 0.5),
+    calc(50% - var(--mask-r) * 0.866) calc(50% - var(--mask-r) * 0.5)
+  );
+}
+
+/* Zooms with the shape, around the screen centre. The flowing colour
+   layers are the same as block three's field, so it hands over seamlessly. */
+.world-model-mask__field {
+  position: absolute;
+  inset: -12%;
+  background-image: url('/images/world-model/field-gradient.jpg?v=5');
+  background-repeat: no-repeat;
+  background-size: 210% 210%;
+  background-position: 42% 44%;
+  background-color: #14967a;
+  filter: blur(14px) saturate(1.05);
+}
+
+/* The flash over the cut: the first screen's crystal light in green — a
+   hot core and soft rays in every direction, sized with the cut and
+   slowly turning. --mask-light is its strength. */
+.world-model-mask__light {
+  --size: calc(var(--mask-glow-r, 40px) * 4.2 + 120px);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--size);
+  height: var(--size);
+  margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
+  opacity: var(--mask-light, 0);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(225, 255, 238, 0.95) 0%,
+      rgba(120, 240, 190, 0.8) 9%,
+      rgba(40, 205, 150, 0.45) 22%,
+      rgba(20, 165, 120, 0.16) 40%,
+      transparent 62%),
+    /* Fewer, broader rays, a little fainter. */
+    repeating-conic-gradient(from 0deg at 50% 50%,
+      rgba(150, 255, 205, 0.36) 0deg 7deg,
+      transparent 7deg 26deg,
+      rgba(90, 235, 180, 0.24) 26deg 31deg,
+      transparent 31deg 48deg);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 18%, transparent 68%);
+  mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 18%, transparent 68%);
+  filter: blur(6px);
+  animation: world-model-flash-turn 6s linear infinite;
+}
+
+@keyframes world-model-flash-turn {
+  to { transform: rotate(-360deg); }
+}
+
+/* 3→4 wave: block three's green as one full-screen layer, with a hole
+   that opens from the bottom edge as a dome whose rim is a wide blur
+   (--wave 0 → 1 grows it past the screen corners). At --wave 0 the zero-
+   size ellipse leaves the layer solid. Under the header. */
+.world-model-wave {
+  --wave: 0;
+  --wave-opacity: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 34;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: var(--wave-opacity);
+  -webkit-mask-image: radial-gradient(
+    ellipse calc(20% + var(--wave) * 130%) calc(var(--wave) * 260%) at 50% 100%,
+    transparent 0%,
+    transparent 52%,
+    #000 100%
+  );
+  mask-image: radial-gradient(
+    ellipse calc(20% + var(--wave) * 130%) calc(var(--wave) * 260%) at 50% 100%,
+    transparent 0%,
+    transparent 52%,
+    #000 100%
+  );
+}
+
+/* Same picture and crop as block three's field (.world-model-mask__field). */
+.world-model-wave::before {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  background-image: url('/images/world-model/field-gradient.jpg?v=5');
+  background-repeat: no-repeat;
+  background-size: 210% 210%;
+  background-position: 42% 44%;
+  background-color: #14967a;
+  filter: blur(14px) saturate(1.05);
 }

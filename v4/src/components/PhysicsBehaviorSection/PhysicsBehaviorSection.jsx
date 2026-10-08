@@ -1,11 +1,10 @@
 import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import { smootherstep } from '../HeroScene/scrollShrink.js'
-import { DEMO_HOVER_PATH } from '../RequestDemoButton/RequestDemoButton.jsx'
-import { WORLD_MODEL_ABSORBED_EVENT, WORLD_MODEL_RETURN_EVENT } from '../WorldModelSection/worldModelHandoff.js'
-import { ScrambleButton } from '../Scramble/ScrambleText.jsx'
+import { WORLD_MODEL_ABSORBED_EVENT, WORLD_MODEL_BACK_EVENT, WORLD_MODEL_RETURN_EVENT } from '../WorldModelSection/worldModelHandoff.js'
 import BehaviorNetworkTransition from './BehaviorNetworkTransition.jsx'
 import NetworkLightShader from './NetworkLightShader.jsx'
+import { crystalScreen } from '../HeroScene/crystalScreen.js'
 import './physicsBehaviorSection.css'
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value))
@@ -48,6 +47,14 @@ export default function PhysicsBehaviorSection({
     const panel = panelRef.current
     if (!section || !panel) return undefined
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    // 4→5: the crystal's liquid. Lives on the body, above the WebGL gem
+    // (z33), so it visibly pours out of the cracked crystal — like the
+    // 2→3 mask — and floods the whole screen before block five shows.
+    const liquid = document.createElement('div')
+    liquid.className = 'physics-liquid'
+    liquid.setAttribute('aria-hidden', 'true')
+    liquid.innerHTML = '<div class="physics-liquid__soft"><div class="physics-liquid__clip"><div class="physics-liquid__field"></div></div></div><div class="physics-liquid__light"></div>'
+    document.body.appendChild(liquid)
     // Screen four starts in its first selected state. There is deliberately
     // no neutral stop with an intact crystal between screens three and four.
     const playhead = { value: 1 }
@@ -59,11 +66,17 @@ export default function PhysicsBehaviorSection({
     // it shows and simply slides away; the steps replay only going down.
     let lastScrollY = window.scrollY
     let lastWheel = -Infinity
+    // After a 3→4 arrival the heading holds until the next scroll; only
+    // that gesture brings the crystal to the centre with its tabs.
+    let awaitingStart = false
+    // Wheel input is held while block three's wave is still opening.
+    let holdUntil = 0
     let touchY = null
     let touchUsed = false
     const names = ['one', 'two', 'three', 'four']
     const top = () => section.getBoundingClientRect().top + window.scrollY
-    const stride = () => (section.offsetHeight - window.innerHeight) / 7
+    // Seven rests now (block five has three steps, not four).
+    const stride = () => (section.offsetHeight - window.innerHeight) / 6
     const set = (key, value) => section.style.setProperty('--physics-' + key, String(value))
     const render = () => {
       const value = playhead.value
@@ -77,8 +90,14 @@ export default function PhysicsBehaviorSection({
       const portal = smootherstep(clamp01(value - 4))
       // The 4→5 transition is the first network chapter: dots emerge while
       // the crystal light dissolves into the card, with no separate intro stop.
-      const stage = clamp01((value - 4) / 4) * 4
-      const chapter = Math.max(1, Math.min(4, Math.ceil(value - 4)))
+      // Block five, three steps. The network still reads stage 0..4; step
+      // two now covers stage 1..3 in one go: the universe changes
+      // perspective and swirls until it has gathered into the sphere, while
+      // the relation lines keep drawing across it.
+      const stage = value <= 5
+        ? clamp01(value - 4)
+        : value <= 6 ? 1 + 2 * (value - 5) : 3 + clamp01(value - 6)
+      const chapter = Math.max(1, Math.min(3, Math.ceil(value - 4)))
       networkMotionRef.current = { network: stage / 4, stage, visible: portal > .1 }
       set('reveal', reveal)
       set('descent', reveal)
@@ -99,6 +118,27 @@ export default function PhysicsBehaviorSection({
         set('state-' + name + '-copy', copy * reveal * (1 - portal))
         set('state-' + name + '-rail', value >= i + .5 && value < i + 1.5 ? 1 : 0)
       })
+      // Liquid: after the shards have split off (portal .3), the hexagon of
+      // the gem's own colour grows from its silhouette past the screen
+      // corners, holds, and dissolves into block five underneath.
+      const flood = smootherstep(clamp01((portal - .3) / .4))
+      // Leaves earlier, so block five's field and points are already there
+      // under it instead of an empty background.
+      const liquidOn = portal > .3 ? 1 - smootherstep(clamp01((portal - .68) / .22)) : 0
+      const gemR = Math.max(20, crystalScreen.r || 80)
+      const coverR = Math.hypot(window.innerWidth, window.innerHeight) / 0.866 * 0.62
+      const lx = crystalScreen.valid ? crystalScreen.x : window.innerWidth / 2
+      const ly = crystalScreen.valid ? crystalScreen.y : window.innerHeight / 2
+      // The flood also drifts the centre to the middle of the screen.
+      liquid.style.setProperty('--liquid-x', `${lx + (window.innerWidth / 2 - lx) * flood}px`)
+      liquid.style.setProperty('--liquid-y', `${ly + (window.innerHeight / 2 - ly) * flood}px`)
+      liquid.style.setProperty('--liquid-r', `${(gemR + (coverR - gemR) * flood).toFixed(1)}px`)
+      liquid.style.setProperty('--liquid-opacity', (liquidOn * smootherstep(clamp01((portal - .3) / .06))).toFixed(3))
+      liquid.style.setProperty('--liquid-swirl', `${(portal * 40).toFixed(2)}deg`)
+      // The flash over the cut, as in 2→3: it flares as the liquid breaks
+      // out of the gem and dies down while the flood fills the screen.
+      const flash = smootherstep(clamp01((portal - .28) / .08)) * (1 - smootherstep(clamp01((portal - .5) / .3)))
+      liquid.style.setProperty('--liquid-light', flash.toFixed(3))
       set('clean-frame', portal)
       set('portal', portal)
       // Light swells from the start, peaks as the glass is gone and fades
@@ -109,7 +149,7 @@ export default function PhysicsBehaviorSection({
       set('portal-blur', (1 - portal) * 18 + 'px')
       set('network', stage / 4)
       // The card forms out of the light only after the glass has faded.
-      set('network-intro', smootherstep(clamp01((portal - .5) / .5)))
+      set('network-intro', smootherstep(clamp01((portal - .38) / .4)))
       section.dataset.released = portal >= .995 ? 'true' : 'false'
       section.dataset.darkCard = portal >= .48 ? 'true' : 'false'
       section.dataset.chapter = String(chapter)
@@ -129,45 +169,119 @@ export default function PhysicsBehaviorSection({
       })
     }
     const go = (index) => {
-      if (suspended || locked || index < 1 || index > 8) return
+      if (suspended || locked || index < 1 || index > 7) return
       target = index
       locked = true
       tween?.kill()
       const destination = top() + (index - 1) * stride()
-      const travel = { scroll: window.scrollY, value: playhead.value }
+      // Only the playhead moves while a step plays; the page is placed at
+      // the step's scroll position once, at the end. Scrolling the window
+      // every frame under the pinned screen made it judder up and down.
+      const travel = { value: playhead.value }
       tween = gsap.to(travel, {
-        value: index, scroll: destination,
+        value: index,
         // 4→5 is a slow, readable sequence: the shards fly out, the glass
         // fades, its light swells and settles into the card. The portal
         // curve is eased already, so the playhead itself runs evenly.
-        duration: reduced ? .01 : index === 5 ? 3.4 : index === 8 ? 1.8 : 1.15,
+        // State to state 1.5× slower (1.15 → 1.725s): turn first, then the facet.
+        // 4→5 is slower than 2→3: the crack, then the liquid flooding out.
+        // Block five's step two (index 6) carries two old steps: longer.
+        duration: reduced ? .01 : index === 5 ? 4.2 : index === 6 ? 2.8 : index === 7 ? 1.8 : 1.725,
         ease: index === 5 ? 'sine.inOut' : 'power2.inOut',
         onUpdate: () => {
           playhead.value = travel.value
-          window.scrollTo(0, travel.scroll)
           render()
         },
         onComplete: () => {
           playhead.value = index
+          window.scrollTo(0, destination)
+          lastScrollY = window.scrollY
           locked = false
           render()
         },
       })
     }
     glideToRestRef.current = go
+    // 3→4 arrival, rest to rest: the heading is read, then the crystal turns
+    // a little and the first facet separates (playhead 0 → 1).
+    const settleFirstFacet = (delay = 0) => {
+      locked = true
+      tween?.kill()
+      tween = gsap.to(playhead, {
+        value: 1,
+        delay: reduced ? 0 : delay,
+        // 1.5× slower: the turn, then the facet, both readable.
+        duration: reduced ? .01 : 3.3,
+        ease: 'power2.inOut',
+        onUpdate: render,
+        onComplete: () => {
+          playhead.value = 1
+          locked = false
+          render()
+        },
+      })
+    }
+    // 4→3 is that arrival backwards: the facet rejoins the gem and the
+    // heading comes back; then block three plays its wave backwards.
+    const leaveToBlockThree = () => {
+      awaitingStart = false
+      locked = true
+      tween?.kill()
+      tween = gsap.to(playhead, {
+        value: 0,
+        duration: reduced ? .01 : 1.8,
+        ease: 'power2.inOut',
+        onUpdate: render,
+        onComplete: () => {
+          // Back on the heading; the next scroll up returns to block three.
+          playhead.value = 0
+          locked = false
+          awaitingStart = true
+          render()
+        },
+      })
+    }
     const consume = (direction, event, fresh) => {
       const rect = section.getBoundingClientRect()
       if (suspended || rect.top > 2 || rect.bottom < window.innerHeight - 2) return false
-      if (direction < 0) {
-        // Skip the rest of the pinned track: the pinned frame does not
-        // change, so this jump is invisible, and native scroll carries on.
-        if (locked) return false
-        tween?.kill()
-        window.scrollTo(0, top())
-        lastScrollY = window.scrollY
-        return false
+      if (performance.now() < holdUntil) {
+        event.preventDefault()
+        return true
       }
-      if (!locked && fresh && ((target === 8 && direction > 0) || (target === 1 && direction < 0))) return false
+      if (awaitingStart) {
+        // On the heading: down starts the block, up returns to block three.
+        event.preventDefault()
+        if (!fresh || locked) return true
+        if (direction > 0) {
+          awaitingStart = false
+          settleFirstFacet()
+        } else {
+          awaitingStart = false
+          window.dispatchEvent(new CustomEvent(WORLD_MODEL_BACK_EVENT))
+        }
+        return true
+      }
+      if (direction < 0 && (locked || (target === 1 && Math.abs(rect.top) <= 2))) {
+        // At the first rest (or mid-arrival): step back to the heading,
+        // never a native jump up into block three's pinned track.
+        event.preventDefault()
+        if (fresh && (!locked || playhead.value < 1)) leaveToBlockThree()
+        return true
+      }
+      if (direction < 0) {
+        // Going up plays every step backwards, one gesture per step (block
+        // five's steps, then the facets back into the gem, the heading, and
+        // the wave back to block three). It used to jump to the top of the
+        // track and hand over to native scrolling, which ran straight
+        // through blocks three and two without any of their animations.
+        event.preventDefault()
+        if (!locked && fresh) {
+          if (target <= 1) leaveToBlockThree()
+          else go(target - 1)
+        }
+        return true
+      }
+      if (!locked && fresh && ((target === 7 && direction > 0) || (target === 1 && direction < 0))) return false
       event.preventDefault()
       if (!locked && fresh) go(target + direction)
       return true
@@ -206,24 +320,12 @@ export default function PhysicsBehaviorSection({
           target = 1
           playhead.value = 0
         }
-      } else if (!locked && !suspended && playhead.value < 1 && target === 1 && !goingUp) {
+      } else if (!locked && !suspended && !awaitingStart && playhead.value < 1 && target === 1 && !goingUp) {
         // Reached block four: the crystal turns a little and the first
         // facet separates, rest to rest, without moving the page.
-        locked = true
-        tween?.kill()
-        tween = gsap.to(playhead, {
-          value: 1,
-          duration: reduced ? .01 : 2.2,
-          ease: 'power2.inOut',
-          onUpdate: render,
-          onComplete: () => {
-            playhead.value = 1
-            locked = false
-            render()
-          },
-        })
-      } else if (!locked && !suspended && !goingUp) {
-        const raw = Math.max(1, Math.min(8, 1 + (window.scrollY - top()) / stride()))
+        settleFirstFacet()
+      } else if (!locked && !suspended && !awaitingStart && !goingUp) {
+        const raw = Math.max(1, Math.min(7, 1 + (window.scrollY - top()) / stride()))
         // Native scrolling owns entry, exit, scrollbar and anchor navigation.
         target = Math.round(raw)
         playhead.value = target
@@ -231,6 +333,7 @@ export default function PhysicsBehaviorSection({
       render()
     }
     const returned = () => {
+      awaitingStart = false
       suspended = true
       tween?.kill()
       locked = false
@@ -239,10 +342,16 @@ export default function PhysicsBehaviorSection({
       render()
     }
     const arrived = () => {
+      // Arrives under block three's wave: the heading is already there as
+      // the wave opens, and stays until the next scroll.
       suspended = false
+      locked = false
+      tween?.kill()
       target = 1
-      playhead.value = 1
+      playhead.value = 0
+      awaitingStart = true
       lastWheel = performance.now()
+      holdUntil = lastWheel + 1250
       render()
     }
     window.addEventListener('wheel', wheel, { passive: false, capture: true })
@@ -256,6 +365,7 @@ export default function PhysicsBehaviorSection({
     scroll()
     return () => {
       tween?.kill()
+      liquid.remove()
       window.removeEventListener('wheel', wheel, { capture: true })
       window.removeEventListener('touchstart', touchStart)
       window.removeEventListener('touchmove', touchMove)
@@ -298,21 +408,13 @@ export default function PhysicsBehaviorSection({
               key={step}
               className={`physics-behavior-section__state-rail-item physics-behavior-section__state-rail-item--${step}`}
             >
-              <ScrambleButton
+              <button
                 type="button"
                 className="physics-behavior-section__state-rail-button"
                 onClick={() => glideToRestRef.current(restIndex)}
-                text={label.toUpperCase()}
               >
-                <svg
-                  className="physics-behavior-section__state-rail-shape"
-                  viewBox="0 0 163.978 40"
-                  preserveAspectRatio="none"
-                  aria-hidden="true"
-                >
-                  <path d={DEMO_HOVER_PATH} />
-                </svg>
-              </ScrambleButton>
+                <span>{label}</span>
+              </button>
             </li>
           ))}
         </ol>
@@ -375,19 +477,16 @@ export default function PhysicsBehaviorSection({
           <NetworkLightShader motionRef={networkMotionRef} />
           <BehaviorNetworkTransition motionRef={networkMotionRef} />
           <p className="physics-behavior-section__network-copy physics-behavior-section__network-copy--one">
-            Inside our world model, each person’s traits,<br />personality, and context come alive.
+            Inside our world model, each person’s traits, personality, and context come alive.
           </p>
           <p className="physics-behavior-section__network-copy physics-behavior-section__network-copy--two">
-            With each new event, it models their<br />layers of interactions
+            It models their interactions to predict how that person responds, now and over time.
           </p>
           <p className="physics-behavior-section__network-copy physics-behavior-section__network-copy--three">
-            to predict how that person responds,<br />now and over time.
-          </p>
-          <p className="physics-behavior-section__network-copy physics-behavior-section__network-copy--four">
-            Connecting millions of human<br />worlds together.
+            Connecting millions of human worlds together,<br />creating the foundation for human-aligned AI.
           </p>
           <div className="physics-behavior-section__network-tabs" role="tablist" aria-label="World model stages">
-            {[1, 2, 3, 4].map(step => <button key={step} data-network-step={step} role="tab" aria-selected="false" onClick={() => glideToRestRef.current(4 + step)}>{step}</button>)}
+            {[1, 2, 3].map(step => <button key={step} data-network-step={step} role="tab" aria-selected="false" onClick={() => glideToRestRef.current(4 + step)}>{step}</button>)}
           </div>
         </div>
       </div>
