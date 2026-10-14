@@ -1,0 +1,165 @@
+/*
+ * Scoped port of the standalone project's index.css. That version owns
+ * the whole page (`html, body, #root { height:100%; overflow:hidden }`,
+ * `.stage` at 100vw/100vh) because it *is* the page. Here it's the second
+ * section on a page with a hero above it, so none of that global reset
+ * comes along — width:100% instead of 100vw (100vw overflows past a
+ * vertical scrollbar), height stays 100vh so this section fills a full
+ * screen the same way HeroScene's `.hero-scene` does, and nothing here
+ * touches html/body/#root.
+ *
+ * "Season Sans" itself isn't redeclared — heroScene.css already
+ * registers that @font-face, and both files load on the same page.
+ */
+
+.glass-carousel-section {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  /* Matches the hero section's own background (and Carousel.js's canvas
+     clear colour, which is what's actually visible under the canvas). */
+  background: #f7f7f6;
+  font-family: 'Season Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.glass-carousel-section canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  touch-action: pan-y;
+  cursor: grab;
+}
+
+.glass-carousel-section canvas.is-dragging {
+  cursor: grabbing;
+}
+
+.glass-carousel-section .overlay-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.glass-carousel-section .card-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0;
+  will-change: transform, opacity, width;
+  pointer-events: none;
+}
+
+.glass-carousel-section .card-text .headline {
+  font-family: 'Season Sans', sans-serif;
+  font-weight: 500;
+  font-size: clamp(22px, 2.05vw, 29px);
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  color: #ffffff;
+  margin: 0 0 16px 0;
+  overflow: hidden;
+  transition: opacity 0.35s ease, max-height 0.35s ease, margin 0.35s ease;
+}
+
+.glass-carousel-section .card-text:not(.is-active) .headline {
+  margin-bottom: 0;
+  pointer-events: none;
+}
+
+.glass-carousel-section .card-text .category {
+  font-family: 'Season Sans', sans-serif;
+  font-weight: 500;
+  font-size: clamp(18px, 1.72vw, 25px);
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.glass-carousel-section .card-text.is-figma-reference:not(.is-active) .category {
+  font-family: 'Season Sans', sans-serif;
+  font-weight: 550;
+  line-height: 1.12;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.glass-carousel-section .card-text.is-active .category {
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  font-size: clamp(11px, 0.93vw, 13.3px);
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.glass-carousel-section .nav-arrows {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  gap: 14px;
+  z-index: 20;
+}
+
+.glass-carousel-section .nav-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+  color: #222;
+}
+
+.glass-carousel-section .nav-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+}
+
+.glass-carousel-section .nav-btn:active {
+  transform: translateY(0) scale(0.94);
+}
+
+.glass-carousel-section .nav-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.glass-carousel-section .dots {
+  position: absolute;
+  bottom: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  gap: 8px;
+  z-index: 20;
+}
+
+.glass-carousel-section .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition: background 0.25s ease, transform 0.25s ease;
+}
+
+.glass-carousel-section .dot.is-active {
+  background: rgba(0, 0, 0, 0.7);
+  transform: scale(1.3);
+}

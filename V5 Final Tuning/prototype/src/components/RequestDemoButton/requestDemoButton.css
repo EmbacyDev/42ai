@@ -1,0 +1,59 @@
+.request-demo {
+  /* Figma 450:4414: every page button is the 165x44 component at 0.909 —
+     150x40, 20px side padding, Geist Mono 13.636px with 5% tracking. */
+  --demo-width: 150px;
+  --demo-hover-width: 162.7px;
+  --demo-height: 40px;
+  --demo-shape-width: 154px;
+  font-size: 13.636px;
+  letter-spacing: 0.682px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--demo-width);
+  height: var(--demo-height);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  text-decoration: none;
+  overflow: visible;
+  transition: width 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.request-demo--hot,
+.request-demo:hover,
+.request-demo:focus-visible {
+  width: var(--demo-hover-width);
+}
+
+.request-demo--compact {
+  --demo-width: 128px;
+  --demo-hover-width: 139px;
+  --demo-height: 34px;
+  --demo-shape-width: 131.4px;
+}
+
+.request-demo__shape {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  overflow: visible;
+  width: var(--demo-shape-width);
+  height: var(--demo-height);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.request-demo__label {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .request-demo {
+    transition-duration: 0.01ms;
+  }
+}

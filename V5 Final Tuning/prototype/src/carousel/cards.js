@@ -1,0 +1,41 @@
+// Source content for the carousel, from Figma Block 14 (node 13:144).
+export const CARDS = [
+  {
+    id: 'hedge-funds',
+    kind: 'color',
+    figmaCard: true,
+    yellowLight: true,
+    exactArt: '/images/figma-hedge-card-bg.svg',
+    baseColor: '#1f8fe3',
+    blob: '/images/blob-blue.svg',
+    category: 'For Hedge Funds & Asset Managers',
+    headline: 'Predicts financial book’s exposure before it arrives',
+  },
+  {
+    id: 'brokerages',
+    kind: 'photo',
+    baseColor: '#1a1a1a',
+    photo: '/images/brokerages.png',
+    category: 'For Brokerages & Market Makers',
+    headline: 'Know what every trader will do before they act',
+  },
+  {
+    id: 'markets-risk',
+    kind: 'color',
+    crystalGlass: true,
+    gradientColor: '#29ae57',
+    baseColor: '#29ae57',
+    blob: '/images/blob-green.svg',
+    category: 'For Markets & Risk',
+    headline: 'See the exposure before the market moves',
+  },
+  {
+    id: 'exchanges',
+    kind: 'color',
+    gradientColor: '#756cff',
+    baseColor: '#756cff',
+    blob: '/images/blob-brown.svg',
+    category: 'For Markets & Risk',
+    headline: 'See every venue as one book',
+  },
+]

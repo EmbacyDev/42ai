@@ -1,0 +1,18 @@
+.scramble {
+  display: inline-grid;
+}
+
+.scramble__sizer,
+.scramble__live {
+  grid-area: 1 / 1;
+  white-space: pre;
+}
+
+/* Keeps the box at the final text width while glyphs change. */
+.scramble__sizer {
+  visibility: hidden;
+}
+
+.scramble__glyph--wait {
+  opacity: 0;
+}
