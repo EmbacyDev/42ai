@@ -52,10 +52,10 @@
      lengthened in its straight middle (widen={56.022} in the JSX: 220 − 164
      viewBox units; the resting pill is inset 7 on each side), so its
      rounded ends stay round. */
-  --demo-width: 206px;
-  --demo-hover-width: 223.5px;
+  --demo-width: 182px;
+  --demo-hover-width: 199.5px;
   --demo-height: 40px;
-  --demo-shape-width: 220px;
+  --demo-shape-width: 196px;
   flex: 0 0 auto;
   color: #121212;
   font-family: "Geist Mono", ui-monospace, monospace;
@@ -214,7 +214,7 @@
 }
 
 .breakthroughs-section__card.is-active h3 {
-  width: min(471px, calc(100% - 72px));
+  width: min(430px, calc(100% - 72px));
 }
 
 .breakthroughs-section__next {
@@ -347,4 +347,49 @@
     --card-shut: 72%;
     height: 420px;
   }
+}
+
+/* Every article keeps the same directly accessible arrow. */
+.breakthroughs-section__card .breakthroughs-section__next {
+  opacity: 1;
+  pointer-events: auto;
+  transition: background .25s ease;
+}
+.breakthroughs-section__card { user-select: none; }
+.breakthroughs-section__card img { -webkit-user-drag: none; }
+.breakthroughs-section__card h3 { max-width: calc(100% - 64px); }
+
+.breakthroughs-section__title-word { display: inline-block; white-space: nowrap; }
+
+/* Independent channels leave carousel transforms and opacity untouched.
+   Each 350ms entrance overlaps the next by 100ms. */
+.breakthroughs-section__row .breakthroughs-section__card {
+  filter: opacity(0);
+  translate: 0 24px;
+}
+.breakthroughs-section__row.is-visible .breakthroughs-section__card {
+  animation: breakthrough-card-enter 350ms ease-out var(--entrance-delay, 50ms) both;
+}
+@keyframes breakthrough-card-enter {
+  from { filter: opacity(0); translate: 0 24px; }
+  to { filter: opacity(1); translate: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .breakthroughs-section__row.is-visible .breakthroughs-section__card {
+    animation: none;
+    filter: none;
+    translate: none;
+  }
+}
+
+.breakthroughs-section__eyebrow,
+.breakthroughs-section .breakthroughs-section__cta {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 350ms ease-out, visibility 350ms;
+}
+.breakthroughs-section.is-heading-ready .breakthroughs-section__eyebrow,
+.breakthroughs-section.is-heading-ready .breakthroughs-section__cta {
+  opacity: 1;
+  visibility: visible;
 }

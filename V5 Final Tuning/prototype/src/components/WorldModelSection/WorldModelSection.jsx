@@ -1,3 +1,4 @@
+import { createCrystalFluid } from './crystalFluid.js'
 import { playAppearLines, visualLines } from '../appearText.js'
 import { useLayoutEffect, useRef } from 'react'
 import gsap from 'gsap'
@@ -12,6 +13,7 @@ import {
   BAND_TRANSITION,
   MASK_TRANSITION,
   MASK_BURST,
+  MASK_DESCENT,
   MASK_PRE_ZOOM,
   TRANSITION_MODE,
   maskState,
@@ -85,7 +87,7 @@ function FillLines({ lines, centerSlot }) {
       {line.split(/(\s+)/).map((word, wordIndex) => (
         /\s/.test(word) ? word : (
           <span className="world-model-section__word" key={wordIndex}>
-            {word}
+            {Array.from(word).map((char, i) => <span className="appear-char" key={i}>{char}</span>)}
           </span>
         )
       ))}
@@ -95,9 +97,9 @@ function FillLines({ lines, centerSlot }) {
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value))
 
-function appearLines(lines, totalSeconds) {
+function appearLines(lines, speed) {
   const rows = lines.flatMap((line) => visualLines([...line.querySelectorAll('.world-model-section__word')]))
-  return playAppearLines(rows, totalSeconds)
+  return playAppearLines(rows, rows.flat().length * 200 / speed)
 }
 
 // The reveal is deliberately much larger than the viewport. Its mask is
@@ -154,6 +156,7 @@ export default function WorldModelSection({
     // may start the mask burst. An open requested by plain scrolling used
     // to fire the burst straight away, with no descent before it.
     let maskArmed = false
+    let maskOpening = false
     let rollTween
     let colourOpen = false
     let expandTween
@@ -299,7 +302,7 @@ export default function WorldModelSection({
     let stopTailAppear = null
     const playHeadAppear = () => {
       if (stopHeadAppear || reduceAppear) return
-      // v5: first paragraph 1.5s, second 2s in total.
+      // Relative to the existing per-word timing: 1.5× and 2× faster.
       stopHeadAppear = appearLines(headLines, 1.5)
     }
     const resetAppear = () => {
@@ -610,25 +613,77 @@ export default function WorldModelSection({
       writeFlash(0)
     }
 
-    // v1: no crystal hand-off between screens three and four. Once the
-    // second paragraph is read, the page is simply released to native
-    // scrolling — block three scrolls up and block four follows.
-    // 3→4: block three's green, held as a full-screen layer, opens from
-    // the bottom edge in a soft, blurred dome (the v4 band's shape) onto
-    // block four, which is already in place underneath with its heading —
-    // so the heading is there on the opening light, not after it.
+    // The shared field contracts into vertically stretched letterforms,
+    // then resolves into the real fourth-screen heading. One reversible clock.
     const waveEl = document.createElement('div')
     waveEl.className = 'world-model-wave'
     waveEl.setAttribute('aria-hidden', 'true')
     document.body.appendChild(waveEl)
+    const waveField = document.createElement('div')
+    waveField.className = 'world-model-wave__field'
+    const waveFieldSoftEdge = document.createElement('div')
+    waveFieldSoftEdge.className = 'world-model-wave__soft-edge'
+    waveFieldSoftEdge.appendChild(waveField)
+    waveEl.appendChild(waveFieldSoftEdge)
+    const fourthCopy = document.querySelector('.physics-behavior-section__copy')
+    const lightCopy = fourthCopy?.cloneNode(true)
+    if (lightCopy) {
+      lightCopy.classList.add('world-model-wave__copy')
+      lightCopy.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'))
+      waveEl.appendChild(lightCopy)
+    }
     const waveProxy = { value: 0, opacity: 0 }
     const writeWave = () => {
       waveEl.style.setProperty('--wave', waveProxy.value.toFixed(4))
       waveEl.style.setProperty('--wave-opacity', waveProxy.opacity.toFixed(4))
+      const p = waveProxy.value
+      const smooth = (start, end) => {
+        const t = Math.max(0, Math.min(1, (p - start) / (end - start)))
+        return t * t * (3 - 2 * t)
+      }
+      // Collapse the entire field into a trapezoid whose lower edge meets
+      // the title. Its top follows later, carrying the rays down into type.
+      const heading = lightCopy?.querySelector('h2')
+      const copyBox = lightCopy?.getBoundingClientRect()
+      const titleTop = copyBox && heading ? copyBox.top + heading.offsetTop : 244
+      const titleHeight = heading?.offsetHeight || 62.4
+      const titleWidth = Math.min(heading?.offsetWidth || 676, window.innerWidth - 32)
+      const inset = Math.max(0, (window.innerWidth - titleWidth) / 2)
+      // One geometry for the field and the projected letters: reveal white
+      // below first, then gather the same surface into the title.
+      const clearBelow = smooth(0, 0.34)
+      const collapse = smooth(0.34, 0.9)
+      const titleBottom = titleTop + titleHeight
+      const top = titleTop * collapse
+      const bottom = window.innerHeight + (titleBottom - window.innerHeight) * clearBelow
+      const upperWidth = window.innerWidth + (titleWidth - window.innerWidth) * collapse
+      const upperInset = (window.innerWidth - upperWidth) / 2
+      const lowerInset = inset * smooth(0.28, 0.62)
+      waveEl.style.setProperty('--funnel-top', `${top.toFixed(2)}px`)
+      waveEl.style.setProperty('--funnel-height', `${Math.max(titleHeight, bottom - top).toFixed(2)}px`)
+      waveEl.style.setProperty('--funnel-upper-inset', `${upperInset.toFixed(2)}px`)
+      waveEl.style.setProperty('--funnel-lower-inset', `${lowerInset.toFixed(2)}px`)
+      waveEl.style.setProperty('--funnel-bottom', `${bottom.toFixed(2)}px`)
+      waveEl.style.setProperty('--funnel-edge-blur', `${(56 * smooth(0, 0.18)).toFixed(2)}px`)
+      waveEl.style.setProperty('--funnel-rays', (smooth(0.28, 0.48) * (1 - smooth(0.7, 1))).toFixed(4))
+      waveEl.style.setProperty('--light-field', (1 - smooth(0.48, 0.82)).toFixed(4))
+      waveEl.style.setProperty('--light-letters', smooth(0.48, 0.74).toFixed(4))
+      // Project the actual letterforms into the same trapezoid as the field.
+      // The lower edge stays registered with the final title; each upper
+      // row spreads farther sideways, rather than stretching straight up.
+      const lowerWidth = window.innerWidth - 2 * lowerInset
+      const perspective = 1 - lowerWidth / upperWidth
+      const stretch = (bottom - top) * (1 - perspective) / titleHeight
+      waveEl.style.setProperty('--light-projection', `translateY(${bottom - titleBottom}px) matrix3d(${lowerWidth / titleWidth},0,0,0,0,${stretch},0,${perspective / titleHeight},0,0,1,0,0,0,0,1)`)
+      waveEl.style.setProperty('--light-blur', `${(20 * (1 - smooth(0.22, 0.94))).toFixed(3)}px`)
+      waveEl.style.setProperty('--light-colour', (1 - smooth(0.58, 0.95)).toFixed(4))
+      waveEl.style.setProperty('--light-fringe', `${(2.5 * (1 - smooth(0.55, 1))).toFixed(3)}px`)
+      waveEl.style.setProperty('--light-tag', smooth(0.65, 0.96).toFixed(4))
+      if (fourthCopy) fourthCopy.style.visibility = waveProxy.opacity > 0 ? 'hidden' : ''
     }
     let waveTween = null
     const WAVE_COVER = 0.3
-    const WAVE_OPEN = 1.1
+    const WAVE_OPEN = 1.8
     const playExit = () => {
       if (handedOff || returningHome || returningToCopy) return
       queuedExitAfterRoll = false
@@ -653,13 +708,11 @@ export default function WorldModelSection({
         // The green layer settles over the field (the paragraph goes).
         .to(waveProxy, { opacity: 1, duration: WAVE_COVER, ease: 'power1.inOut', onUpdate: writeWave })
         .add(swapToFourth)
-        // The dome opens from the bottom onto block four.
-        .to(waveProxy, { value: 1, duration: WAVE_OPEN, ease: 'power2.inOut', onUpdate: writeWave })
+        // Light narrows into the title; the last frame matches the DOM below.
+        .to(waveProxy, { value: 1, duration: WAVE_OPEN, ease: 'none', onUpdate: writeWave })
         .set(waveProxy, { opacity: 0, value: 0, onComplete: writeWave })
     }
-    // 4→3, exactly backwards: the dome closes down to the bottom edge and
-    // the green covers block four; under it the page returns to the second
-    // paragraph with the field open, and the layer gives way to the field.
+    // 4→3 reverses the same light-to-type transition before restoring the field.
     const playWaveBack = () => {
       waveTween?.kill()
       returnTween?.kill()
@@ -705,7 +758,7 @@ export default function WorldModelSection({
       writeWave()
       // Held in returnTween so the wheel handler keeps the page still.
       returnTween = waveTween = gsap.timeline({ onComplete: finish })
-        .to(waveProxy, { value: 0, duration: WAVE_OPEN, ease: 'power2.inOut', onUpdate: writeWave })
+        .to(waveProxy, { value: 0, duration: WAVE_OPEN, ease: 'none', onUpdate: writeWave })
         .add(swapToThird)
         .to(waveProxy, { opacity: 0, duration: WAVE_COVER, ease: 'power1.inOut', onUpdate: writeWave }, '+=0.05')
     }
@@ -871,6 +924,9 @@ export default function WorldModelSection({
             playBandInRef()
             return
           }
+          // The mask owns opening: scroll geometry must not reveal the
+          // gradient while its crystal/flash sequence is still pending.
+          if (MASK_TRANSITION) return
           instant = true
         }
         instant = true
@@ -1004,7 +1060,7 @@ export default function WorldModelSection({
       writeCopyProgress()
       if (!exitTimeline?.isActive() && !exitCommitted && scrollProgress < EXIT_START - 0.012) resetExit()
       const paneTop = panel.getBoundingClientRect().top
-      if (suppressColourOpen || returningToCopy || returningHome || handedOff) {
+      if (maskOpening || suppressColourOpen || returningToCopy || returningHome || handedOff) {
         // The return flights and the 3→4 landing own the colour field.
       } else if (paneTop <= 48 && scrollProgress >= 0.001 && scrollProgress < 0.82) {
         setColourOpen(true)
@@ -1029,7 +1085,7 @@ export default function WorldModelSection({
       start: 'top bottom',
       end: 'bottom bottom',
       onLeaveBack: () => {
-        if (!returningHome) setColourOpen(false, true)
+        if (!returningHome && !maskOpening) setColourOpen(false, true)
       },
       onUpdate: syncPresentation,
     })
@@ -1132,7 +1188,7 @@ export default function WorldModelSection({
     // Drawn in WebGL (bandRenderer.js): the dome's rim is a glass lens,
     // like the fold that carries a gradient card in on block two.
     const bandCanvas = bandEl?.querySelector('canvas')
-    const band = bandCanvas ? createBandRenderer(bandCanvas, '/images/world-model/field-gradient.jpg?v=5') : null
+    const band = BAND_TRANSITION && bandCanvas ? createBandRenderer(bandCanvas, '/images/world-model/field-gradient.jpg?v=5') : null
     let bandRaf = 0
     const bandLoop = () => {
       band?.draw(bandProxy.value, bandProxy.opacity)
@@ -1161,6 +1217,9 @@ export default function WorldModelSection({
         .to(bandProxy, { value: 1, duration: BAND_STRETCH, ease: 'power3.inOut', onUpdate: writeBand })
         .add(() => {
           setColourOpen(true, true)
+          // The next screen is committed only after its field is painted.
+          window.dispatchEvent(new Event('42ai-world-mask-ready'))
+          maskOpening = false
           writeFlash(0)
           suppressColourOpen = false
           setCopyReveal(0)
@@ -1205,10 +1264,13 @@ export default function WorldModelSection({
     const maskHome = maskEl?.parentNode
     if (maskEl) document.body.appendChild(maskEl)
     const maskProxy = { r: 0, opacity: 0, light: 0 }
+    let followMaskCrystal = false
     const writeMask = () => {
       // The picture stays at its real size: zooming it with the shape made
       // the picture's own rectangle smaller than the hexagon, so the cut
       // read as a rectangle.
+      maskEl?.style.setProperty('--mask-x', `${followMaskCrystal && crystalScreen.valid ? crystalScreen.x : window.innerWidth / 2}px`)
+      maskEl?.style.setProperty('--mask-y', `${followMaskCrystal && crystalScreen.valid ? crystalScreen.y : window.innerHeight / 2}px`)
       maskEl?.style.setProperty('--mask-r', `${maskProxy.r.toFixed(1)}px`)
       maskEl?.style.setProperty('--mask-light', maskProxy.light.toFixed(3))
       maskEl?.style.setProperty('--mask-glow-r', `${Math.max(maskProxy.r, gemRadius()).toFixed(1)}px`)
@@ -1221,75 +1283,64 @@ export default function WorldModelSection({
     const playMaskIn = () => {
       if (bandActive()) return
       maskArmed = false
-      // Start only once the gem has finished its descent to the centre;
-      // the hand-off timer and the crystal's own smoothing can disagree.
-      const centred = () => (crystalScreen.toCenter ?? 1) >= 0.985
-      if (!centred() && !reduceMotion) {
-        if (centreWait) return
-        const startedAt = performance.now()
-        centreWait = () => {
-          if (!centred() && performance.now() - startedAt < 900) return
-          gsap.ticker.remove(centreWait)
-          centreWait = null
-          burstMask()
-        }
-        gsap.ticker.add(centreWait)
-        return
-      }
+      suppressColourOpen = true
       burstMask()
     }
     const burstMask = () => {
       maskTween?.kill()
       suppressColourOpen = true
-      maskProxy.r = gemRadius()
-      maskProxy.opacity = 0
+      maskOpening = true
+      followMaskCrystal = true
+      const startRadius = gemRadius()
+      maskProxy.r = 0
+      maskProxy.opacity = 1
+      maskProxy.light = 0
       writeMask()
-      // The gem is pushed toward the camera first (crystalScreen.preZoom,
-      // read by PageCrystal); the field appears inside its silhouette and
-      // then floods out, accelerating.
-      const pre = { z: 0 }
+      const opening = { progress: 0 }
       maskTween = gsap.timeline()
-        .to(pre, {
-          z: 1,
-          duration: MASK_PRE_ZOOM,
-          ease: 'power2.in',
+        .to(opening, {
+          progress: 1,
+          duration: (MASK_DESCENT + MASK_BURST) / 2,
+          ease: 'sine.inOut',
           onUpdate: () => {
-            crystalScreen.preZoom = pre.z
-            // Only the light here; the cut itself appears with the burst.
-            maskProxy.r = 0
-            // The light gathers on the gem as it is pushed forward.
-            maskProxy.light = 0.55 * pre.z
-            maskProxy.opacity = maskProxy.light > 0.001 ? 1 : 0
+            const p = opening.progress
+            crystalScreen.preZoom = smootherstep(Math.min(1, p / .6))
+            maskProxy.r = startRadius * p + (coverRadius() - startRadius) * p * p
+            maskProxy.light = Math.sin(Math.PI * Math.min(1, p * .85)) * .9
+            crystalScreen.maskHide = smootherstep(Math.max(0, Math.min(1, (p - .38) / .24)))
             writeMask()
           },
         })
-        // The gem vanishes and its silhouette, filled with block three,
-        // floods the screen.
-        .add(() => {
-          crystalScreen.maskHide = 1
-          maskProxy.r = gemRadius()
-          maskProxy.opacity = 1
-          maskProxy.light = 1
-          writeMask()
-        })
-        .to(maskProxy, { r: coverRadius(), duration: MASK_BURST, ease: 'power3.in', onUpdate: writeMask })
         .add(() => {
           crystalScreen.preZoom = 0
           setColourOpen(true, true)
+          window.dispatchEvent(new Event('42ai-world-mask-ready'))
+          maskOpening = false
           writeFlash(0)
           suppressColourOpen = false
           setCopyReveal(0)
           playCopyIn()
         })
         // The flash dies down over the opened field, then the cut goes.
-        .to(maskProxy, { light: 0, duration: 0.45, ease: 'power2.out', onUpdate: writeMask })
-        .to(maskProxy, { opacity: 0, duration: 0.12, ease: 'none', onUpdate: writeMask }, '-=0.3')
+        .to(maskProxy, { light: 0, duration: 0.225, ease: 'power2.out', onUpdate: writeMask })
+        .to(maskProxy, { opacity: 0, duration: 0.06, ease: 'none', onUpdate: writeMask }, '-=0.15')
         .add(() => { crystalScreen.maskHide = 0 })
     }
     // 3→2: the field is cut back to the hexagon and sucked into the gem in
     // the centre; then the gem returns to its seat above the cards.
     const playMaskOut = () => {
+      maskOpening = false
+      followMaskCrystal = false
       maskTween?.kill()
+      waveTween?.kill()
+      arrivalScrollTween?.kill()
+      returnTween?.kill()
+      queuedExitAfterRoll = false
+      queuedHomeAfterRoll = false
+      exitCommitted = false
+      handedOff = false
+      waveProxy.opacity = 0
+      writeWave()
       collapsing = true
       maskState.collapsing = true
       if (copyProxy.value > 0) hideCopy()
@@ -1317,6 +1368,16 @@ export default function WorldModelSection({
         .to(maskProxy, { light: 0, duration: MASK_PRE_ZOOM, ease: 'power2.out', onUpdate: writeMask }, '<')
         .add(() => {
           maskState.collapsing = false
+          maskArmed = false
+          maskOpening = false
+          section.classList.remove('world-model-section--handoff-cover')
+          textRollArmed = false
+          copyReadyAt = 0
+          headArrivedAt = 0
+          wheelPosition = 0
+          wheelVelocity = 0
+          pendingWheelPx = 0
+          lastScrollY = window.scrollY
           window.dispatchEvent(new CustomEvent(WORLD_MODEL_RETURN_EVENT))
           window.dispatchEvent(new CustomEvent(BLOCK24_RETURN_EVENT))
           collapsing = false
@@ -1498,6 +1559,11 @@ export default function WorldModelSection({
         event.preventDefault()
         return
       }
+      if (bandActive() || centreWait || waveTween?.isActive()) {
+        lastAnyWheelAt = performance.now()
+        event.preventDefault()
+        return
+      }
       const packetAt = performance.now()
       const packetFresh = packetAt - lastAnyWheelAt > READING_GESTURE_GAP
       lastAnyWheelAt = packetAt
@@ -1541,8 +1607,8 @@ export default function WorldModelSection({
         // Only a new gesture leaves for block two — the momentum of the
         // flick that rolled back to the first paragraph used to carry the
         // page through block two, sometimes on to the hero.
+        event.preventDefault()
         if (packetFresh) releaseToBlock2()
-        else event.preventDefault()
         return
       }
       // Hold the page once the field owns the screen. Deltas that arrive
@@ -1707,6 +1773,53 @@ export default function WorldModelSection({
     }
 
     const handleHandoff = () => {
+      // Every arrival is a fresh reading session, including after 4→3→2.
+      maskOpening = true
+      collapseCall?.kill()
+      collapseScroll?.kill()
+      homePauseCall?.kill()
+      rollTween?.kill()
+      copyTween?.kill()
+      expandTween?.kill()
+      exitTimeline?.pause(0)
+      exitReversing = false
+      exitArmed = false
+      exitProxy.copy = 0
+      exitProxy.reveal = 0
+      exitProxy.absorb = 0
+      writeExit()
+      rollProxy.value = 0
+      rollIntent = 0
+      wheelTarget = 0
+      headOverscroll = 0
+      tailOverscroll = 0
+      maskState.collapsing = false
+      crystalScreen.maskHide = 0
+      crystalScreen.preZoom = 0
+      setColourOpen(false, true)
+      maskTween?.kill()
+      bandTween?.kill()
+      if (centreWait) { gsap.ticker.remove(centreWait); centreWait = null }
+      wheelPosition = 0
+      wheelVelocity = 0
+      pendingWheelPx = 0
+      waveTween?.kill()
+      returnTween?.kill()
+      arrivalScrollTween?.kill()
+      handedOff = false
+      returningToCopy = false
+      returningHome = false
+      exitCommitted = false
+      exitPlaying = false
+      exitFlying = false
+      queuedExitAfterRoll = false
+      queuedHomeAfterRoll = false
+      restoreTailOnOpen = false
+      waveProxy.opacity = 0
+      waveProxy.value = 0
+      writeWave()
+      hideCopy(true)
+      lastAnyWheelAt = performance.now()
       // The 2→3 flight dispatches this while block 2 is still on screen.
       // Keep only the transparent effects layer fixed over the viewport
       // until the real sticky pane arrives. This removes the moving section
@@ -1753,9 +1866,32 @@ export default function WorldModelSection({
         syncPresentation()
         return
       }
-      if (returningHome || returningToCopy || flightActive) {
+      if (collapsing || releasedUp || returningHome || returningToCopy || flightActive) {
+        // A completed 3→2 return leaves releasedUp set until the next
+        // handoff. Native scroll must not carry that state through block
+        // three without running its opening again.
+        if (releasedUp && !collapsing && !returningHome && !returningToCopy
+          && !flightActive && nextScrollY > lastScrollY
+          && nextScrollY >= readingRestY() - 2
+          && nextScrollY <= readingRestY() + window.innerHeight) {
+          lastScrollY = nextScrollY
+          window.scrollTo({ top: readingRestY(), behavior: 'instant' })
+          handleHandoff()
+          return
+        }
         lastScrollY = nextScrollY
         syncPresentation()
+        return
+      }
+      // Wheel, touch, scrollbar and anchor entry all share this boundary.
+      // A closed field cannot be traversed as blank native page space.
+      if (!colourOpen && !maskOpening && !handedOff && !exitPlaying
+        && !bandActive() && nextScrollY > lastScrollY
+        && nextScrollY >= readingRestY() - 2
+          && nextScrollY <= readingRestY() + window.innerHeight) {
+        lastScrollY = nextScrollY
+        window.scrollTo({ top: readingRestY(), behavior: 'instant' })
+        handleHandoff()
         return
       }
       if (
@@ -1816,7 +1952,15 @@ export default function WorldModelSection({
       })
     })
 
+    const stopFluid = createCrystalFluid([
+      section.querySelector('.world-model-section__image-soft'),
+      maskEl?.querySelector('.world-model-mask__field'),
+      waveField,
+    ], () => colourOpen || bandActive() || waveProxy.opacity > 0.001 || expansionValue > 0.001,
+    () => maskProxy.opacity > 0.001 ? maskProxy.r / coverRadius() : 0)
+
     return () => {
+      stopFluid()
       if (bandEl && bandHome) bandHome.appendChild(bandEl)
       if (maskEl && maskHome) maskHome.appendChild(maskEl)
       maskTween?.kill()
@@ -1839,6 +1983,7 @@ export default function WorldModelSection({
       window.removeEventListener(BLOCK24_HANDOFF_EVENT, handleHandoff)
       waveTween?.kill()
       waveEl.remove()
+      if (fourthCopy) fourthCopy.style.visibility = ''
       window.removeEventListener(WORLD_MODEL_BACK_EVENT, playWaveBack)
       homePauseCall?.kill()
       if (centreWait) gsap.ticker.remove(centreWait)
@@ -1856,6 +2001,7 @@ export default function WorldModelSection({
   return (
     <section
       ref={sectionRef}
+      id="vision"
       className="world-model-section"
       aria-labelledby="world-model-heading"
     >
@@ -1884,7 +2030,6 @@ export default function WorldModelSection({
             <div className="world-model-section__light-fill" />
             <div className="world-model-section__expansion-glow" />
           </div>
-          <div className="world-model-section__corner-light" />
         </div>
         <div className="world-model-section__ripples" aria-hidden="true">
           <span className="world-model-section__ripple world-model-section__ripple--a" />

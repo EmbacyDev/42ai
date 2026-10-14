@@ -31,7 +31,7 @@ export const BLOCK24_PHOTO_WIDTH = 311
 export const BLOCK24_PHOTO_HEIGHT = 370
 /** Crystal top through the 400px card, the title, and the Learn more button. */
 export const BLOCK24_CONTENT_TOP = 123
-export const BLOCK24_CONTENT_BOTTOM = 830
+export const BLOCK24_CONTENT_BOTTOM = 806
 /** Inactive rail cards. The tab drum uses the same height. */
 export const BLOCK24_INACTIVE_CARD_HEIGHT = 270.24
 /** Vertical centre of the 336×400 active card (top 219). */
@@ -56,7 +56,7 @@ export function block24CardGeometry(width) {
   if (width <= 980) {
     return { width: 336, height: 400, top: 219, sideCenterY: 419, stackHeight: 625 }
   }
-  return { width: 310, height: 369.05, top: 246, sideCenterY: 446, stackHeight: 568 }
+  return { width: 310, height: 368, top: 243, sideCenterY: 434.119, stackHeight: 563 }
 }
 
 export function layoutBlock24(width, height) {
@@ -94,7 +94,7 @@ export function layoutBlock24(width, height) {
   }
   const crystalCenterY = w <= 980
     ? 112
-    : originY + card.top * scale - BLOCK24_CRYSTAL_CARD_GAP_PX - BLOCK24_CRYSTAL_HALF_HEIGHT * scale
+    : originY + BLOCK24_DESIGN_CRYSTAL_CENTER_Y * scale
   const crystalTop = crystalCenterY - BLOCK24_CRYSTAL_HIT / 2
   const photoY = originY + card.top * scale
   const tabsHeight = BLOCK24_INACTIVE_CARD_HEIGHT * scale

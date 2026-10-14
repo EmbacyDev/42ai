@@ -905,25 +905,15 @@ export function createCrystalLight(crystalPosition, config) {
   let lastAimTime = -1
   let beamCardId = null
   let pendingCardId = null
-  // idle → out (leave the crystal) → hold → in (return into the crystal).
-  // A new card never swings the current ray. The ray finishes going back
-  // in, then a new one leaves toward that card.
+  // Follow direction around the crystal, never retract through its centre.
+  // Match the critically damped card hover spring (omega 7.5).
   let beamPhase = 'idle'
   let beamReach = 0
-  let beamFrom = 0
-  let beamTo = 0
-  let beamT = 1
-  let beamDwell = 0
-  const BEAM_IN_DURATION = 0.82
-  const BEAM_OUT_DURATION = 0.94
-  const BEAM_DWELL = 0.24
-
-  const beginBeam = (phase, target) => {
-    beamPhase = phase
-    beamFrom = beamReach
-    beamTo = target
-    beamT = 0
-  }
+  let aimAngle = 0
+  let angleVelocity = 0
+  let reachVelocity = 0
+  let aimRadius = 0
+  let radiusVelocity = 0
 
   return {
     object: root,
@@ -958,6 +948,7 @@ export function createCrystalLight(crystalPosition, config) {
         hoverStrength = 0
         frontStrength = 0
         beamPhase = 'idle'
+        angleVelocity = radiusVelocity = reachVelocity = 0
         beamReach = 0
         beamCardId = null
         pendingCardId = null
@@ -1063,69 +1054,39 @@ export function createCrystalLight(crystalPosition, config) {
         pendingCardId = null
       }
 
-      const targetChanged = Boolean(
-        aimLocal
-        && beamCardId != null
-        && (
-          pendingCardId !== beamCardId
-          || shownAim.distanceTo(pendingAim) > 0.65
-        ),
-      )
-
-      if (beamPhase === 'idle' && aimLocal) {
-        shownAim.copy(pendingAim)
-        shownFront.copy(pendingFront)
-        beamCardId = pendingCardId
-        beamReach = 0
-        beginBeam('out', 1)
-      } else if (
-        (beamPhase === 'hold' || beamPhase === 'out')
-        && (!aimLocal || targetChanged)
-      ) {
-        // Never turn a visible beam toward the next card. First collect it
-        // back into the crystal; its new direction is chosen only while
-        // the visible reach is zero.
-        beginBeam('in', 0)
-      } else if (beamPhase === 'hold' && aimLocal && !targetChanged) {
-        // Only compensate for the card's very small ambient drift. This is
-        // intentionally much slower than the source's internal motion.
-        const follow = 1 - Math.exp(-0.45 * dt)
-        shownAim.lerp(pendingAim, follow)
-        shownFront.lerp(pendingFront, follow)
-      }
-
-      if (beamPhase === 'out' || beamPhase === 'in') {
-        const duration = beamPhase === 'out' ? BEAM_OUT_DURATION : BEAM_IN_DURATION
-        beamT = Math.min(1, beamT + dt / duration)
-        const eased = beamT * beamT * (3 - 2 * beamT)
-        beamReach = beamFrom + (beamTo - beamFrom) * eased
-        if (beamT >= 1) {
-          if (beamPhase === 'out') {
-            beamReach = 1
-            beamPhase = 'hold'
-          } else {
-            beamReach = 0
-            beamCardId = null
-            if (aimLocal) {
-              beamPhase = 'dwell'
-              beamDwell = 0
-            } else {
-              beamPhase = 'idle'
-            }
-          }
-        }
-      } else if (beamPhase === 'dwell') {
-        beamReach = 0
-        beamDwell += dt
-        if (!aimLocal) {
-          beamPhase = 'idle'
-        } else if (beamDwell >= BEAM_DWELL) {
+      if (aimLocal) {
+        const nextAngle = Math.atan2(pendingAim.y, pendingAim.x)
+        const nextRadius = Math.hypot(pendingAim.x, pendingAim.y)
+        if (beamPhase === 'idle') {
+          aimAngle = nextAngle
+          aimRadius = nextRadius
+          angleVelocity = radiusVelocity = 0
           shownAim.copy(pendingAim)
           shownFront.copy(pendingFront)
-          beamCardId = pendingCardId
-          beginBeam('out', 1)
         }
+        beamPhase = 'hold'
+        beamCardId = pendingCardId
+        // Unwrap the destination so the beam follows the shortest arc.
+        const targetAngle = aimAngle + Math.atan2(
+          Math.sin(nextAngle - aimAngle), Math.cos(nextAngle - aimAngle),
+        )
+        for (let step = 0; step < 3; step++) {
+          const h = dt / 3
+          angleVelocity += ((targetAngle - aimAngle) * 36 - angleVelocity * 12) * h
+          aimAngle += angleVelocity * h
+          radiusVelocity += ((nextRadius - aimRadius) * 36 - radiusVelocity * 12) * h
+          aimRadius += radiusVelocity * h
+        }
+        shownAim.set(Math.cos(aimAngle) * aimRadius, Math.sin(aimAngle) * aimRadius,
+          THREE.MathUtils.lerp(shownAim.z, pendingAim.z, 1 - Math.exp(-6 * dt)))
+        shownFront.set(Math.cos(aimAngle), Math.sin(aimAngle)).multiplyScalar(pendingFront.length())
       }
+      for (let step = 0; step < 3; step++) {
+        const h = dt / 3
+        reachVelocity += (((aimLocal ? 1 : 0) - beamReach) * 56.25 - reachVelocity * 15) * h
+        beamReach = THREE.MathUtils.clamp(beamReach + reachVelocity * h, 0, 1)
+      }
+      if (!aimLocal && beamReach < 0.001) beamPhase = 'idle'
 
       const strengthTarget = aimLocal || beamPhase !== 'idle' ? 1 : 0
       const strengthRate = aimLocal ? 2.4 : 1.8
@@ -1170,7 +1131,7 @@ export function createCrystalLight(crystalPosition, config) {
         const drawnFront = Math.max(0.05, frontLength - emitRadius)
         const drawnLength = Math.max(drawnFront, beamLength - emitRadius)
         const frontFraction = THREE.MathUtils.clamp(drawnFront / drawnLength, 0.08, 0.96)
-        const sheetHeight = 2.4 * 1.22
+        const sheetHeight = 2.4 * 0.68625
         const round = sheetHeight / drawnLength
         const rotation = Math.atan2(hoverBeamDirection.y, hoverBeamDirection.x)
         const beamOpacity = Math.min(1, hoverStrength * 1.15) * glowPulse
@@ -1181,7 +1142,7 @@ export function createCrystalLight(crystalPosition, config) {
         hoverBeam.rotation.z = rotation
         // Stops short of the photograph. The rest of the ray continues
         // behind that photo on the portrait canvas.
-        hoverBeam.scale.set(drawnFront, 1.22, 1)
+        hoverBeam.scale.set(drawnFront, 0.68625, 1)
         hoverBeam.material.uniforms.uStart.value = 0
         hoverBeam.material.uniforms.uReach.value = beamReach
         hoverBeam.material.uniforms.uSpan.value = frontFraction
@@ -1190,7 +1151,7 @@ export function createCrystalLight(crystalPosition, config) {
         hoverBeam.material.uniforms.uOpacity.value = beamOpacity * frontWindow * 0.16
         hoverBeamBack.position.set(emitX, emitY, 0)
         hoverBeamBack.rotation.z = rotation
-        hoverBeamBack.scale.set(drawnLength, 1.22, 1)
+        hoverBeamBack.scale.set(drawnLength, 0.68625, 1)
         // The full soft sheet is always present behind the crystal. The
         // occasional front pass above is only a faint glint, not the beam's
         // main body, so there is no gap when that glint fades away.

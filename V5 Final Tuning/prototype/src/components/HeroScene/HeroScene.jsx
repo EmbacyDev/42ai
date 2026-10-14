@@ -24,11 +24,16 @@ export default function HeroScene({
   onAssetsReady = () => {},
   revealReady = true,
   loaderShown = false,
+  headingReady = true,
+  imagesAllowed = true,
+  videosAllowed = true,
   // The prototype's own crystal (tab 01, baked in defaultCrystalConfig).
   // Passed in when the page also needs the same object for the background.
   tunedCrystalConfig: tunedCrystalConfigProp,
   cardHoverRef,
 }) {
+  const loadingStages = useRef({ imagesAllowed, videosAllowed })
+  loadingStages.current = { imagesAllowed, videosAllowed }
   const rootRef = useRef(null)
   const canvasRef = useRef(null)
   const [tablet, setTablet] = useState(() => window.matchMedia('(max-width: 980px)').matches)
@@ -132,6 +137,8 @@ export default function HeroScene({
       portraits: scenePortraits,
       labels,
       skipCrystal: Boolean(tunedCrystalConfig),
+      canLoadImages: () => loadingStages.current.imagesAllowed,
+      canLoadVideos: () => loadingStages.current.videosAllowed,
       crystalConfig: tunedCrystalConfig,
       onProgress: setProgress,
       onAssetsReady: () => {
@@ -166,7 +173,7 @@ export default function HeroScene({
     >
       <canvas ref={canvasRef} className="hero-scene__canvas" />
       <HeroLabels labels={labels} />
-      <HeroContent />
+      <HeroContent headingReady={headingReady} />
       {loaderShown && <HeroLoadingOverlay progress={progress} hidden={assetsReady && revealReady} />}
     </section>
   )

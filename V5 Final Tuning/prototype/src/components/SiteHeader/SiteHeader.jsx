@@ -21,7 +21,14 @@ function HeroBar({ onDark }) {
         <ul className="site-header__links">
           {NAV_LINKS.map(([label, href]) => (
             <li key={href}>
-              <ScrambleLink href={href} text={label.toUpperCase()} />
+              <ScrambleLink href={href} text={label.toUpperCase()} onClick={(event) => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+                if (href === '#technology' || href === '#applications') {
+                  event.preventDefault()
+                  window.dispatchEvent(new CustomEvent('42ai-navigate-physics', { detail: { step: href === '#technology' ? 0 : 7, destination: href } }))
+                  window.history.replaceState(null, '', href)
+                }
+              }} />
             </li>
           ))}
         </ul>

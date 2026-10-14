@@ -1,3 +1,4 @@
+import { INTRO_GROW_DELAY, INTRO_GROW_DURATION, introEase } from '../components/HeroScene/preloaderSpin.js'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
@@ -8,7 +9,7 @@ import { crystalScreen } from '../components/HeroScene/crystalScreen.js'
 import { heroLightState } from '../components/HeroScene/heroLightState.js'
 import { crystalSlosh } from '../components/HeroScene/crystalSlosh.js'
 import { TRANSITION_MODE, MASK_SPIN_DESCENT, MASK_SPIN_ZOOM } from '../components/WorldModelSection/worldModelHandoff.js'
-import { FACET_STEP_TILT_X, FACET_TURN_END } from './facetBeamState.js'
+import { FACET_STEP_TILT_X, FACET_STEP_TURN_Y, FACET_TURN_END } from './facetBeamState.js'
 import HeroLightLayer from './HeroLightLayer.jsx'
 import FacetLightLayer from './FacetLightLayer.jsx'
 import {
@@ -18,7 +19,6 @@ import {
   crystalTravelRangePx,
   crystalHeroBlend,
 } from '../components/HeroScene/scrollShrink.js'
-import { preloaderSpinAngle, PRELOADER_SPIN_OMEGA } from '../components/HeroScene/preloaderSpin.js'
 import { layoutBlock24 } from '../components/Block24Section/block24Layout.js'
 import { projectDesignPoint } from '../components/HeroScene/placement.js'
 import { sceneConfig } from '../components/HeroScene/sceneConfig.js'
@@ -29,10 +29,7 @@ const CRYSTAL_BASE_Y = 0.596
 // happens at the same screen position and apparent size, so it reads as the
 // black mark changing material rather than a second, larger object appearing.
 const INTRO_START_SCALE = 0.145
-// Hold the coloured version for a beat while the white loading sheet opens,
-// then let it travel and grow into its authored hero pose.
-const INTRO_GROW_DELAY = 0.32
-const INTRO_GROW_DURATION = 1.5
+// Travel and growth start as soon as the loading sheet opens.
 const CAMERA_FOV = 52
 const CAMERA_Z = 4.94
 
@@ -118,7 +115,7 @@ const PHYSICS_TILT_Z = -0.04
 const STATE_ONE_ROTATION = { x: FACET_STEP_TILT_X[0], y: -Math.PI / 2, z: -0.04 }
 const STATE_TWO_ROTATION = { x: FACET_STEP_TILT_X[1], y: -Math.PI, z: -0.04 }
 const STATE_THREE_ROTATION = { x: FACET_STEP_TILT_X[2], y: -Math.PI * 1.5, z: -0.04 }
-const STATE_FOUR_ROTATION = { x: FACET_STEP_TILT_X[3], y: -Math.PI * 2, z: -0.04 }
+const STATE_FOUR_ROTATION = { x: FACET_STEP_TILT_X[3], y: FACET_STEP_TURN_Y[3], z: -0.04 }
 const STATE_ONE_SHIFT_X = -0.017
 const STATE_TWO_SHIFT_X = 0
 const STATE_THREE_SHIFT_X = 0.008
@@ -407,9 +404,9 @@ function TravellingCrystal({
   const physicsSectionRef = useRef(null)
   const introProgressRef = useRef(introReady ? 1 : 0)
   const introDelayRef = useRef(0)
+  const idleAxesRef = useRef(0)
   const visualRef = useRef(null)
   const fourthVisibleRef = useRef(false)
-  const zSpinRef = useRef(null)
   const crystalReturnRef = useRef(0)
   const { camera, size, gl } = useThree()
   // v4: press and hold the crystal in the hero to turn it by hand. The
@@ -626,22 +623,23 @@ function TravellingCrystal({
       const swell = smootherstep(Math.min(Math.max(opening / 0.45, 0), 1))
       fullScale *= 1 + (WORLD_OPEN_SCALE - 1) * swell
     }
+    const introWasActive = introProgressRef.current < 1
     if (!introReady) {
       introDelayRef.current = 0
       introProgressRef.current = 0
     } else if (introProgressRef.current < 1) {
-      introDelayRef.current += delta
+      introDelayRef.current += Math.min(delta, 0.05)
       if (introDelayRef.current >= INTRO_GROW_DELAY) {
         introProgressRef.current = Math.min(
           1,
-          introProgressRef.current + delta / INTRO_GROW_DURATION,
+          (introDelayRef.current - INTRO_GROW_DELAY) / INTRO_GROW_DURATION,
         )
       }
     }
-    // Quart ease-in-out is applied directly to scale/position: a chase
+    // The shared long-tail ease is applied directly to scale/position: a chase
     // would start at full speed and kill the acceleration out of the
     // preloader pose. Scroll motion uses the critically damped spring below.
-    const intro = easeInOutQuart(introProgressRef.current)
+    const intro = introEase(introProgressRef.current)
     const introActive = introProgressRef.current < 1
     const destinationX = heroAnchorPx.x + (target.x - heroAnchorPx.x) * blend
     const destinationY = heroAnchorPx.y + (target.y - heroAnchorPx.y) * blend
@@ -686,7 +684,7 @@ function TravellingCrystal({
     // brakes into the new pose. Intro writes the eased pose directly so
     // grow in/out stays a true rest-to-rest curve.
     let visual = visualRef.current
-    if (!visual || fourthJustAppeared || introActive) {
+    if (!visual || fourthJustAppeared || introWasActive) {
       visual = {
         x: targetX,
         y: targetY,
@@ -780,6 +778,7 @@ function TravellingCrystal({
     crystalScreen.y = visual.y
     crystalScreen.r = visual.scale * 0.98 * pxPerWorld
     crystalScreen.valid = true
+    crystalScreen.introElapsed = introReady ? introDelayRef.current : 0
     crystalScreen.introSettled = introReady && !introActive
     crystalScreen.afterFrame?.()
 
@@ -787,27 +786,23 @@ function TravellingCrystal({
     groupRef.current.position.set(world.x, world.y, 0)
     groupRef.current.scale.setScalar(visual.scale)
     groupRef.current.visible = handoffReveal > 0.004 || dissolve < 0.97
-    // While the gem is still the small mark that replaces the black logo,
-    // it keeps that logo's screen-plane spin and nothing else. The usual
-    // Y/X tumble eases in only once the grow is underway.
+    // Compose the existing 2→3 screen-plane roll with the reverse 2→1
+    // vertical turn on the same parent, using the intro's shorter clock.
     const fourthIsVisible = handoffReveal > 0.004
     const grow = introProgressRef.current
-    const handoff = grow <= 0.08
-      ? 0
-      : easeInOutQuart(Math.min(1, (grow - 0.08) / 0.5))
-    const heroMotion = fourthIsVisible ? 1 : handoff
-    const logoWeight = fourthIsVisible ? 0 : 1 - handoff
-    if (!spinBlendRef.current) spinBlendRef.current = { value: 0 }
+    const heroMotion = fourthIsVisible ? 1 : smootherstep(Math.min(1, Math.max(0, (grow - 0.08) / 0.5)))
+    // One continuously integrated angular velocity lives in Glass. The
+    // intro blends all the way to the idle velocity, never to a stop.
+    // Replay the 2→1 parent turn: blend falls from one to zero, so Y
+    // travels from +3π to zero. The child keeps its regular idle rotation.
+    const introReturnY = CRYSTAL_EXTRA_SPIN * (1 - intro)
+    if (!spinBlendRef.current) spinBlendRef.current = { value: 1 }
     spinBlendRef.current.value = heroMotion
+    spinBlendRef.current.introBlend = 1
     const dt = Math.min(delta, 0.05)
-    if (fourthIsVisible) {
-      zSpinRef.current = 0
-    } else if (logoWeight > 0.995) {
-      zSpinRef.current = -preloaderSpinAngle()
-    } else {
-      if (zSpinRef.current == null) zSpinRef.current = -preloaderSpinAngle()
-      zSpinRef.current += -PRELOADER_SPIN_OMEGA * logoWeight * dt
-    }
+    idleAxesRef.current = grow < 1 ? heroMotion : Math.min(1, idleAxesRef.current + dt / 0.6)
+    const idleAxes = smootherstep(idleAxesRef.current)
+    spinBlendRef.current.idleAxes = grow < 1 ? heroMotion : idleAxes
     // The crystal keeps its own spin. A selected card only moves the
     // light's exit point (crystalLight.js); it does not turn the gem.
     const drag = dragRef.current
@@ -831,14 +826,13 @@ function TravellingCrystal({
       drag.vX = 0
     }
     const dragY = fourthIsVisible ? 0 : drag.offY
-    const dragX = fourthIsVisible ? 0 : drag.offX
     groupRef.current.rotation.y = fourthIsVisible
       ? visual.turnY
       // A card switch turns the gem one full turn the other way.
-      : (visual.spin - pulseProgress * Math.PI * 2) * heroMotion + dragY
+      : (visual.spin - pulseProgress * Math.PI * 2) * heroMotion + introReturnY + dragY
     groupRef.current.rotation.x = fourthIsVisible
       ? visual.tiltX
-      : (visual.tiltX + Math.sin(pulseProgress * Math.PI) * 0.16) * heroMotion + dragX
+      : (visual.tiltX + Math.sin(pulseProgress * Math.PI) * 0.16 + drag.offX) * (grow < 1 ? heroMotion : idleAxes)
     // v5 mask: the gem turns anticlockwise as it drops to the centre and
     // keeps turning while it is pushed toward the camera.
     // Not in block four: that roll stayed on the gem there (270°) and threw
@@ -847,8 +841,9 @@ function TravellingCrystal({
     const maskSpin = TRANSITION_MODE === 'mask' && !fourthIsVisible
       ? Math.PI * 2 * (MASK_SPIN_DESCENT * toCenter + MASK_SPIN_ZOOM * (crystalScreen.preZoom ?? 0))
       : 0
-    groupRef.current.rotation.z = visual.tiltZ + (zSpinRef.current ?? 0) + maskSpin
+    groupRef.current.rotation.z = visual.tiltZ + maskSpin
     // Shared with the hero's crystal light so its rays turn with the gem.
+    // Let the rays follow only a quarter of the fast arrival turn.
     crystalScreen.spin = groupRef.current.rotation.y
     // v4: the liquid lags behind the hand and swings back like water in a
     // bottle. Drag velocity throws it; a soft, under-damped spring brings
@@ -1088,8 +1083,8 @@ export default function PageCrystal({
     const lerp = (from, to) => from + (to - from) * pulseIntensity
     const nextConfig = {
       ...config,
-      // After the preloader hand-off, Glass resumes the original Y/X
-      // tumble. Z-spin is faded out by TravellingCrystal via spinBlendRef.
+      // Growth and idle share the same Y/X rotation; TravellingCrystal
+      // smoothly boosts its speed while the crystal grows.
       autoRotate: !fourthActive && (config.autoRotate !== false),
       rotateSpeed: shouldRotate ? (config.rotateSpeed ?? 0.5) : 0,
       // A stable transmission target avoids a shader/render-target rebuild

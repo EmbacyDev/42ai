@@ -21,9 +21,6 @@ function random(seed = 42) {
 
 const GALAXY_TILT = 1.08
 const GALAXY_FACE_TILT = 0.22
-const SHAPE_CYCLE = 2300
-const CRYSTAL_EXTRA_HOLD = 1500
-const SPHERE_EXTRA_HOLD = 1500
 
 const LINK_LABELS = [
   '2025-04-18', 'OPENNESS', 'LOSS AVERSION', 'NEW ROLE',
@@ -122,13 +119,13 @@ function buildPaths(points, count = 110) {
     const path = [Math.floor(rng() * points.length)]
     const length = 6 + (pathIndex % 4)
     while (path.length < length) {
-      const current = points[path[path.length - 1]].scatter
+      const current = points[path[path.length - 1]].crystal
       let closest = 0
       let closestDistance = Infinity
       for (let sample = 0; sample < 42; sample += 1) {
         const candidate = Math.floor(rng() * points.length)
         if (path.includes(candidate)) continue
-        const next = points[candidate].scatter
+        const next = points[candidate].crystal
         const distance = (current[0] - next[0]) ** 2 + (current[1] - next[1]) ** 2 + (current[2] - next[2]) ** 2
         if (distance < closestDistance) {
           closest = candidate
@@ -219,6 +216,17 @@ const TUNNEL = (() => {
   return galaxies
 })()
 
+// Stable tunnel particles in world space: perspective supplies outward motion.
+const TUNNEL_DUST = (() => {
+  const rng = random(19841)
+  return Array.from({ length: 1100 }, () => {
+    const angle = rng() * TAU
+    const radius = 1.1 + rng() * 8
+    return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius,
+      z: rng() * 36, size: .3 + rng() * .8, hue: rng() }
+  })
+})()
+
 // Deterministic per-slot pick, so a highlight lands on a new point each time.
 const pick = (slot, cycle, count) => Math.floor(Math.abs(Math.sin(slot * 91.7 + cycle * 47.3) * 43758.5) % count)
 
@@ -254,8 +262,9 @@ export default function BehaviorNetworkTransition({ motionRef }) {
     let height = 0
     let dpr = 1
     let frame = 0
-    let loopStart = null
     let chainStart = null
+    let tunnelTravel = 0
+    let previousFrame = null
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect()
@@ -270,27 +279,15 @@ export default function BehaviorNetworkTransition({ motionRef }) {
       // v4: stops while off screen (see the observer below).
       frame = onScreen ? window.requestAnimationFrame(render) : 0
       if (!onScreen) return
+      const dt = previousFrame === null ? 0 : Math.min(.05, (time - previousFrame) / 1000)
+      previousFrame = time
       const stage = motionRef.current?.stage ?? 0
+      if (stage <= 3) tunnelTravel = 0
+      else if (!reduced && !document.hidden) tunnelTravel += dt * (1.2 + 1.8 * smooth(stage - 3))
       const phase = stage / 4
       // Points come in early, so the field is never an empty background.
       const reveal = smooth(stage * 1.8)
       const flight = smooth(stage - 3)
-      if (stage >= 2.99 && loopStart === null) loopStart = time
-      if (stage < 2.5) loopStart = null
-      // Shape loop: crystal → sphere → galaxy. The crystal holds 1.5s longer
-      // than the others before it rebuilds.
-      const elapsed = reduced ? 0 : Math.max(0, time - (loopStart ?? time))
-      // Sphere → crystal → cube (no galaxy). The sphere and the crystal
-      // both hold longer before they rebuild.
-      const durations = [SHAPE_CYCLE + SPHERE_EXTRA_HOLD, SHAPE_CYCLE + CRYSTAL_EXTRA_HOLD, SHAPE_CYCLE]
-      const round = durations[0] + durations[1] + durations[2]
-      let shapeIndex = 0
-      let shapeLocal = elapsed % round
-      while (shapeLocal >= durations[shapeIndex]) {
-        shapeLocal -= durations[shapeIndex]
-        shapeIndex += 1
-      }
-      const shapeHold = durations[shapeIndex] - SHAPE_CYCLE
       context.setTransform(dpr, 0, 0, dpr, 0, 0)
       context.clearRect(0, 0, width, height)
       if (phase <= 0.002) return
@@ -298,44 +295,53 @@ export default function BehaviorNetworkTransition({ motionRef }) {
       const unit = Math.min(width * 0.14, height * 0.18)
       // Push through the loose field, then ease the virtual camera back just
       // enough to reveal that the traversed mass is one of several clusters.
-      const clusterReveal = smooth((flight - .5) / .5)
+      const clusterReveal = smooth((flight - .18) / .62)
       // Step four flies straight into the step-three galaxy and through it:
       // no central galaxy remains, only the ones streaming past at the sides.
-      const cameraPush = flight * 5.4
-      const mainFade = 1 - smooth((flight - .3) / .55)
+      const cameraPush = flight * 8.4
+      const mainFade = 1 - smooth((flight - .72) / .28)
       // Step two: the camera's perspective swings and the field swirls
-      // while it gathers into the sphere.
+      // while it gathers into the crystal.
       const swirl = smooth((stage - 1) / 2) * Math.PI * 0.9
       const rotation = time * 0.000035 + phase * 0.58 + swirl
       const cos = Math.cos(rotation)
       const sin = Math.sin(rotation)
       const assemblyShown = smooth((stage - 1) / 2)
+      if (clusterReveal > .001) {
+        // Keep the shared light background visible through the tunnel.
+        const focal = Math.min(width, height) * .8
+        for (const star of TUNNEL_DUST) {
+          const z = .35 + ((star.z - tunnelTravel * 3) % 36 + 36) % 36
+          const far = z + .12 + flight * .55
+          const x = width*.5 + star.x*focal/z
+          const y = height*.4 + star.y*focal/z
+          const tailX = width*.5 + star.x*focal/far
+          const tailY = height*.4 + star.y*focal/far
+          const alpha = clusterReveal * (1-smooth((z-26)/10)) * smooth(z/.8)
+          context.strokeStyle = star.hue > .8 ? `rgba(0,0,0,${alpha*.6})` : `rgba(0,0,0,${alpha*.65})`
+          context.lineWidth = star.size * Math.min(1.7, 3/z)
+          context.beginPath(); context.moveTo(tailX, tailY); context.lineTo(x, y); context.stroke()
+        }
+      }
       const projected = FIELD.map((point, index) => {
-        const shapes = ['sphere', 'crystal', 'cube']
-        const from = shapes[shapeIndex]
-        const to = shapes[(shapeIndex + 1) % 3]
-        // Same 0.9s rebuild; each figure now holds 0.5s longer.
-        const morph = smooth((shapeLocal - shapeHold - 216) / 900)
-        // Gathers over the whole of step two (stage 1 → 3).
         const assembly = smooth((stage - 1) / 2)
-        // While the galaxy is shown the field stops turning edge-on: the
-        // spin around the vertical axis eases back to a frontal view.
-        const galaxyWeight = from === 'galaxy' ? 1 - morph : to === 'galaxy' ? morph : 0
-        const wrapped = Math.atan2(sin, cos)
-        const turn = wrapped * (1 - galaxyWeight * assemblyShown)
+        const turn = rotation + assemblyShown * (0.7 + (reduced ? 0 : time * .000075))
         const tc = Math.cos(turn)
         const ts = Math.sin(turn)
         const xyz = point.scatter.map((value, axis) => {
-          const shape = mix(point[from][axis], point[to][axis], morph)
-          return mix(mix(value * .66, shape, assembly), point.clusters[axis], clusterReveal)
+          const shape = point.crystal[axis]
+          return mix(value * .66, shape, assembly)
         })
         const [rawX, rawY, rawZ] = xyz
-        const x = rawX * tc + rawZ * ts
-        const z = -rawX * ts + rawZ * tc - cameraPush
-        const perspective = 5.8 / Math.max(1.6, 5.8 + z)
+        const tilt = assemblyShown * (.55 + (reduced ? 0 : Math.sin(time * .00018) * .5))
+        const tiltedY = rawY * Math.cos(tilt) - rawZ * Math.sin(tilt)
+        const tiltedZ = rawY * Math.sin(tilt) + rawZ * Math.cos(tilt)
+        const x = rawX * tc + tiltedZ * ts
+        const z = -rawX * ts + tiltedZ * tc - cameraPush
+        const perspective = 5.8 / Math.max(.12, 5.8 + z)
         return {
           x: width * 0.5 + x * unit * perspective,
-          y: height * 0.38 + rawY * unit * perspective,
+          y: height * 0.38 + tiltedY * unit * perspective,
           z,
           perspective,
           point,
@@ -343,7 +349,7 @@ export default function BehaviorNetworkTransition({ motionRef }) {
         }
       })
 
-      // The relation lines keep drawing while the sphere forms.
+      // The relation lines keep drawing while the crystal forms.
       const linkStage = smooth(stage - 1) * (1 - smooth(stage - 3))
       context.lineWidth = Math.max(0.55, width / 1900)
       context.font = `${Math.max(6.5, width / 190)}px 'Geist Mono', monospace`
@@ -357,7 +363,7 @@ export default function BehaviorNetworkTransition({ motionRef }) {
         for (let index = 31; index < projected.length; index += 89) {
           const item = projected[index]
           if (!pointVisible(item.point, reveal)) continue
-          context.fillStyle = `rgba(232, 242, 250, ${(labelStage * .32).toFixed(3)})`
+          context.fillStyle = `rgba(0,0,0, ${(labelStage * .32).toFixed(3)})`
           context.fillText(LINK_LABELS[index % LINK_LABELS.length], item.x + 7, item.y - 7)
         }
         const bigFont = `${Math.max(10, width / 108)}px 'Geist Mono', monospace`
@@ -372,7 +378,7 @@ export default function BehaviorNetworkTransition({ motionRef }) {
           if (item.x < 60 || item.x > width - 180 || item.y < 50 || item.y > height - 60) continue
           highlighted.set(index, life * labelStage)
           context.font = bigFont
-          context.fillStyle = `rgba(255, 255, 255, ${(life * labelStage).toFixed(3)})`
+          context.fillStyle = `rgba(0,0,0, ${(life * labelStage).toFixed(3)})`
           context.fillText(LINK_LABELS[(index + slot) % LINK_LABELS.length], item.x + 12, item.y - 12)
         }
         context.font = `${Math.max(6.5, width / 190)}px 'Geist Mono', monospace`
@@ -401,18 +407,42 @@ export default function BehaviorNetworkTransition({ motionRef }) {
           const opacity = linkStage * fade * (foreground ? 1 : .35)
           if (opacity < .02) continue
           const drawn = local / segment
-          context.strokeStyle = `rgba(236, 246, 255, ${(.62 * opacity * settle).toFixed(3)})`
+          context.strokeStyle = `rgba(0,0,0, ${(.62 * opacity * settle).toFixed(3)})`
           context.lineWidth = Math.max(.8, width / 1400)
+          context.save()
+          context.lineJoin = 'round'
+          context.lineCap = 'round'
+          context.shadowColor = 'rgba(0,0,0, .95)'
+          context.shadowBlur = 9 * opacity
           context.beginPath()
+          let pulse = null
           for (let step = 0; step < path.points.length - 1; step += 1) {
             const grow = clamp01(drawn - step)
             if (grow <= 0) break
             const a = projected[path.points[step]]
             const b = projected[path.points[step + 1]]
             if (step === 0) context.moveTo(a.x, a.y)
-            context.lineTo(mix(a.x, b.x, grow), mix(a.y, b.y, grow))
+            // Curved segments still pass through each neuron, keeping the
+            // broken chain readable while the signal travels continuously.
+            const bend = Math.sin(chain * 1.7 + step) * .12
+            const cx = (a.x + b.x) * .5 - (b.y - a.y) * bend
+            const cy = (a.y + b.y) * .5 + (b.x - a.x) * bend
+            const px = (1-grow)**2*a.x + 2*(1-grow)*grow*cx + grow*grow*b.x
+            const py = (1-grow)**2*a.y + 2*(1-grow)*grow*cy + grow*grow*b.y
+            context.quadraticCurveTo(mix(a.x, cx, grow), mix(a.y, cy, grow), px, py)
+            if (grow < 1) pulse = { x: px, y: py }
+
           }
           context.stroke()
+          if (pulse) {
+            const glow = context.createRadialGradient(pulse.x, pulse.y, 0, pulse.x, pulse.y, 15)
+            glow.addColorStop(0, `rgba(0,0,0,${opacity})`)
+            glow.addColorStop(.2, `rgba(0,0,0,${opacity*.8})`)
+            glow.addColorStop(1, 'rgba(0,0,0,0)')
+            context.fillStyle = glow
+            context.fillRect(pulse.x-15, pulse.y-15, 30, 30)
+          }
+          context.restore()
           path.points.forEach((pointIndex, step) => {
             const lit = smooth(drawn - step) * fade * (foreground ? 1 : .45)
             const flare = lit * (1 - .5 * smooth((local - path.points.length * segment - 600) / 1400))
@@ -420,7 +450,7 @@ export default function BehaviorNetworkTransition({ motionRef }) {
           })
           if (foreground && local > path.points.length * segment) {
             const tail = projected[path.points[path.points.length - 1]]
-            context.fillStyle = `rgba(255, 255, 255, ${(opacity * settle * .9).toFixed(3)})`
+            context.fillStyle = `rgba(0,0,0, ${(opacity * settle * .9).toFixed(3)})`
             context.fillText(LINK_LABELS[chain % LINK_LABELS.length], tail.x + 9, tail.y - 9)
           }
         }
@@ -445,7 +475,7 @@ export default function BehaviorNetworkTransition({ motionRef }) {
         const solid = item.index % 6 === 0
         const base = solid ? 1 : 0.42 + item.point.size * 0.32
         context.globalAlpha = Math.min(1, edgeFade * (base + lit))
-        context.fillStyle = solid || lit > .2 ? '#ffffff' : item.index % 7 === 0 ? '#d6fff5' : item.index % 5 === 0 ? '#efe0ff' : '#e9f3ff'
+        context.fillStyle = '#000000'
         const triangleRotation = time * .00016 + item.index * 1.73
         // Step one's crystals are 1.2× smaller; from step two on the
         // usual size returns.
@@ -455,12 +485,12 @@ export default function BehaviorNetworkTransition({ motionRef }) {
           // A wide, soft halo rather than a visible disc.
           const halo = triangleSize * 8
           const glow = context.createRadialGradient(item.x, item.y, 0, item.x, item.y, halo)
-          glow.addColorStop(0, `rgba(255,255,255,${(.3 * lit).toFixed(3)})`)
-          glow.addColorStop(.35, `rgba(255,255,255,${(.1 * lit).toFixed(3)})`)
-          glow.addColorStop(1, 'rgba(255,255,255,0)')
+          glow.addColorStop(0, `rgba(0,0,0,${(.3 * lit).toFixed(3)})`)
+          glow.addColorStop(.35, `rgba(0,0,0,${(.1 * lit).toFixed(3)})`)
+          glow.addColorStop(1, 'rgba(0,0,0,0)')
           context.fillStyle = glow
           context.fillRect(item.x - halo, item.y - halo, halo * 2, halo * 2)
-          context.fillStyle = '#ffffff'
+          context.fillStyle = '#000000'
         }
         context.beginPath()
         // Our hexagonal crystal as the particle, not a triangle.
@@ -480,21 +510,21 @@ export default function BehaviorNetworkTransition({ motionRef }) {
       // over the screen and grow past the camera, like a tunnel of them.
       const tunnel = clusterReveal
       if (tunnel > .01) {
-        const travel = reduced ? 0 : time * 0.000055
+        const travel = tunnelTravel / 30
         for (const galaxy of TUNNEL) {
           const p = (galaxy.offset + travel) % 1
-          const depth = mix(16, .9, p)
+          const depth = mix(30, .35, p)
           const scale = 5.8 / depth
           // Far away they are only a faint haze; they gain brightness as
           // they come closer instead of arriving already white.
-          const alpha = tunnel * smooth(p / .55) * smooth(p / .55) * (1 - smooth((p - .84) / .14))
+          const alpha = tunnel * smooth(p / .2) * (1 - smooth((p - .96) / .04))
           if (alpha < .01) continue
           // Spread across the whole width, so clusters also pass close to
           // the left and right edges; kept off the copy at the bottom.
           // Even-random spread over the whole screen, drifting outward as
           // they come closer.
-          const cx = width * .5 + galaxy.bx * width * (.44 + .05 * scale)
-          const cy = height * .44 + galaxy.by * height * (.4 + .05 * scale)
+          const cx = width * .5 + galaxy.bx * unit * 4 * scale
+          const cy = height * .4 + galaxy.by * unit * 3 * scale
           const r = unit * .75 * galaxy.size * scale
           // Clusters passing over the copy (centre, lower part) dim there,
           // so the text stays readable.
@@ -515,10 +545,13 @@ export default function BehaviorNetworkTransition({ motionRef }) {
             const z1 = -px * sy0 + pz * cy0
             const y2 = py * ct - z1 * stt
             const z2 = py * stt + z1 * ct
-            const depthScale = 1 / (1 + z2 * 0.45)
-            return [cx + x1 * r * depthScale, cy + y2 * r * depthScale, depthScale]
+            const pointDepth = depth + z2 * .75 * galaxy.size
+            if (pointDepth < .2) return [-10000, -10000, 0]
+            const depthScale = depth / pointDepth
+            return [width*.5 + (cx - width*.5 + x1*r)*depthScale,
+              height*.4 + (cy - height*.4 + y2*r)*depthScale, depthScale]
           }
-          context.fillStyle = '#ffffff'
+          context.fillStyle = '#000000'
           for (const point of galaxy.points) {
             const [x, y, depthScale] = project(point)
             if (x < -10 || x > width + 10 || y < -10 || y > height + 10) continue

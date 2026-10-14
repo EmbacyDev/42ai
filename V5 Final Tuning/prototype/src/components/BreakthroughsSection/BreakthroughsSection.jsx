@@ -1,7 +1,6 @@
 import AnimatedHeading from '../AnimatedHeading.jsx'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import RequestDemoButton from '../RequestDemoButton/RequestDemoButton.jsx'
-import { useSequentialReveal } from '../scrollReveal.js'
 import '../scrollReveal.css'
 import './breakthroughsSection.css'
 
@@ -33,8 +32,6 @@ const DURATION_MS = 1120
 const TRAVEL_AT = 1
 // Forward switch: when the outgoing card reappears on the right.
 const WRAP_AT = 0.42
-const GESTURE_GAP_MS = 190
-const GESTURE_THRESHOLD = 42
 
 function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -61,13 +58,6 @@ function activeHeadingColor(id, t) {
 function smoothRange(value, start, end) {
   const t = Math.min(1, Math.max(0, (value - start) / (end - start)))
   return t * t * (3 - 2 * t)
-}
-
-// Text lags the card: a slow start, then a long ease-out so the heading
-// settles into the active measure instead of arriving with the motion.
-function textEase(phase) {
-  const t = Math.min(1, Math.max(0, (phase - 0.14) / 0.86))
-  return 1 - (1 - t) ** 3
 }
 
 function readMetrics(row) {
@@ -104,10 +94,6 @@ function orderFor(activeId) {
   return [...CARDS.slice(start), ...CARDS.slice(0, start)].map((card) => card.id)
 }
 
-function activeIndex(order) {
-  return CARDS.findIndex((card) => card.id === order[0])
-}
-
 /**
  * Forward: the open card compresses and drifts left while the card taking
  * its place keeps its right-hand neighbors in step. The outgoing card stays
@@ -122,13 +108,10 @@ function sampleForward(fromOrder, toOrder, u, metrics) {
   // early, or it leaves a gap before the next card's left edge arrives.
   const phase = Math.min(1, u / TRAVEL_AT)
   const travel = ease(phase)
-  const text = textEase(phase)
-  const outgoingFade = smoothRange(phase, 0.5, 0.72)
-  const outgoingReturn = smoothRange(phase, 0.8, 1)
-  const outgoingCopyOpacity = 1 - outgoingFade * (1 - outgoingReturn)
+  const text = travel
   const activeContentWidth = Math.max(0, metrics.open - 64)
   const inactiveContentWidth = Math.max(0, metrics.shut - 64)
-  const activeHeadingWidth = Math.min(471, Math.max(0, metrics.open - 136))
+  const activeHeadingWidth = Math.min(430, Math.max(0, metrics.open - 136))
   const inactiveHeadingWidth = Math.min(285, inactiveContentWidth)
   const pose = new Map()
 
@@ -163,7 +146,7 @@ function sampleForward(fromOrder, toOrder, u, metrics) {
           x: outgoingX,
           width: outgoingWidth,
           opacity: 1 - smoothRange(phase, WRAP_AT - 0.22, WRAP_AT),
-          contentOpacity: outgoingCopyOpacity,
+          contentOpacity: 1,
           contentWidth: mix(activeContentWidth, inactiveContentWidth, text),
           headingColor: activeHeadingColor(id, 1 - text),
           headingWidth: mix(activeHeadingWidth, inactiveHeadingWidth, text),
@@ -219,10 +202,10 @@ function sampleReverse(fromOrder, toOrder, u, metrics) {
   const leavingId = fromOrder[0]
   const enteringId = toOrder[0]
   const travel = ease(u)
-  const text = textEase(u)
+  const text = travel
   const activeContentWidth = Math.max(0, metrics.open - 64)
   const inactiveContentWidth = Math.max(0, metrics.shut - 64)
-  const activeHeadingWidth = Math.min(471, Math.max(0, metrics.open - 136))
+  const activeHeadingWidth = Math.min(430, Math.max(0, metrics.open - 136))
   const inactiveHeadingWidth = Math.min(285, inactiveContentWidth)
   const pose = new Map()
 
@@ -272,26 +255,55 @@ function sampleReverse(fromOrder, toOrder, u, metrics) {
   return pose
 }
 
-function applyPose(pose, nodes) {
+const wordMotion = new WeakMap()
+function applyPose(pose, nodes, animateText = true) {
   pose.forEach((style, id) => {
     const el = nodes[id]
     if (!el) return
+    const content = el.querySelector('.breakthroughs-section__card-copy')
+    const heading = content?.querySelector('h3')
+    const layoutChanged = heading && style.headingWidth != null
+      && heading.style.width !== `${style.headingWidth}px`
+    const shouldAnimate = layoutChanged && animateText && style.animateText !== false
+      && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    // Only measure the words at the single reflow, not on every RAF.
+    const titleWords = layoutChanged ? [...el.querySelectorAll('.breakthroughs-section__title-word')] : []
+    const before = shouldAnimate ? titleWords.map(word => ({ x: word.offsetLeft, y: word.offsetTop })) : []
     el.style.transform = `translate3d(${style.x}px, 0, 0)`
     el.style.width = `${style.width}px`
     el.style.opacity = String(style.opacity)
     el.style.zIndex = String(style.z)
-    const content = el.querySelector('.breakthroughs-section__card-copy')
     if (content) {
       content.style.opacity = String(style.contentOpacity ?? 1)
       if (style.contentWidth == null) content.style.removeProperty('width')
       else content.style.width = `${style.contentWidth}px`
     }
-    const heading = content?.querySelector('h3')
     if (heading) {
       if (style.headingColor) heading.style.color = style.headingColor
       else heading.style.removeProperty('color')
       if (style.headingWidth == null) heading.style.removeProperty('width')
       else heading.style.width = `${style.headingWidth}px`
+      heading.style.maxWidth = style.headingWidth == null ? '' : 'none'
+    }
+    if (!animateText || style.animateText === false) {
+      titleWords.forEach(word => {
+        wordMotion.get(word)?.cancel()
+        wordMotion.delete(word)
+      })
+    }
+    if (shouldAnimate) {
+      titleWords.forEach((word, index) => {
+        const previous = before[index]
+        if (Math.abs(previous.y - word.offsetTop) < 1 && Math.abs(previous.x - word.offsetLeft) < 1) return
+        wordMotion.get(word)?.cancel()
+        const dx = previous.x - word.offsetLeft
+        const dy = previous.y - word.offsetTop
+        const animation = word.animate([
+          { transform: `translate(${dx}px, ${dy}px)` },
+          { transform: 'translate(0, 0)' },
+        ], { duration: 560 / 1.2, easing: 'cubic-bezier(.37, 0, .63, 1)' })
+        wordMotion.set(word, animation)
+      })
     }
   })
 }
@@ -301,29 +313,20 @@ function applyLayout(order, metrics, nodes) {
   const pose = new Map()
   order.forEach((id, index) => {
     const slot = placed.get(id)
+    const contentWidth = slot.width - 64
+    const headingCap = index === 0 ? 430 : CARDS.find(card => card.id === id)?.tone === 'teal' ? 251 : 285
     pose.set(id, {
       x: slot.x,
       width: slot.width,
       opacity: 1,
       contentOpacity: 1,
-      contentWidth: null,
+      contentWidth,
       headingColor: null,
-      headingWidth: null,
+      headingWidth: Math.min(headingCap, contentWidth - (index === 0 ? 72 : 64)),
       z: index === 0 ? 3 : 1,
     })
   })
-  applyPose(pose, nodes)
-}
-
-function horizontalWheelDelta(event) {
-  if (event.ctrlKey) return 0
-  const shiftedWheel = event.shiftKey && Math.abs(event.deltaX) < 0.5
-  if (!shiftedWheel && Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return 0
-
-  let delta = shiftedWheel ? event.deltaY : event.deltaX
-  if (event.deltaMode === 1) delta *= 16
-  else if (event.deltaMode === 2) delta *= window.innerWidth
-  return delta
+  applyPose(pose, nodes, false)
 }
 
 function sectionEngaged(row) {
@@ -347,16 +350,14 @@ export default function BreakthroughsSection() {
   const beginRef = useRef(() => false)
   const [order, setOrder] = useState(orderRef.current)
   const [visualActiveId, setVisualActiveId] = useState(orderRef.current[0])
-  // The arrow belongs to the card that is opening, from the moment it
-  // starts to widen, not from when the open state lands at the end.
-  const [arrowId, setArrowId] = useState(orderRef.current[0])
-  useSequentialReveal(rootRef)
+  const [entered, setEntered] = useState(false)
+  const [cardsStarted, setCardsStarted] = useState(false)
+  const [headingReady, setHeadingReady] = useState(false)
 
   const begin = (nextOrder, mode) => {
     if (runningRef.current) return false
     const current = orderRef.current
     if (!nextOrder?.length || nextOrder[0] === current[0]) return false
-    setArrowId(nextOrder[0])
     if (prefersReducedMotion()) {
       orderRef.current = nextOrder
       setOrder(nextOrder)
@@ -406,7 +407,22 @@ export default function BreakthroughsSection() {
           setVisualActiveId(motion.toOrder[0])
         }
       }
-      applyPose(sample(motion.fromOrder, motion.toOrder, u, metrics), nodes)
+      const pose = sample(motion.fromOrder, motion.toOrder, u, metrics)
+      // Reflow exactly once between endpoint layouts; words glide to their
+      // final positions instead of wrapping at every intermediate width.
+      pose.forEach((style, id) => {
+        const incoming = id === motion.toOrder[0]
+        const outgoing = id === motion.fromOrder[0]
+        // The outgoing title stays wide until the card is invisible at
+        // wrap, then adopts its narrow layout before entering from the right.
+        const open = incoming ? u >= .5 : outgoing && u < WRAP_AT
+        style.animateText = incoming
+        const contentWidth = (open ? metrics.open : metrics.shut) - 64
+        const cap = open ? 430 : CARDS.find(card => card.id === id)?.tone === 'teal' ? 251 : 285
+        style.contentWidth = contentWidth
+        style.headingWidth = Math.min(cap, contentWidth - (open ? 72 : 64))
+      })
+      applyPose(pose, nodes)
     }
     draw(0)
 
@@ -446,98 +462,55 @@ export default function BreakthroughsSection() {
   }, [])
 
   useEffect(() => {
-    const wheel = {
-      lastAt: 0,
-      used: false,
-      acc: 0,
-      dir: 0,
-      armed: false,
-    }
-
-    const onWheel = (event) => {
-      const delta = horizontalWheelDelta(event)
-      if (Math.abs(delta) < 0.5) return
-      const now = performance.now()
-      const fresh = now - wheel.lastAt > GESTURE_GAP_MS
-      wheel.lastAt = now
-      if (fresh) {
-        wheel.used = false
-        wheel.acc = 0
-        wheel.dir = 0
-        wheel.armed = sectionEngaged(rowRef.current)
+    let nextAt = performance.now() + 5000
+    const timer = window.setInterval(() => {
+      if (document.hidden || !sectionEngaged(rowRef.current)) {
+        nextAt = performance.now() + 5000
+        return
       }
-      if (!wheel.armed) return
+      if (performance.now() < nextAt || runningRef.current) return
+      const current = orderRef.current
+      beginRef.current([...current.slice(1), current[0]], 'forward')
+      nextAt = performance.now() + 5000
+    }, 100)
+    return () => window.clearInterval(timer)
+  }, [order])
 
-      const direction = delta > 0 ? 1 : -1
-      const index = activeIndex(orderRef.current)
-      const atEdge = (direction > 0 && index >= CARDS.length - 1)
-        || (direction < 0 && index <= 0)
-      if (atEdge && !runningRef.current && !wheel.used) return
-
-      event.preventDefault()
-      if (runningRef.current || wheel.used) return
-      if (wheel.dir !== direction) {
-        wheel.dir = direction
-        wheel.acc = 0
-      }
-      wheel.acc += Math.abs(delta)
-      if (wheel.acc < GESTURE_THRESHOLD) return
-
-      wheel.acc = 0
-      const next = CARDS[index + direction]
-      if (!next) return
-      const started = beginRef.current(
-        orderFor(next.id),
-        direction > 0 ? 'forward' : 'reverse',
-      )
-      if (started) wheel.used = true
-    }
-
-    window.addEventListener('wheel', onWheel, { passive: false, capture: true })
-    return () => window.removeEventListener('wheel', onWheel, { capture: true })
-  }, [])
-
+  // Reveal the row as one surface; endpoint text layouts are already set
+  // in useLayoutEffect, so the narrow cards never animate from wide copy.
   useEffect(() => {
     const row = rowRef.current
     if (!row) return undefined
-    const drag = { x: 0, moved: false, tracking: false }
-
-    const onPointerDown = (event) => {
-      if (event.target.closest('button, a')) return
-      drag.tracking = true
-      drag.moved = false
-      drag.x = event.clientX
-    }
-    const onPointerUp = (event) => {
-      if (!drag.tracking) return
-      drag.tracking = false
-      const dx = event.clientX - drag.x
-      if (Math.abs(dx) < 56) return
-      drag.moved = true
-      const current = orderRef.current
-      const index = activeIndex(current)
-      if (dx < 0) {
-        const next = CARDS[(index + 1) % CARDS.length]
-        beginRef.current(orderFor(next.id), 'forward')
-      } else {
-        const prev = CARDS[(index - 1 + CARDS.length) % CARDS.length]
-        beginRef.current(orderFor(prev.id), 'reverse')
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setEntered(true)
+      else if (entry.boundingClientRect.top > 0) {
+        // Re-arm only when returning above the blog, never on the way to footer.
+        setEntered(false)
+        setCardsStarted(false)
+        setHeadingReady(false)
       }
-    }
-    const onClickCapture = (event) => {
-      if (!drag.moved) return
-      drag.moved = false
-      event.stopPropagation()
-      event.preventDefault()
-    }
+    }, { threshold: 0, rootMargin: `0px 0px -${window.innerHeight * 0.6}px 0px` })
+    observer.observe(rootRef.current)
+    return () => observer.disconnect()
+  }, [])
 
-    row.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('pointerup', onPointerUp)
-    row.addEventListener('click', onClickCapture, true)
+  // A drag is ignored; only an actual click selects a card.
+  useEffect(() => {
+    const row = rowRef.current
+    let start = null
+    const down = event => { start = [event.clientX, event.clientY] }
+    const click = event => {
+      if (start && Math.hypot(event.clientX - start[0], event.clientY - start[1]) > 8) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      start = null
+    }
+    row.addEventListener('pointerdown', down)
+    row.addEventListener('click', click, true)
     return () => {
-      row.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('pointerup', onPointerUp)
-      row.removeEventListener('click', onClickCapture, true)
+      row.removeEventListener('pointerdown', down)
+      row.removeEventListener('click', click, true)
     }
   }, [])
 
@@ -545,39 +518,41 @@ export default function BreakthroughsSection() {
   const activeId = visualActiveId
 
   return (
-    <section className="breakthroughs-section" aria-labelledby="breakthroughs-heading" ref={rootRef}>
+    <section className={`breakthroughs-section${headingReady ? ' is-heading-ready' : ''}`} aria-labelledby="breakthroughs-heading" ref={rootRef}>
       <div className="breakthroughs-section__inner">
         <div className="breakthroughs-section__header">
-          <div className="breakthroughs-section__copy scroll-reveal" data-reveal="0">
+          <div className="breakthroughs-section__copy">
             <p className="breakthroughs-section__eyebrow">Our breakthroughs</p>
-            <AnimatedHeading as="h2" id="breakthroughs-heading">
+            <AnimatedHeading as="h2" id="breakthroughs-heading" speed={1.69 * 1.5} enabled={entered} onRevealStart={() => { setCardsStarted(true); setHeadingReady(false) }} onRevealComplete={() => setHeadingReady(true)}>
               We are building the behavioral
               <br />
-              layer for every future AI system.
+              layer for every future AI system
             </AnimatedHeading>
           </div>
           <RequestDemoButton
             className="breakthroughs-section__cta"
             label="Explore our vision"
             href="#vision"
-            widen={56.022}
+            widen={40.022}
           />
         </div>
 
-        <div className="breakthroughs-section__row" ref={rowRef}>
+        <div className={`breakthroughs-section__row${cardsStarted ? ' is-visible' : ''}`} ref={rowRef}>
           {CARDS.map((source) => {
             const card = byId[source.id]
             const active = card.id === activeId
             return (
               <article
                 key={card.id}
-                className={`breakthroughs-section__card breakthroughs-section__card--${card.tone}${active ? ' is-active' : ''}${card.id === arrowId ? ' has-arrow' : ''}`}
+                style={{ '--entrance-delay': `${50 + CARDS.indexOf(source) * 250}ms` }}
+                className={`breakthroughs-section__card breakthroughs-section__card--${card.tone}${active ? ' is-active' : ''} has-arrow`}
                 ref={(node) => {
                   cardRefs.current[card.id] = node
                 }}
                 aria-current={active || undefined}
                 onClick={() => begin(orderFor(card.id), 'forward')}
                 onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return
                   if (event.key !== 'Enter' && event.key !== ' ') return
                   event.preventDefault()
                   begin(orderFor(card.id), 'forward')
@@ -592,26 +567,21 @@ export default function BreakthroughsSection() {
                     <span>{card.kicker}</span>
                     <span>{card.year}</span>
                   </div>
-                  <AnimatedHeading as="h3">
-                    {card.title.split('\n').map((line, index) => (
-                      <span key={line}>
-                        {index > 0 && <br />}
-                        {line}
-                      </span>
+                  <h3>
+                    {card.title.split(/\s+/).map((word, index) => (
+                      <span key={index}>{index > 0 && ' '}<span className="breakthroughs-section__title-word">{word}</span></span>
                     ))}
-                  </AnimatedHeading>
+                  </h3>
                 </div>
                 <button
                   type="button"
                   className="breakthroughs-section__next"
-                  aria-label="Next breakthrough"
-                  aria-hidden={active ? undefined : true}
-                  tabIndex={active ? 0 : -1}
+                  aria-label={`Read article: ${card.title}`}
+                  disabled={!card.href}
+                  title={card.href ? undefined : 'Article link coming soon'}
                   onClick={(event) => {
                     event.stopPropagation()
-                    const index = activeIndex(order)
-                    const next = CARDS[(index + 1) % CARDS.length]
-                    begin(orderFor(next.id), 'forward')
+                    if (card.href) window.location.assign(card.href)
                   }}
                 >
                   <img src="/images/v2/card-arrow.svg" alt="" width={9} height={14} />

@@ -48,15 +48,13 @@ void main() {
   float n2 = fbm(uv * 2.35 + vec2(n1 * 1.15 - t * 0.4, n1 * 0.72 + t));
   vec2 warped = uv + vec2(n1 - 0.5, n2 - 0.5) * 0.28;
 
-  // Lighter field in the crystal's own colours (it is the crystal's light
-  // spread into a card), not the former deep navy.
-  // The page's own blues, dark: the ocean/steel blue of the blog's teal
-  // card (#2F74A4, #3D8EB8) over a near-black blue that sits next to the
-  // #121212 of the blog and footer. No green.
-  vec3 deep = vec3(0.043, 0.078, 0.125);    // #0B1420
-  vec3 blue = vec3(0.118, 0.298, 0.431);    // #1E4C6E
-  vec3 green = vec3(0.239, 0.557, 0.722);   // #3D8EB8 (light patches)
-  vec3 violet = vec3(0.29, 0.416, 0.549);   // #4A6A8C (slate blue)
+  // Third-screen palette; all noise, ray, fog and motion calculations stay intact.
+  // Source colours from crystalFluid: #4DCCAD, #6EB3F5, #DEF7BA,
+  // lavender and ice. Reduce saturated green within the colour mix only.
+  vec3 deep = mix(vec3(0.43, 0.70, 0.96), vec3(0.30, 0.80, 0.68), 0.22);
+  vec3 blue = vec3(0.43, 0.70, 0.96);
+  vec3 green = vec3(0.82, 0.96, 0.95);
+  vec3 violet = vec3(0.73, 0.75, 0.94);
   vec3 color = mix(deep, blue, smoothstep(0.28, 0.78, n1 + uv.y * 0.2));
   color = mix(color, green, smoothstep(0.42, 0.92, n2 - uv.y * 0.3) * 0.85);
   color = mix(color, violet, smoothstep(0.58, 0.95, n1 - uv.x * 0.16) * 0.8);
@@ -105,16 +103,19 @@ void main() {
   // as a swamp), its violet on step three. progress is block five's stage / 4 (step two = 1..3).
   float stage = progress * 4.0;
   float stepTwo = smoothstep(1.1, 1.9, stage);
-  float stepThree = smoothstep(3.0, 3.6, stage);
-  vec3 tint = mix(vec3(0.16, 0.68, 0.34), vec3(0.85, 0.66, 0.94), stepTwo);
-  tint = mix(tint, vec3(0.46, 0.42, 1.0), stepThree);
+  vec3 tint = mix(
+    mix(vec3(0.73, 0.75, 0.94), vec3(0.30, 0.80, 0.68), 0.22),
+    mix(vec3(0.82, 0.96, 0.95), vec3(0.87, 0.97, 0.73), 0.25), stepTwo);
   float tintMask = smoothstep(0.45, 0.85, fbm(warped * 1.2 + vec2(t * 0.4, -t * 0.25)));
   color = mix(color, color + tint * 0.22, tintMask * smoothstep(0.0, 0.3, stage));
   // Only a thin haze now: the grey made the colours read pastel.
-  color = mix(color, vec3(0.30, 0.40, 0.52), fogMask * 0.1);
+  color = mix(color, vec3(0.76, 0.89, 0.94), fogMask * 0.1);
   color *= 0.9 + 0.1 * smoothstep(0.95, 0.18, length(uv));
   color += vec3(0.01, 0.02, 0.03);
   color += (hash(gl_FragCoord.xy + time) - 0.5) / 255.0;
+  // Colour grading only: preserve the existing rays, fog, noise and motion.
+  float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  color = mix(vec3(luminance), color, 0.8) * 0.9;
   gl_FragColor = vec4(color, 1.0);
 }
 `

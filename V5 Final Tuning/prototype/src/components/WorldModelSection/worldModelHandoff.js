@@ -16,7 +16,7 @@ export const MASK_TRANSITION = TRANSITION_MODE === 'mask'
 // whole screen (and to shrink back on the way up).
 // (the reference: the gradient "o" of "You" floods the frame in ~0.3s,
 // accelerating, its picture zooming with it).
-export const MASK_BURST = 0.2
+export const MASK_BURST = 0.72
 // Step 1: cards fade, the gem drops to the centre (spinning anticlockwise).
 export const MASK_DESCENT = 0.7
 export const MASK_CONTENT_EXIT = 0.3

@@ -161,3 +161,13 @@
   font-weight: 450;
   line-height: 1.1;
 }
+
+.prove-section__copy p.prove-section__subtitle {
+  margin-top: 8px;
+  opacity: 0;
+  transition: opacity 450ms ease;
+}
+.prove-section__copy p.prove-section__subtitle.is-visible { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .prove-section__copy p.prove-section__subtitle { transition: none; }
+}

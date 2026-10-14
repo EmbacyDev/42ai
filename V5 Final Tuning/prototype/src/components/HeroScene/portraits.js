@@ -14,6 +14,7 @@ export const portraits = [
   {
     id: 'image-05',
     src: card02,
+    video: { src: '/videos/hero-left-man-hover.mp4', zoom: 1, centerX: .44, centerY: .5, offsetY: 0 },
     rect: { centerX: 250.26596, centerY: 233.34561, width: 211.59442, height: 168.69122 },
     sheet: { w: 237.796875, h: 192.9375 },
     mask: { x: 17.25000, y: 8.80664, w: 211.59442, h: 168.69122 },
@@ -24,6 +25,7 @@ export const portraits = [
   {
     id: 'image-04',
     src: card03,
+    video: { src: '/videos/hero-phone-hover.mp4', zoom: 1, offsetX: -10, centerX: .4, centerY: .5, offsetY: 0 },
     rect: { centerX: 460.44724, centerY: 271.87079, width: 108.89448, height: 89.74158 },
     sheet: { w: 126.484375, h: 106.40625 },
     mask: { x: 12.79688, y: 6.33203, w: 108.89448, h: 89.74158 },
@@ -34,6 +36,7 @@ export const portraits = [
   {
     id: 'image-06',
     src: card01,
+    video: { src: '/videos/hero-people-hover.mp4', zoom: 1.35, centerX: .4, centerY: .35, offsetY: 0 },
     rect: { centerX: 148.68560, centerY: 431.71479, width: 104.12119, height: 90.75769 },
     sheet: { w: 121.71875, h: 106.57422 },
     mask: { x: 12.79688, y: 5.90821, w: 104.12119, h: 90.75769 },
@@ -44,6 +47,7 @@ export const portraits = [
   {
     id: 'image-01',
     src: card04,
+    video: { src: '/videos/hero-man-hover-last4.mp4', zoom: 1.32, centerX: .5, centerY: .5, anchorY: .6, offsetY: 8 },
     rect: { centerX: 993.99249, centerY: 232.27075, width: 171.23378, height: 136.51416 },
     sheet: { w: 188.828125, h: 152.53125 },
     mask: { x: 4.79747, y: 6.00781, w: 171.23378, h: 136.51416 },
@@ -54,6 +58,7 @@ export const portraits = [
   {
     id: 'image-02',
     src: card05,
+    video: { src: '/videos/hero-markets-hover.mp4', zoom: 1.12, centerX: .47, centerY: .46, offsetX: 15, offsetY: 0 },
     rect: { centerX: 1227.39651, centerY: 170.09931, width: 108.89448, height: 89.74158 },
     sheet: { w: 126.484375, h: 106.40625 },
     mask: { x: 4.79302, y: 6.33204, w: 108.89448, h: 89.74158 },
@@ -64,6 +69,7 @@ export const portraits = [
   {
     id: 'image-03',
     src: card06,
+    video: { src: '/videos/hero-robot-hover.mp4', zoom: 1.65, centerX: .47, centerY: .5, offsetX: 18, offsetY: 0 },
     rect: { centerX: 1231.68848, centerY: 441.79453, width: 153.84178, height: 134.09688 },
     sheet: { w: 171.4375, h: 149.06055 },
     mask: { x: 4.79884, y: 5.48242, w: 153.84178, h: 134.09688 },

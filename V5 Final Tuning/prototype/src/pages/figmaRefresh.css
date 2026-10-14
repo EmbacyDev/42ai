@@ -117,7 +117,7 @@
 .hero-content__text { max-width: 534px; font-size: 15px; letter-spacing: -.15px; line-height: 1.45; }
 .hero-content__cta.request-demo {
   --demo-width: 159px;
-  --demo-hover-width: 174.725px;
+  --demo-hover-width: 167.125px;
   --demo-height: 45px;
   --demo-shape-width: 174.725px;
   font-family: var(--font-heading);
@@ -140,22 +140,20 @@
   letter-spacing: .135px;
   text-transform: none;
 }
+/* Keep the backdrop filter on the animated element itself. A translucent
+   parent is a backdrop root, so a child filter cannot sample the video. */
 .hero-label {
   border-radius: 6px;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  background: rgba(236,236,237,.35);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  overflow: hidden;
+  isolation: auto;
   box-shadow: var(--chip-shadow-x, -4px) 2px 8.8px rgba(0,0,0,.06),
     inset -2.73px 2.73px 2.639px rgba(255,255,255,.05);
   color: #000;
 }
-.hero-label::before {
-  inset: 0;
-  clip-path: inset(0 round 6px);
-  background: rgba(236,236,237,.35);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-}
+.hero-label::before { content: none; }
 .hero-label__copy {
   font: 500 13px/1.2 var(--font-body);
   letter-spacing: -.26px;
@@ -181,31 +179,28 @@
   min-width: 0;
 }
 
-/* Hero CTA uses 1.1×, independent of the copy container. */
+/* Hero CTA uses 1.05×, independent of the copy container. */
 .hero-content__cta.request-demo {
-  transform: scale(calc(1.1 / var(--hero-copy-scale, 1)));
+  transform: scale(calc(1.05 / var(--hero-copy-scale, 1)));
   transform-origin: top center;
 }
 
-/* One clipped surface, in the same plane as the text. Negative z-index
-   plus clip-path/backdrop-filter produced an offset ghost in the 3D layer. */
-.hero-label::before {
-  z-index: 0;
-  clip-path: none;
-  border-radius: inherit;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(#fff, #fff);
-  mask-image: linear-gradient(#fff, #fff);
-  transform: translateZ(0);
-}
 .hero-label__copy { position: relative; z-index: 1; }
 
 .site-header__cta.request-demo {
   transform: none;
 }
 
+/* Keep the CTA's right edge anchored and retain width easing alongside
+   its scroll entrance (scroll-reveal otherwise replaces the transition). */
+.prove-section__cta.request-demo {
+  margin-left: auto;
+  transform-origin: right center;
+  transition: width .6s cubic-bezier(.22, 1, .36, 1), opacity .8s ease;
+}
+
 .request-demo:not(.site-header__cta):not(.hero-content__cta) {
-  transform: scale(1.1);
+  transform: scale(1.05);
   transform-origin: center;
   font-family: var(--font-heading);
   font-size: 15px;
@@ -215,7 +210,93 @@
   text-transform: none;
 }
 
+.prove-section__cta.request-demo { transform-origin: right center; }
+@media (prefers-reduced-motion: reduce) {
+  .prove-section__cta.request-demo { transition: none; }
+}
+
 
 /* The labels now live above the light canvas, outside .hero-scene.
    Preserve the text smoothing they previously inherited from it. */
 .hero-labels { -webkit-font-smoothing: antialiased; }
+
+/* Combined with the path morph: 159px rest silhouette → 182.85px hover (+15%). */
+.hero-content__cta .request-demo__shape {
+  width: calc(100% + 15.725px);
+}
+
+/* Match heroCopyLayout: desktop type is 1.1×; compact layouts use 1×.
+   Scale typography and its measure, never the photograph or whole section. */
+:root { --site-type-scale: 1.1; --site-button-scale: 1.05; }
+@media (max-width: 980px) { :root { --site-type-scale: 1; } }
+.physics-behavior-section__state p,
+.physics-behavior-section__copy .physics-behavior-section__lead {
+  font-size: calc(15px * var(--site-type-scale));
+  line-height: 1.45;
+  letter-spacing: -.01em;
+}
+.breakthroughs-section__copy h2 {
+  font-size: calc(42px * var(--site-type-scale));
+  letter-spacing: -.02em;
+}
+.world-model-section__copy,
+.physics-behavior-section__copy h2 {
+  font-size: calc(52px * var(--site-type-scale));
+  letter-spacing: -.02em;
+}
+.physics-behavior-section__copy h2 { width: min(calc(676px * var(--site-type-scale)), 100%); }
+.world-model-section__copy { width: min(calc(780px * var(--site-type-scale)), calc(100vw - 48px)); }
+.physics-behavior-section__state h3,
+.physics-behavior-section__network-copy { font-size: calc(32px * var(--site-type-scale)); letter-spacing: -.02em; }
+.prove-section__copy h2 { font-size: calc(52px * var(--site-type-scale)); }
+.prove-section__copy p {
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -.02em;
+}
+.breakthroughs-section__card h3 { font-size: calc(26px * var(--site-type-scale)); letter-spacing: -.02em; }
+.breakthroughs-section__copy h2 { width: min(calc(628px * var(--site-type-scale)), 100%); max-width: 100%; }
+.physics-behavior-section__eyebrow,
+.physics-behavior-section__copy .physics-behavior-section__eyebrow,
+.physics-behavior-section__state-rail-button,
+.breakthroughs-section__eyebrow,
+.breakthroughs-section__meta { font-size: calc(13px * var(--site-type-scale)); }
+.physics-behavior-section__network-tabs button { font-size: calc(12px * var(--site-type-scale)); }
+.request-demo:not(.site-header__cta):not(.hero-content__cta),
+.block24-section .block24-section__copy .block24-section__more.request-demo {
+  transform: scale(var(--site-button-scale));
+  font-size: 15px;
+  letter-spacing: .15px;
+}
+@media (min-width: 981px) {
+  .block24-section__copy { left: calc(720.5px * var(--block24-scale) - 184.8px); width: 369.6px; }
+  .block24-section .block24-section__title { width: 352px; font-size: 28.6px; letter-spacing: -.286px; }
+  .block24-section__copy .block24-section__category { width: 352px; font-size: 11px; letter-spacing: .55px; }
+  .block24-section__tabs .block24-section__tab { font-size: 16.5px; letter-spacing: -.165px; }
+  .block24-section .block24-section__copy .block24-section__more.request-demo {
+    --demo-width: 148px; --demo-hover-width: 158px;
+    --demo-height: 40px; --demo-shape-width: 151.2px;
+  }
+}
+@media (max-width: 980px) {
+    .breakthroughs-section__copy h2 { font-size: 32px; }
+  .prove-section__copy h2 { font-size: 36px; }
+}
+@media (max-width: 680px) {
+  .world-model-section__copy,
+  .physics-behavior-section__copy h2 { font-size: clamp(28px, 6.4vw, 42px); }
+  .physics-behavior-section__state h3,
+  .physics-behavior-section__network-copy { font-size: 24px; }
+}
+
+/* Learn more matches the header CTA's actual footprint and type size. */
+.block24-section .block24-section__copy .block24-section__more.request-demo {
+  --demo-width: 141px;
+  --demo-hover-width: 154.978px;
+  --demo-height: 40px;
+  --demo-shape-width: 154.978px;
+  transform: none;
+  font-size: 13.5px;
+  line-height: 1.4;
+  letter-spacing: .135px;
+}

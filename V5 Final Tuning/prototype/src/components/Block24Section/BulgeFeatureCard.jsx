@@ -784,7 +784,7 @@ export default function BulgeFeatureCard({
         frameloop={visible ? 'always' : 'never'}
         style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
         performance={{ min: 0.5 }}
-        gl={{ antialias: true, alpha: true, premultipliedAlpha: false, powerPreference: 'high-performance' }}
+        gl={{ antialias: true, alpha: true, premultipliedAlpha: true, powerPreference: 'high-performance' }}
         camera={{ position: [0, 0, 5.55], fov: 35, near: 0.1, far: 20 }}
       >
         <UnifiedSurfaceMesh

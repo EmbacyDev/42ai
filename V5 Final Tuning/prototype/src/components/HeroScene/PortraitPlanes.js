@@ -1,4 +1,6 @@
 import * as THREE from 'three'
+import { createHoverVideo } from './hoverVideo.js'
+import { extendTransparentColors } from '../rendering/extendTransparentColors.js'
 import { alignFieldEdges, placeOnSphere } from './placement.js'
 import { loadHeroCardPhoto } from './rasterizeHeroCard.js'
 
@@ -47,7 +49,15 @@ function planeForRegion(placed, mask, region) {
 }
 
 function textureFromCanvas(canvas) {
-  const texture = new THREE.CanvasTexture(canvas)
+  const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height)
+  extendTransparentColors(pixels.data, canvas.width, canvas.height)
+  // Upload bytes directly: a canvas would erase RGB at zero alpha again.
+  const texture = new THREE.DataTexture(new Uint8Array(pixels.data.buffer), canvas.width, canvas.height)
+  texture.flipY = true
+  texture.generateMipmaps = true
+  texture.minFilter = THREE.LinearMipmapLinearFilter
+  texture.magFilter = THREE.LinearFilter
+  texture.userData.sourceCanvas = canvas
   texture.colorSpace = THREE.SRGBColorSpace
   texture.wrapS = THREE.ClampToEdgeWrapping
   texture.wrapT = THREE.ClampToEdgeWrapping
@@ -149,6 +159,7 @@ function createPlane(item, placed, nearness) {
   mesh.userData.shear = shear
   mesh.userData.restOpacity = item.opacity ?? 1
   mesh.userData.cardId = item.id
+  mesh.userData.hasVideo = Boolean(item.video)
   mesh.userData.shadowMaterial = shadowMaterial
   mesh.userData.cleanMaterial = cleanMaterial
   mesh.userData.uiAnchor = uiAnchor
@@ -180,7 +191,7 @@ function createPlane(item, placed, nearness) {
   return { object: mesh, material, geometry }
 }
 
-export function createPortraitPlanes(items, sphere, onProgress = () => {}) {
+export function createPortraitPlanes(items, sphere, onProgress = () => {}, deferLoad = false, prepareTexture = () => {}) {
   const object = new THREE.Group()
   const meshes = []
   const textures = []
@@ -214,25 +225,39 @@ export function createPortraitPlanes(items, sphere, onProgress = () => {}) {
   // bytes — a fetch that fails still counts (the plane falls back to a
   // flat colour and moves on), so a dropped image can't stall the loading
   // screen forever.
+  let loading = false
+  const hoverVideos = []
   let settledCount = 0
   const reportSettled = () => {
     settledCount += 1
     onProgress(settledCount / items.length)
   }
 
+  const load = () => {
+    if (loading || disposed) return
+    loading = true
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
     const plane = built[i]
     loadHeroCardPhoto(item.src, item)
-      .then(({ photo }) => {
+      .then(async ({ photo }) => {
         if (disposed) return
         const photoTexture = textureFromCanvas(photo)
         cropTextureToRegion(photoTexture, item.sheet, item.crop)
+        // Upload while the intro is still gated, rather than on the first
+        // visible card frame when the crystal is growing.
+        prepareTexture(photoTexture)
         plane.material.map = photoTexture
         plane.material.needsUpdate = true
         plane.object.userData.cleanMaterial.map = photoTexture
         plane.object.userData.cleanMaterial.needsUpdate = true
         textures.push(photoTexture)
+        if (item.video) {
+          const controller = createHoverVideo(plane.object, item, photoTexture)
+          hoverVideos.push({ mesh: plane.object, controller })
+          await controller.ready
+          if (disposed) return
+        }
         reportSettled()
       })
       .catch(() => {
@@ -242,7 +267,12 @@ export function createPortraitPlanes(items, sphere, onProgress = () => {}) {
       })
   }
 
+  }
+  if (!deferLoad) load()
+
   return {
+    load,
+    updateVideo(active, allowed) { hoverVideos.forEach(({ mesh, controller }) => controller.update(active === mesh, allowed && settledCount === items.length)) },
     object,
     meshes,
     byId: new Map(items.map((item, i) => [item.id, built[i].object])),
@@ -288,6 +318,7 @@ export function createPortraitPlanes(items, sphere, onProgress = () => {}) {
     },
     dispose() {
       disposed = true
+      hoverVideos.forEach(({ controller }) => controller.dispose())
       for (const texture of textures) texture.dispose()
       for (const plane of built) {
         const shadow = plane.object.children.find(

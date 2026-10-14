@@ -479,7 +479,7 @@
 .physics-behavior-section__network-tabs button { width: 36px; height: 22px; padding: 0; border: 0; border-radius: 57px; background: transparent; color: rgba(255,255,255,.84); font: 500 12px/1.2 'Geist Mono', monospace; cursor: pointer; }
 .physics-behavior-section__network-tabs button[aria-selected="true"] { background: #ffffff; color: #121212; }
 
-.physics-behavior-section__copy { position: absolute; top: 144px; gap: 16px; }
+.physics-behavior-section__copy { position: absolute; top: 184px; gap: 16px; }
 .physics-behavior-section__state-rail { top: 42%; left: 7%; opacity: var(--physics-rail-visible); }
 .physics-behavior-section__state { top: 59%; left: 72%; width: min(270px, 24vw); }
 @media (max-width: 900px) {
@@ -511,7 +511,7 @@
 
 @media (max-width: 680px) {
   .physics-behavior-section__copy {
-    top: 116px;
+    top: 156px;
     width: calc(100vw - 32px);
   }
 
@@ -582,7 +582,7 @@
   .physics-behavior-section__state p { font-size: 14px; }
 }
 @media (max-width: 600px) {
-  .physics-behavior-section__copy { top: 94px; }
+  .physics-behavior-section__copy { top: 134px; }
   .physics-behavior-section__copy h2 { font-size: 28px; }
   .physics-behavior-section__state-rail { top: auto; bottom: 20px; width: calc(100% - 40px); height: auto; flex-direction: row; flex-wrap: wrap; justify-content: center; }
   .physics-behavior-section__state { top: 65%; left: 48%; width: 47%; }
@@ -708,4 +708,52 @@
   max-width: 680px;
   margin-right: auto;
   margin-left: auto;
+}
+
+/* Keep the third step's authored two-line break at the shared type scale. */
+.physics-behavior-section__network-copy--three {
+  max-width: 900px;
+}
+
+/* Figma 778:1784 — the light resolves into this exact, un-scrambled title. */
+.physics-behavior-section__copy { gap: 24px; }
+.physics-behavior-section__copy .physics-behavior-section__eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 8px 20px;
+  border-radius: 57px;
+  background: #f0f1f2;
+  color: #121212;
+  font-size: 13px;
+  backdrop-filter: blur(15px);
+}
+.physics-behavior-section__copy h2 {
+  width: min(676px, 100%);
+  font-size: 52px;
+  line-height: 1.2;
+  letter-spacing: -1.04px;
+  font-feature-settings: 'salt' 1;
+}
+@media (max-width: 680px) {
+  .physics-behavior-section__copy h2 {
+    font-size: clamp(28px, 6.4vw, 42px);
+    letter-spacing: -.02em;
+  }
+}
+
+/* Light space across all three chapters, with dark foreground detail. */
+.physics-behavior-section__network-copy { color: #000; }
+.physics-behavior-section__network-tabs {
+  border-color: rgb(0 0 0 / 18%);
+  background: rgb(255 255 255 / 40%);
+}
+.physics-behavior-section__network-tabs button { color: #121212; }
+.physics-behavior-section__network-tabs button[aria-selected="true"] {
+  background: #121212; color: #fff;
+}
+.physics-behavior-section__network-tabs button:not([aria-selected="true"]):hover {
+  background: rgb(0 0 0 / 10%);
 }

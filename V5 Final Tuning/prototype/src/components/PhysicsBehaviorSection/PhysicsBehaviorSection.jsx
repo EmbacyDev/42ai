@@ -1,4 +1,5 @@
 import AnimatedHeading from '../AnimatedHeading.jsx'
+import ScrambleText from '../Scramble/ScrambleText.jsx'
 import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import { smootherstep } from '../HeroScene/scrollShrink.js'
@@ -61,12 +62,14 @@ export default function PhysicsBehaviorSection({
     const playhead = { value: 1 }
     let target = 1
     let tween = null
+    let landingCleanup = null
     let locked = false
     let suspended = false
     // v1: upward travel is plain scrolling. The pane keeps whatever state
     // it shows and simply slides away; the steps replay only going down.
     let lastScrollY = window.scrollY
     let lastWheel = -Infinity
+    let facetScrollReadyAt = 0
     // After a 3→4 arrival the heading holds until the next scroll; only
     // that gesture brings the crystal to the centre with its tabs.
     let awaitingStart = false
@@ -198,6 +201,7 @@ export default function PhysicsBehaviorSection({
           window.scrollTo(0, destination)
           lastScrollY = window.scrollY
           locked = false
+          facetScrollReadyAt = performance.now() + 50
           render()
         },
       })
@@ -218,6 +222,7 @@ export default function PhysicsBehaviorSection({
         onComplete: () => {
           playhead.value = 1
           locked = false
+          facetScrollReadyAt = performance.now() + 50
           render()
         },
       })
@@ -239,6 +244,51 @@ export default function PhysicsBehaviorSection({
           locked = false
           awaitingStart = true
           render()
+        },
+      })
+    }
+    const flyToSolutions = () => {
+      const destination = document.querySelector('.solutions-section')
+      if (!destination || locked) return
+      locked = true
+      tween?.kill()
+      // Keep the live sixth screen, including selected tabs and images.
+      // Its placeholder preserves the scroll track while it flies in front
+      // of the still-running space canvas.
+      const placeholder = document.createElement('div')
+      placeholder.style.height = `${destination.getBoundingClientRect().height}px`
+      placeholder.setAttribute('aria-hidden', 'true')
+      destination.before(placeholder)
+      destination.classList.add('solutions-section--approaching')
+      const approach = { value: 0 }
+      const drawApproach = () => {
+        const p = approach.value
+        // Perspective grows slowly in the distance and rapidly near us.
+        const scale = 1 / (1 + 5.5 * (1 - p))
+        destination.style.setProperty('--approach-scale', String(scale))
+        destination.style.setProperty('--approach-opacity', String(Math.min(1, p / .12)))
+        destination.style.setProperty('--approach-radius', `${32 * (1 - smootherstep(clamp01((p - .7) / .3)))}px`)
+      }
+      landingCleanup = () => {
+        destination.classList.remove('solutions-section--approaching')
+        destination.style.removeProperty('--approach-scale')
+        destination.style.removeProperty('--approach-opacity')
+        destination.style.removeProperty('--approach-radius')
+        placeholder.remove()
+        landingCleanup = null
+      }
+      drawApproach()
+      tween = gsap.to(approach, {
+        value: 1,
+        duration: reduced ? .01 : 2.2,
+        ease: 'sine.inOut',
+        onUpdate: drawApproach,
+        onComplete: () => {
+          const y = placeholder.getBoundingClientRect().top + window.scrollY
+          landingCleanup?.()
+          window.scrollTo(0, y)
+          lastScrollY = window.scrollY
+          locked = false
         },
       })
     }
@@ -278,7 +328,11 @@ export default function PhysicsBehaviorSection({
         }
         return true
       }
-      if (!locked && fresh && ((target === 7 && direction > 0) || (target === 1 && direction < 0))) return false
+      if (target === 7 && direction > 0) {
+        event.preventDefault()
+        if (!locked && fresh) flyToSolutions()
+        return true
+      }
       event.preventDefault()
       if (!locked && fresh) go(target + direction)
       return true
@@ -286,7 +340,11 @@ export default function PhysicsBehaviorSection({
     const wheel = (event) => {
       if (event.ctrlKey || Math.abs(event.deltaY) < 1 || event.defaultPrevented) return
       const now = performance.now()
-      const fresh = now - lastWheel > 220
+      // Facets accept continuing wheel input after a short rest, but never
+      // queue input received during the animation or advance without input.
+      const fresh = !awaitingStart && target >= 1 && target <= 4
+        ? now >= facetScrollReadyAt
+        : now - lastWheel > 220
       lastWheel = now
       consume(Math.sign(event.deltaY), event, fresh)
     }
@@ -348,9 +406,30 @@ export default function PhysicsBehaviorSection({
       playhead.value = 0
       awaitingStart = true
       lastWheel = performance.now()
-      holdUntil = lastWheel + 1250
+      holdUntil = lastWheel + 1900
       render()
     }
+    const navigate = (event) => {
+      const applications = event.detail?.destination === '#applications'
+      const step = applications ? 7 : event.detail?.step === 5 ? 5 : 0
+      tween?.kill()
+      landingCleanup?.()
+      suspended = false
+      locked = false
+      holdUntil = 0
+      awaitingStart = step === 0
+      target = step || 1
+      playhead.value = step
+      facetScrollReadyAt = performance.now() + 50
+      const destination = applications ? document.getElementById('applications') : null
+      const y = destination
+        ? window.scrollY + destination.getBoundingClientRect().top
+        : top() + (step === 5 ? 4 * stride() : 0)
+      lastScrollY = y
+      window.scrollTo({ top: y, behavior: 'instant' })
+      render()
+    }
+    window.addEventListener('42ai-navigate-physics', navigate)
     window.addEventListener('wheel', wheel, { passive: false, capture: true })
     window.addEventListener('touchstart', touchStart, { passive: true })
     window.addEventListener('touchmove', touchMove, { passive: false })
@@ -362,7 +441,9 @@ export default function PhysicsBehaviorSection({
     scroll()
     return () => {
       tween?.kill()
+      landingCleanup?.()
       liquid.remove()
+      window.removeEventListener('42ai-navigate-physics', navigate)
       window.removeEventListener('wheel', wheel, { capture: true })
       window.removeEventListener('touchstart', touchStart)
       window.removeEventListener('touchmove', touchMove)
@@ -383,15 +464,8 @@ export default function PhysicsBehaviorSection({
     >
       <div ref={panelRef} className="physics-behavior-section__sticky">
         <div ref={copyRef} className="physics-behavior-section__copy">
-          <p className="physics-behavior-section__eyebrow">Technology</p>
-          <AnimatedHeading as="h2" id="physics-behavior-heading">
-            Modeling the physics that shape behavior.
-          </AnimatedHeading>
-          <p className="physics-behavior-section__lead">
-            Bringing together psychology, psychiatry, biology and neuroscience, we
-            identified the foundational drivers of behavior - and build an AI that
-            truly understands humans.
-          </p>
+          <p className="physics-behavior-section__eyebrow">Our thesis</p>
+          <h2 id="physics-behavior-heading">Behavior has learnable rules</h2>
         </div>
 
         <ol className="physics-behavior-section__state-rail" aria-label="Behavior model layers">
@@ -410,7 +484,7 @@ export default function PhysicsBehaviorSection({
                 className="physics-behavior-section__state-rail-button"
                 onClick={() => glideToRestRef.current(restIndex)}
               >
-                <span>{label}</span>
+                <span><ScrambleText text={label} /></span>
               </button>
             </li>
           ))}
@@ -420,8 +494,7 @@ export default function PhysicsBehaviorSection({
           <div>
             <AnimatedHeading as="h3">Foundational traits</AnimatedHeading>
             <p>
-              Stable behavioral drivers that shape decision-making. They remain
-              consistent over time.
+              We’re born with <strong>hundreds of foundational traits</strong> that constantly interact and conflict, shaping how we experience and learn from the world.
             </p>
           </div>
         </article>
@@ -430,8 +503,7 @@ export default function PhysicsBehaviorSection({
           <div>
             <AnimatedHeading as="h3">Personal Interpretation</AnimatedHeading>
             <p>
-              People react to their perception of events. The same event can mean
-              different things.
+              Over time, that learning builds <strong>our personality and intuition</strong> for the world.
             </p>
           </div>
         </article>
@@ -440,8 +512,7 @@ export default function PhysicsBehaviorSection({
           <div>
             <AnimatedHeading as="h3">Personal Context</AnimatedHeading>
             <p>
-              Experience and environment shape how behavior is expressed. Context
-              influences outcomes.
+              Together with our mood and circumstances, they shape how we <strong>interpret and respond to each new event</strong>.
             </p>
           </div>
         </article>
@@ -450,8 +521,7 @@ export default function PhysicsBehaviorSection({
           <div>
             <AnimatedHeading as="h3">The Event</AnimatedHeading>
             <p>
-              Stable behavioral drivers that shape decision-making. They remain
-              consistent over time.
+              Over three years, 42AI combined AI, behavioral science, psychiatry, and genetics to model these layers, creating the first-ever World Model that internalizes <strong>the rules of behavior.</strong>
             </p>
           </div>
         </article>
@@ -473,15 +543,15 @@ export default function PhysicsBehaviorSection({
         <div className="physics-behavior-section__network" aria-hidden="true">
           <NetworkLightShader motionRef={networkMotionRef} />
           <BehaviorNetworkTransition motionRef={networkMotionRef} />
-          <p className="physics-behavior-section__network-copy physics-behavior-section__network-copy--one">
+          <AnimatedHeading as="p" maxDurationMs={1800} className="physics-behavior-section__network-copy physics-behavior-section__network-copy--one">
             Inside our world model, each person’s traits, personality, and context come alive.
-          </p>
-          <p className="physics-behavior-section__network-copy physics-behavior-section__network-copy--two">
+          </AnimatedHeading>
+          <AnimatedHeading as="p" maxDurationMs={1800} className="physics-behavior-section__network-copy physics-behavior-section__network-copy--two">
             It models their interactions to predict how that person responds, now and over time.
-          </p>
-          <p className="physics-behavior-section__network-copy physics-behavior-section__network-copy--three">
+          </AnimatedHeading>
+          <AnimatedHeading as="p" maxDurationMs={1800} className="physics-behavior-section__network-copy physics-behavior-section__network-copy--three">
             Connecting millions of human worlds together,<br />creating the foundation for human-aligned AI.
-          </p>
+          </AnimatedHeading>
           <div className="physics-behavior-section__network-tabs" role="tablist" aria-label="World model stages">
             {[1, 2, 3].map(step => <button key={step} data-network-step={step} role="tab" aria-selected="false" onClick={() => glideToRestRef.current(4 + step)}>{step}</button>)}
           </div>

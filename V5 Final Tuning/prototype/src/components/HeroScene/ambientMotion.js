@@ -1,5 +1,6 @@
+import { INTRO_GROW_DELAY, INTRO_GROW_DURATION, introEase } from './preloaderSpin.js'
 import * as THREE from 'three'
-import { easeInOutQuart, fadeProgress, shrinkFactor } from './scrollShrink.js'
+import { easeInOutQuart, smootherstep, fadeProgress, shrinkFactor } from './scrollShrink.js'
 import { sceneConfig } from './sceneConfig.js'
 import { projectDesignPoint } from './placement.js'
 
@@ -13,8 +14,6 @@ const CRYSTAL_ORIGIN = new THREE.Vector3(...sceneConfig.crystal.position)
 // then 1.5s of growth up to the settled hero scale. Shards are built at
 // radius 1, so the group scale is the circumradius. 0.7 of that is inside
 // the faces, not out at a vertex.
-const INTRO_GROW_DELAY = 0.32
-const INTRO_GROW_DURATION = 1.5
 const INTRO_START_SCALE = 0.145
 const INTRO_FULL_SCALE = 0.72
 const CRYSTAL_INRADIUS_RATIO = 0.7
@@ -58,7 +57,7 @@ function crystalInradiusAt(elapsed) {
     0,
     1,
   )
-  const scale = INTRO_START_SCALE + (INTRO_FULL_SCALE - INTRO_START_SCALE) * easeInOutQuart(growT)
+  const scale = INTRO_START_SCALE + (INTRO_FULL_SCALE - INTRO_START_SCALE) * introEase(growT)
   return scale * CRYSTAL_INRADIUS_RATIO
 }
 
@@ -84,7 +83,7 @@ function placeCrystalOrigin(elapsed, camera, vw, vh) {
     0,
     1,
   )
-  const intro = easeInOutQuart(growT)
+  const intro = introEase(growT)
   const anchor = projectDesignPoint(
     sceneConfig.crystal.designCenter[0],
     sceneConfig.crystal.designCenter[1],
@@ -292,7 +291,9 @@ export function updateAmbient(meshes, time, delta, transition) {
       mesh.position.z += hover * 0.06
     }
 
-    mesh.renderOrder = hover > 0.01 ? 18 : 0
+    // All photographs occlude the light beams (orders 1–4), including
+    // inactive neighbours crossed by the selected card's beam.
+    mesh.renderOrder = hover > 0.01 ? 18 : 10
     mesh.material.roughness = 0.82 - hover * 0.24
     mesh.material.envMapIntensity = 0.16 + hover * 0.28 - hoverDim * 0.07
     const baseColor = mesh.userData.baseMaterialColor
@@ -340,7 +341,7 @@ export function updateAmbient(meshes, time, delta, transition) {
       mesh.userData.shadowMaterial.opacity = entrance.opacity * shadowReveal * sinkFade * presence * restOpacity
     }
     if (mesh.userData.cleanMaterial) {
-      mesh.userData.cleanMaterial.opacity = entrance.opacity * hover * 0.28 * sinkFade * presence
+      mesh.userData.cleanMaterial.opacity = mesh.userData.hasVideo ? 0 : entrance.opacity * hover * 0.28 * sinkFade * presence
     }
   }
 }

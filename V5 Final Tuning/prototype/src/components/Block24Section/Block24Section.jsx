@@ -1,3 +1,5 @@
+import { cardCaption } from './cardCaption.js'
+import ScrambleText from '../Scramble/ScrambleText.jsx'
 import AnimatedHeading from '../AnimatedHeading.jsx'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
@@ -75,63 +77,80 @@ const studioEase = (t) => smootherstep(t)
 const SLIDES = [
   {
     "id": "ai-labs-robotics",
-    "image": "/images/figma/slide-ai.png",
-    "gradient": "/images/figma/gradient-v4-ai.png",
+    "image": "/images/figma/gradient-785-photo-ai-3x.png",
+    "gradient": "/images/figma/gradient-785-ai-3x.png",
     "tab": "AI Labs & Robotics",
     "labelColor": "#121212",
-    "title": "Give AI human intuition and simulate real reactions."
+    "title": "Give AI human intuition\nand simulate real reactions"
   },
   {
     "id": "hedge-funds",
     "image": "/images/figma/slide-hedge.png",
-    "gradient": "/images/figma/gradient-v4-hedge.png",
+    "gradient": "/images/figma/gradient-785-hedge-3x.png",
     "tab": "Hedge Funds & Asset Managers",
     "labelColor": "#121212",
-    "title": "Alternative alpha in human behaviour."
+    "title": "Alternative alpha\nin human behaviour"
   },
   {
     "id": "personalized-ai",
     "image": "/images/figma/slide-personalized.png",
-    "gradient": "/images/figma/gradient-v4-personalized.png",
+    "gradient": "/images/figma/gradient-785-personalized-3x.png",
     "tab": "Personalized AI",
     "labelColor": "#121212",
-    "title": "Know who to target, what to offer, when to say it, and why."
+    "title": "Know who to target, what to offer,\nwhen to say it, and why"
   },
   {
     "id": "brokerages",
     "image": "/images/figma/slide-brokerages.png",
-    "gradient": "/images/figma/gradient-v4-brokerages.png",
+    "gradient": "/images/figma/gradient-785-brokerages-3x.png",
     "tab": "Brokerages & Market Makers",
     "labelColor": "#121212",
-    "title": "Know what every trader will do before they act."
+    "title": "Know what every trader will do\nbefore they act"
   },
   {
     "id": "simulation-decision",
     "image": "/images/figma/slide-simulation.png",
-    "gradient": "/images/figma/gradient-v4-simulation.png",
+    "gradient": "/images/figma/gradient-785-simulation-3x.png",
     "tab": "Simulation & Decision Systems",
     "labelColor": "#121212",
-    "title": "Simulate real human reactions."
+    "title": "Simulate real\nhuman reactions"
   },
   {
     "id": "markets-risk",
     "image": "/images/figma/slide-markets.png",
-    "gradient": "/images/figma/gradient-v4-markets.png",
+    "gradient": "/images/figma/gradient-785-markets-3x.png",
     "tab": "Markets & Risk",
     "labelColor": "#121212",
-    "title": "Predicts financial book’s exposure before it arrives."
+    "title": "Predicts financial book\u2019s exposure\nbefore it arrives"
   },
   {
     "id": "alm-treasury",
     "image": "/images/figma/slide-alm.png",
-    "gradient": "/images/figma/gradient-v4-alm.png",
+    "gradient": "/images/figma/gradient-785-alm-3x.png",
     "tab": "ALM & Treasury",
     "labelColor": "#121212",
-    "title": "Turn the client-side of your balance sheet predictable."
+    "title": "Turn the client-side of your\nbalance sheet predictable"
   }
 ]
 
-const TAB_STEP_DEG = 10
+function HeroPhoto({ slide, ready, leaving = false }) {
+  const [caption, setCaption] = useState(() => cardCaption(slide.tab, true).toDataURL())
+  useEffect(() => {
+    let alive = true
+    Promise.all([document.fonts.load('450 20px "Public Sans"'), document.fonts.load('500 10px "Geist Mono"')]).then(() => {
+      if (alive) setCaption(cardCaption(slide.tab, true).toDataURL())
+    })
+    return () => { alive = false }
+  }, [slide.tab])
+  return (
+    <div className={`block24-section__hero-photo ${leaving ? 'is-leaving' : 'is-entering'}`}>
+      <img src={ready ? slide.image : undefined} alt="" />
+      <img className="block24-section__caption-image" src={caption} alt={`Built for ${slide.tab}`} />
+    </div>
+  )
+}
+
+const TAB_ROW_HEIGHT = 15 * 1.15 + 20
 
 /**
  * Figma Block 24 (node 122:2495), inserted between the hero and the glass
@@ -149,10 +168,12 @@ export default function Block24Section({
   // section's off-screen photo prefetching doesn't compete with the hero's
   // still-loading portraits over the browser's shared connection limit.
   heroReady = true,
+  onImagesReady,
 }) {
   const sectionRef = useRef(null)
   const tabletTabsRef = useRef(null)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [copyIndex, setCopyIndex] = useState(0)
   const [isVisible, setIsVisible] = useState(false)
   const [isExiting, setIsExiting] = useState(false)
   const [contentReady, setContentReady] = useState(false)
@@ -208,6 +229,13 @@ export default function Block24Section({
       return Math.max(pinEnd, docTop) + 2
     }
 
+    const onMaskReady = () => {
+      if (!handoffOn || !flightPending) return
+      flightPending = false
+      killScrollSnaps()
+      window.scrollTo({ top: worldRestScrollY(), behavior: 'instant' })
+    }
+    window.addEventListener('42ai-world-mask-ready', onMaskReady)
     const dispatchHandoff = () => {
       window.dispatchEvent(new CustomEvent(BLOCK24_HANDOFF_EVENT))
     }
@@ -311,7 +339,7 @@ export default function Block24Section({
       }
       handoffTween = gsap.to(handoffProxy, {
         value: next ? 1 : 0,
-        duration: reduceMotion || instant ? 0 : next ? (MASK_TRANSITION ? MASK_DESCENT : STUDIO_HANDOFF_DURATION) : 0.62,
+        duration: reduceMotion || instant ? 0 : next ? (MASK_TRANSITION ? MASK_DESCENT / 2 : STUDIO_HANDOFF_DURATION) : 0.62,
         ease: next ? studioEase : 'power3.in',
         overwrite: true,
         onUpdate: () => {
@@ -396,7 +424,7 @@ export default function Block24Section({
         const fade = { value: 0 }
         contentExitTween = gsap.to(fade, {
           value: 1,
-          duration: MASK_TRANSITION ? MASK_CONTENT_EXIT : CONTENT_EXIT,
+          duration: MASK_TRANSITION ? MASK_CONTENT_EXIT / 2 : CONTENT_EXIT,
           ease: 'none',
           onUpdate: () => section.style.setProperty('--block24-exit-content', fade.value.toFixed(4)),
         })
@@ -407,12 +435,8 @@ export default function Block24Section({
             // bursts out of it (WorldModelSection, MASK_BURST). The page
             // jumps to block three only once that covers the screen.
             // The gem is in the centre once its descent has finished.
-            gsap.delayedCall(MASK_DESCENT, dispatchHandoff),
-            gsap.delayedCall(MASK_DESCENT + MASK_PRE_ZOOM + MASK_BURST + 0.03, () => {
-              flightPending = false
-              killScrollSnaps()
-              window.scrollTo(0, worldRestScrollY())
-            }),
+            gsap.delayedCall(0, dispatchHandoff),
+
           ]
           : [
             gsap.delayedCall(COLOUR_START, dispatchHandoff),
@@ -823,6 +847,13 @@ export default function Block24Section({
     }
 
     const onReturnedHome = (event) => {
+      // A return invalidates every pending completion from the previous
+      // forward flight, even if handoffOn was already cleared by the pin.
+      handoffDelays.forEach(call => call.kill())
+      handoffDelays = []
+      flightPending = false
+      handoffScrollTween?.kill()
+      contentExitTween?.kill()
       // v4: back on block two from three — upward scrolling is held for a
       // moment, so one long flick cannot carry on straight to the hero.
       returnHoldUntil = performance.now() + RETURN_HOLD_MS
@@ -867,6 +898,7 @@ export default function Block24Section({
       window.clearTimeout(settleTimer)
       window.removeEventListener('scroll', handleScroll)
       window.removeEventListener('resize', handleResize)
+      window.removeEventListener('42ai-world-mask-ready', onMaskReady)
       window.removeEventListener('wheel', handleWheel, { capture: true })
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener(BLOCK24_RETURN_EVENT, onReturnedHome)
@@ -881,14 +913,21 @@ export default function Block24Section({
   // never waits on a fresh decode while the current photo is hidden.
   useEffect(() => {
     if (!heroReady) return
-    SLIDES.forEach((slide) => {
+    let cancelled = false
+    const images = SLIDES.map(slide => {
       const image = new Image()
       image.src = slide.image
-      image.decode?.().catch(() => {})
+      return image.decode().catch(() => {})
     })
-  }, [heroReady])
+    // Include the page's mounted static imagery before opening the video stage.
+    images.push(...Array.from(document.images, image => image.decode().catch(() => {})))
+    Promise.allSettled(images).then(() => { if (!cancelled) onImagesReady?.() })
+    return () => { cancelled = true }
+  }, [heroReady, onImagesReady])
 
   const activeSlide = SLIDES[activeIndex]
+  const copySlide = SLIDES[copyIndex]
+
   const outgoingSlide = flight ? SLIDES[flight.outgoing] : null
   const tabCycleCenter = Math.floor(wheelTargetRef.current / SLIDES.length)
   const virtualTabs = [-1, 0, 1].flatMap((cycleOffset) => {
@@ -920,8 +959,9 @@ export default function Block24Section({
     )
     wheelTargetRef.current += wheelStep
     activeIndexRef.current = nextIndex
+    setCopyIndex(nextIndex)
     const nextFlight = {
-      id: now,
+      id: now + 150,
       direction,
       outgoing: currentIndex,
     }
@@ -986,7 +1026,7 @@ export default function Block24Section({
         const delta = slot - wheel.value
         const distance = Math.abs(delta)
         const windowFade = Math.min(1, Math.max(0, (3.45 - distance) / 0.4))
-        el.style.transform = `translateY(-50%) rotateX(${(-delta * TAB_STEP_DEG).toFixed(3)}deg) translateZ(var(--tab-radius))`
+        el.style.transform = `translateY(calc(-50% + ${delta * TAB_ROW_HEIGHT}px * var(--block24-scale)))`
         el.classList.toggle('is-front', distance < 0.45)
         el.style.opacity = windowFade.toFixed(3)
         el.style.pointerEvents = windowFade < 0.35 ? 'none' : 'auto'
@@ -1055,16 +1095,16 @@ export default function Block24Section({
     }
     section.style.setProperty('--block24-card-motion', '0')
 
-    const timeline = gsap.timeline({ onComplete: finish })
+    const timeline = gsap.timeline({ delay: Math.max(0, (flight.id - performance.now()) / 1000), onComplete: finish })
     const incomingSwapAt = BLOCK24_CARD_TRANSITION_DURATION
       * BLOCK24_CARD_PHASES.photoEnd
 
-    timeline.set(heroIn, { opacity: 0 }, 0)
-    timeline.set(heroOut, { opacity: 1, clipPath: 'none', filter: 'blur(0px)' }, 0)
+    timeline.set(heroIn, { opacity: 0, filter: 'none' }, 0)
+    timeline.set(heroOut, { opacity: 1, filter: 'blur(0px)' }, 0)
     // The outgoing photo softens into blur as the next card approaches,
     // then melts away underneath it: no white gap, no hard cut.
     timeline.to(heroOut, {
-      filter: 'blur(14px)',
+      filter: 'none',
       duration: BLOCK24_CARD_TRANSITION_DURATION * 0.24,
       ease: 'power2.in',
     }, BLOCK24_CARD_TRANSITION_DURATION * 0.3)
@@ -1125,7 +1165,7 @@ export default function Block24Section({
             <button key={slide.id} type="button" role="tab" aria-selected={activeIndex === index}
               disabled={isExiting || !contentReady || Boolean(flight)}
               onClick={() => selectSlide(index, false, index >= activeIndex ? 'next' : 'previous')}>
-              {slide.tab}
+              <ScrambleText text={slide.tab} />
             </button>
           ))}
         </div>
@@ -1147,7 +1187,7 @@ export default function Block24Section({
                 className={`block24-section__tab${isActiveVirtual ? ' is-front' : ''}`}
                 aria-selected={isActiveVirtual}
                 tabIndex={Math.abs(virtualSlot - wheelTargetRef.current) <= 4 ? 0 : -1}
-                disabled={isExiting || !contentReady || Boolean(flight)}
+                disabled={isExiting || !contentReady}
                 onClick={() => {
                   const wheelStep = virtualSlot - wheelTargetRef.current
                   selectSlide(
@@ -1166,23 +1206,8 @@ export default function Block24Section({
         </div>
 
         <div className="block24-section__hero">
-          {outgoingSlide && (
-            <img
-              // v4: keyed by the slide, so the photo already on screen
-              // becomes the leaving one — no fresh element that takes a frame
-              // to appear (the first card blinked right there).
-              key={outgoingSlide.id}
-              className="block24-section__hero-photo is-leaving"
-              src={heroReady ? outgoingSlide.image : undefined}
-              alt=""
-            />
-          )}
-          <img
-            key={activeSlide.id}
-            className="block24-section__hero-photo is-entering"
-            src={heroReady ? activeSlide.image : undefined}
-            alt=""
-          />
+          {outgoingSlide && <HeroPhoto key={outgoingSlide.id} slide={outgoingSlide} ready={heroReady} leaving />}
+          <HeroPhoto key={activeSlide.id} slide={activeSlide} ready={heroReady} />
           <button
             className="block24-section__glass"
             type="button"
@@ -1221,17 +1246,16 @@ export default function Block24Section({
         <div className="block24-section__edge-frost" aria-hidden="true" />
 
         <div
-          key={activeSlide.id}
+          key={copySlide.id}
           className="block24-section__copy"
         >
-          {/* v4: the longest name breaks after "Built for"; the rest stay on one line. */}
-          <p className="block24-section__category">
-            Built for{activeSlide.id === 'simulation-decision' ? <br /> : ' '}{activeSlide.tab}
-          </p>
-          <AnimatedHeading as="h2" className="block24-section__title">{activeSlide.title}</AnimatedHeading>
+          <p className="block24-section__category">Product application</p>
+          <AnimatedHeading as="h2" reveal="words" maxDurationMs={1200} className="block24-section__title">{copySlide.title.split('\n').map((line, i) => <span className="block24-section__authored-line" key={i}>{line}</span>)}</AnimatedHeading>
           <RequestDemoButton
             className="block24-section__more"
+            widen={-9}
             label="Learn more"
+            preserveCase
             fit="stretch"
           />
         </div>

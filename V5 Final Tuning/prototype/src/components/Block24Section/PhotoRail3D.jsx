@@ -1,3 +1,4 @@
+import { cardCaption } from './cardCaption.js'
 import {
   Suspense,
   useCallback,
@@ -31,7 +32,7 @@ const SIDE_CENTER_X = FIRST_CARD_LEFT + CARD_WIDTH / 2
 // Keep the primary optical hinge just beside the active card. Centering it in
 // the whole gap pushed the bulge too far right and produced an S-shaped panel.
 const CAMERA_FOV = 35
-export const BLOCK24_CARD_TRANSITION_DURATION = 1.4
+export const BLOCK24_CARD_TRANSITION_DURATION = 1.7 / 1.5
 export const BLOCK24_CARD_PHASES = Object.freeze({
   exitEnd: 0.16,
   transitionStart: 0.16,
@@ -173,6 +174,8 @@ const vertexShader = /* glsl */ `
 
 const fragmentShader = /* glsl */ `
   uniform sampler2D uTexture;
+  uniform sampler2D uPhotoLabel;
+  uniform float uCornerRadius;
   uniform sampler2D uGradientTexture;
   uniform float uGradientMix;
   uniform float uGradientSeed;
@@ -233,7 +236,8 @@ const fragmentShader = /* glsl */ `
   }
 
   float roundedBox(vec2 uv, float radius, float feather) {
-    vec2 q = abs(uv - 0.5) - vec2(0.5 - radius);
+    vec2 aspect = vec2(1.0, 368.0 / 310.0);
+    vec2 q = abs(uv - 0.5) * aspect - (aspect * 0.5 - vec2(radius));
     float distanceToEdge = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
     return 1.0 - smoothstep(-feather, feather, distanceToEdge);
   }
@@ -366,11 +370,15 @@ const fragmentShader = /* glsl */ `
     vec4 labelSample = texture2D(uLabel, vUv);
     // The name leaves in the first half of the dissolve, before the photo
     // starts to resolve, so it never ghosts over the picture.
-    color = mix(color, labelSample.rgb, labelSample.a * smoothstep(0.55, 1.0, uGradientMix));
+    vec4 photoLabel = texture2D(uPhotoLabel, vUv);
+    // Mix premultiplied captions: a single name changes colour, never ghosts.
+    float a = mix(photoLabel.a, labelSample.a, uGradientMix);
+    vec3 ink = mix(photoLabel.rgb * photoLabel.a, labelSample.rgb * labelSample.a, uGradientMix);
+    color = color * (1.0 - a) + ink;
 
     float rounded = roundedBox(
       vUv,
-      0.026,
+      mix(8.0 / 310.0, 8.0 / 227.0, uGradientMix),
       0.0022
     );
     // Reserve a clean breathing gap beside the active DOM card. As the rail
@@ -416,38 +424,16 @@ function wrapLabelLines(ctx, text, maxWidth) {
   return lines
 }
 
-function createInactiveLabelTexture(text, color) {
-  const ratio = 6
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.round(CARD_WIDTH * ratio)
-  canvas.height = Math.round(CARD_HEIGHT * ratio)
-  const ctx = canvas.getContext('2d')
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  const fontSize = 18 * ratio
-  ctx.font = `450 ${fontSize}px "Public Sans", sans-serif` // Figma: Public Sans Medium at 450
-  ctx.fillStyle = color
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  if ('letterSpacing' in ctx) ctx.letterSpacing = `${-0.36 * ratio}px`
-  const lines = wrapLabelLines(ctx, text, 153 * ratio)
-  const lineHeight = fontSize * 1.15
-  const originY = canvas.height / 2 - ((lines.length - 1) * lineHeight) / 2
-  lines.forEach((line, index) => {
-    ctx.fillText(line, canvas.width / 2, originY + index * lineHeight)
-  })
-  const texture = new THREE.CanvasTexture(canvas)
+function captionTexture(text, photo) {
+  const texture = new THREE.CanvasTexture(cardCaption(text, photo))
   texture.colorSpace = THREE.SRGBColorSpace
-  // Drawn at 4× and shown at ~1×: mipmaps keep the downscaled glyphs
-  // smooth instead of shimmering into pixels.
-  texture.generateMipmaps = true
-  texture.minFilter = THREE.LinearMipmapLinearFilter
-  texture.magFilter = THREE.LinearFilter
   texture.anisotropy = 8
-  texture.needsUpdate = true
   return texture
 }
+const createInactiveLabelTexture = text => captionTexture(text, false)
+const createPhotoLabelTexture = text => captionTexture(text, true)
 
-function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, labelTexture, register }) {
+function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, labelTexture, photoLabelTexture, cornerRadius, register }) {
   const uniforms = useMemo(() => ({
     uTexture: { value: texture },
     uGradientTexture: { value: gradientTexture },
@@ -475,6 +461,8 @@ function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, labelTextu
     uLayoutScale: { value: 1 },
     uHeroPass: { value: 0 },
     uLabel: { value: labelTexture },
+    uPhotoLabel: { value: photoLabelTexture },
+    uCornerRadius: { value: cornerRadius },
   }), [])
 
   const meshRef = useRef(null)
@@ -488,7 +476,9 @@ function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, labelTextu
     live.uGradientTexture.value = gradientTexture
     live.uGradientSeed.value = gradientSeed
     live.uLabel.value = labelTexture
-  }, [texture, gradientTexture, gradientSeed, labelTexture, uniforms])
+    live.uPhotoLabel.value = photoLabelTexture
+    live.uCornerRadius.value = cornerRadius
+  }, [texture, gradientTexture, gradientSeed, labelTexture, photoLabelTexture, cornerRadius, uniforms])
 
   return (
     <mesh
@@ -526,10 +516,15 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
     [slides, labelRevision],
   )
 
+  const photoLabels = useMemo(() => slides.map(slide => createPhotoLabelTexture(slide.tab)), [slides, labelRevision])
+  useEffect(() => () => photoLabels.forEach(texture => texture.dispose()), [photoLabels])
   useEffect(() => {
     let alive = true
-    const ready = document.fonts?.load?.('450 72px \"Public Sans\"')
-      ?? Promise.resolve()
+    const ready = Promise.all([
+      document.fonts.load('450 72px "Public Sans"'),
+      document.fonts.load('493.75 72px "TT Hoves Pro Trial"'),
+      document.fonts.load('500 12px "Geist Mono"'),
+    ])
     ready.then(() => {
       if (alive) setLabelRevision((value) => value + 1)
     })
@@ -544,10 +539,10 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
 
   const { gl: rendererForUpload } = useThree()
   useEffect(() => {
-    ;[...textures, ...gradientTextures, ...labelTextures].forEach((texture) => {
+    ;[...textures, ...gradientTextures, ...labelTextures, ...photoLabels].forEach((texture) => {
       rendererForUpload.initTexture(texture)
     })
-  }, [rendererForUpload, textures, gradientTextures, labelTextures])
+  }, [rendererForUpload, textures, gradientTextures, labelTextures, photoLabels])
   const cardRefs = useRef(new Map())
   const progressRef = useRef(1)
   const timeRef = useRef(0)
@@ -829,6 +824,8 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
         texture={textures[slideIndex]}
         gradientTexture={gradientTextures[slideIndex]}
         labelTexture={labelTextures[slideIndex]}
+        photoLabelTexture={photoLabels[slideIndex]}
+        cornerRadius={slides[slideIndex].id === 'personalized-ai' ? 8 : 5.874}
         gradientSeed={(slideIndex + 1) * 1.371}
         register={register}
       />
@@ -857,7 +854,7 @@ export default function PhotoRail3D({
         gl={{
           alpha: true,
           antialias: true,
-          premultipliedAlpha: false,
+          premultipliedAlpha: true,
           powerPreference: 'high-performance',
         }}
         style={{ width: '100%', height: '100%', pointerEvents: 'none' }}

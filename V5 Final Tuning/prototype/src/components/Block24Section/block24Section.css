@@ -294,11 +294,6 @@
   fill: #f0f1f2;
 }
 
-.block24-section__title span:not(.appear-word):not(.appear-char) {
-  display: block;
-  white-space: nowrap;
-}
-
 .block24-section__sr-copy {
   position: absolute;
   width: 1px;
@@ -442,4 +437,148 @@
     font-size: 12.27px;
     letter-spacing: 0.6135px;
   }
+}
+
+/* Figma 756:1592: photo caption, typography and card geometry. */
+.block24-section__hero { border-radius: calc(12px * var(--block24-scale)); }
+.block24-section__hero-photo {
+  overflow: hidden;
+  clip-path: inset(0 round calc(12px * var(--block24-scale)));
+}
+.block24-section__hero-photo > img {
+  display: block; width: 100%; height: 100%; object-fit: cover;
+}
+.block24-section__photo-blur {
+  position: absolute; inset: 0; pointer-events: none;
+  backdrop-filter: blur(calc(11.45px * var(--block24-scale)));
+  mask-image: linear-gradient(to bottom, transparent 75.68%, #000 100%);
+}
+.block24-section__photo-shade {
+  position: absolute; inset: auto 0 0; height: 29.9%; pointer-events: none;
+  background: linear-gradient(transparent, rgb(0 0 0 / 30%));
+}
+.block24-section__hero-photo .block24-section__category {
+  position: absolute; top: 85.6%; left: 50%; transform: translateX(-50%);
+  width: 78.71%; color: white; text-align: center; margin: 0;
+  font-size: calc(12px * var(--block24-scale)); line-height: 1.2;
+  letter-spacing: calc(.6px * var(--block24-scale));
+}
+.block24-section__glass { opacity: 0; }
+.block24-section__glass:focus-visible { opacity: 1; }
+@media (min-width: 981px) {
+  .block24-section__tab {
+    font-size: calc(16px * var(--block24-scale)); font-weight: 500;
+    letter-spacing: calc(-.16px * var(--block24-scale));
+  }
+  .block24-section__title {
+    margin: 0 calc(-10px * var(--block24-scale));
+    width: calc(386px * var(--block24-scale));
+    font-size: calc(26px * var(--block24-scale)); line-height: 1.17;
+    letter-spacing: calc(-.26px * var(--block24-scale));
+    font-feature-settings: "salt" 1;
+  }
+}
+.block24-section .block24-section__copy .block24-section__more.request-demo {
+  transform: none;
+  --demo-width: calc(148px * var(--block24-scale));
+  --demo-hover-width: calc(158px * var(--block24-scale));
+  --demo-height: calc(40px * var(--block24-scale));
+  --demo-shape-width: calc(151.2px * var(--block24-scale));
+  margin-top: calc(32px * var(--block24-scale));
+  font-family: "Public Sans", sans-serif; font-weight: 500;
+  font-size: calc(13.5px * var(--block24-scale)); line-height: 1.4;
+  letter-spacing: calc(.135px * var(--block24-scale)); text-transform: none;
+}
+
+.block24-section__title-line { display: block; white-space: nowrap; }
+
+/* Copy stays within the photograph; longer headings can use three rows. */
+.block24-section .block24-section__title {
+  width: min(100%, calc(var(--b24-card-w, 310) * 1px * var(--block24-scale)));
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  text-wrap: balance;
+}
+.block24-section__hero-photo .block24-section__category {
+  opacity: 1;
+  transition: opacity .4s ease;
+}
+.block24-section--card-flight .block24-section__hero-photo.is-entering .block24-section__category {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .block24-section__hero-photo .block24-section__category { transition: none; }
+}
+
+.block24-section__tabs .block24-section__tab { letter-spacing: -.02em; }
+.block24-section__tabs .block24-section__tab:not(:disabled):hover { color: #121212; }
+
+/* Figma 785:1946 — clear photo, uniform dimming, centred title. */
+.block24-section__hero-photo {
+  border-radius: calc(8px * var(--block24-scale));
+  clip-path: inset(0 round calc(8px * var(--block24-scale)));
+}
+.block24-section__photo-shade { inset: 0; height: 100%; background: rgb(0 0 0 / 20%); }
+.block24-section__hero-photo .block24-section__category {
+  top: 40.2174%; left: 50%; width: 71.2903%;
+  display: flex; flex-direction: column; gap: calc(12px * var(--block24-scale));
+  transform: translateX(-50%); margin: 0; opacity: 1; transition: none;
+  text-transform: none;
+}
+.block24-section__built-for {
+  font: 500 calc(10px * var(--block24-scale))/1.2 'Geist Mono', monospace;
+  letter-spacing: calc(.5px * var(--block24-scale)); text-transform: uppercase; opacity: .7;
+}
+.block24-section__photo-title {
+  font: 450 calc(21px * var(--block24-scale))/1.15 'Public Sans', sans-serif;
+  letter-spacing: calc(-.42px * var(--block24-scale)); font-feature-settings: 'salt' 1;
+}
+.block24-section--card-flight .block24-section__hero-photo.is-entering .block24-section__category { opacity: 1; }
+.block24-section__tabs .block24-section__tab { font-size: max(13px, calc(15px * var(--block24-scale))); }
+.block24-section__tabs .block24-section__tab:hover { color: #121212; }
+
+.block24-section__hero-photo > .block24-section__caption-image { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* Figma 789:1954 — desktop type frames and spacing. */
+@media (min-width: 981px) {
+  .block24-section__hero { border-radius: calc(8px * var(--block24-scale)); }
+  .block24-section__copy {
+    left: calc(552.5px * var(--block24-scale));
+    width: calc(336px * var(--block24-scale));
+  }
+  .block24-section__copy .block24-section__category {
+    width: calc(320px * var(--block24-scale)); margin: 0 auto;
+    font-size: calc(10px * var(--block24-scale)); line-height: 1.2;
+    letter-spacing: calc(.5px * var(--block24-scale)); opacity: .7;
+  }
+  .block24-section .block24-section__title {
+    width: calc(320px * var(--block24-scale));
+    margin: calc(16px * var(--block24-scale)) auto 0;
+    font-size: calc(26px * var(--block24-scale)); line-height: 1.13;
+    letter-spacing: calc(-.26px * var(--block24-scale));
+  }
+  .block24-section__tabs .block24-section__tab {
+    left: calc(28px * var(--block24-scale)); width: calc(247px * var(--block24-scale));
+    font-size: calc(15px * var(--block24-scale)); font-weight: 500;
+    line-height: 1.15; letter-spacing: calc(-.15px * var(--block24-scale));
+  }
+  .block24-section .block24-section__copy .block24-section__more.request-demo {
+    --demo-width: calc(148px * var(--block24-scale));
+    --demo-hover-width: calc(158px * var(--block24-scale));
+    --demo-shape-width: calc(151.2px * var(--block24-scale));
+    --demo-height: calc(40px * var(--block24-scale));
+    font-size: calc(13.5px * var(--block24-scale));
+    letter-spacing: calc(.135px * var(--block24-scale));
+  }
+}
+
+/* Keep authored line breaks and normal glyph kerning; no 3D compression of the menu. */
+.block24-section__tabs-drum { transform: none; }
+.block24-section__tabs { perspective: none; }
+.block24-section .block24-section__title .block24-section__authored-line {
+  display: block;
+  max-width: 100%;
+  white-space: normal;
+  text-wrap: balance;
 }

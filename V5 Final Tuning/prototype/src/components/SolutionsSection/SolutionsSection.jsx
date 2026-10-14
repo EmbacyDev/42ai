@@ -29,10 +29,10 @@ const SOLUTIONS = [
     label: 'Hedge Funds',
     icon: hedgeFundsIcon,
     rows: [
-      'See the balance sheet before it moves.',
-      'Predict deposits, withdrawals, draws and repayments.',
-      'Stress-test behavior through rate and market shocks.',
-      'Forecast client liquidity and hedge demand.',
+      'Forecast trader flow before it reaches the market.',
+      'Predict instrument, direction, timing and size.',
+      'Simulate reactions to shocks and new information.',
+      'Turn human behavior into alternative alpha.',
     ],
   },
   {
@@ -275,7 +275,7 @@ export default function SolutionsSection() {
         <AnimatedHeading as="h2" id="solutions-heading" className="solutions-section__title">
           Universal solution for human
           <br />
-          and agentic behaviour.
+          and agentic behaviour
         </AnimatedHeading>
         <p className="solutions-section__lead">
           One behavioral intelligence engine for your high-value environments.
@@ -351,11 +351,9 @@ export default function SolutionsSection() {
                 aria-hidden={!active}
                 style={{ '--solutions-panel-direction': direction }}
               >
-                <ul>
-                  {solution.rows.map((row) => (
-                    <li key={row}>{row}</li>
-                  ))}
-                </ul>
+                <AnimatedHeading as="ul" reveal="characters" enabled={active} speed={1 / 1.3} lineDurationMs={225} lineStaggerMs={100}>
+                  {solution.rows.map((row, rowIndex) => <li key={row} style={{ '--row-delay': `${rowIndex * 130}ms` }}>{row}</li>)}
+                </AnimatedHeading>
                 <RequestDemoButton
                   className="solutions-section__more"
                   label="Show more"

@@ -3,6 +3,7 @@ import * as THREE from 'three'
 export function startRenderLoop({ renderer, scene, camera, element, update }) {
   let frame = 0
   let running = true
+  let animationTime = 0
   const timer = new THREE.Timer()
 
   const tick = () => {
@@ -10,7 +11,9 @@ export function startRenderLoop({ renderer, scene, camera, element, update }) {
     frame = requestAnimationFrame(tick)
     timer.update()
     const delta = Math.min(timer.getDelta(), 0.05)
-    update(timer.getElapsed(), delta)
+    if (document.hidden) return
+    animationTime += delta
+    update(animationTime, delta)
     renderer.render(scene, camera)
   }
 

@@ -1,3 +1,4 @@
+import { INTRO_GROW_DELAY } from './preloaderSpin.js'
 import * as THREE from 'three'
 import { createScene } from './createScene.js'
 import { createCrystal } from './Crystal.js'
@@ -56,6 +57,8 @@ export function mountHeroScene({
   onReady = () => {},
   onContentReveal = () => {},
   canReveal = () => true,
+  canLoadImages = () => true,
+  canLoadVideos = () => true,
   // Reads a ref's `.current` (heroTransition.js's pin progress) each
   // frame — a plain function rather than the value itself, since this
   // render loop reads it fresh every frame rather than re-running
@@ -86,7 +89,7 @@ export function mountHeroScene({
       assetsReadyPending = true
       onAssetsReady()
     }
-  })
+  }, true, texture => sceneApi.renderer.initTexture(texture))
 
   // Small while it's alone on the loading screen, growing to full size as
   // the rest of the hero arrives — the same "settle into place" beat as
@@ -98,8 +101,8 @@ export function mountHeroScene({
   // the result still comes out right.
   const CRYSTAL_LOADING_SCALE = 0.55
   const CRYSTAL_REVEAL_DURATION = 1.5
-  // Cards launch from the small crystal as soon as the scene is ready.
-  const CRYSTAL_SOLO_DURATION = 0
+  // Cards launch 300ms after the crystal starts growing.
+  const CRYSTAL_SOLO_DURATION = INTRO_GROW_DELAY + 0.3
   // A longer rest-to-rest flight gives each card enough time to accelerate
   // and visibly brake. The tighter stagger keeps the sequence feeling like
   // one composed burst rather than six separate slow animations.
@@ -128,7 +131,7 @@ export function mountHeroScene({
   const photoQuad = (card) => {
     if (card.userData.maskQuad !== undefined) return card.userData.maskQuad
     const map = card.material.map
-    const image = map?.image
+    const image = map?.userData.sourceCanvas ?? map?.image
     if (!image?.getContext) return null
     card.geometry.computeBoundingBox()
     const box = card.geometry.boundingBox
@@ -293,13 +296,14 @@ export function mountHeroScene({
   const projectedCenter = new THREE.Vector3()
   // How long the crystal keeps glancing at one card on its own, and how
   // long it waits after a real hover before it starts again.
-  const AUTO_HOLD_MIN = 1.7
-  const AUTO_HOLD_MAX = 2.8
-  const AUTO_IDLE = 2.4
+  const AUTO_HOLD = 4
+  const AUTO_IDLE = 2
   let userHovered = null
   let autoCard = null
+  // Reading → Predicting → Modeling → Optimizing → Personalizing → Simulating.
+  const autoCardOrder = ['image-05', 'image-02', 'image-06', 'image-01', 'image-04', 'image-03']
+  let nextAutoCardIndex = 0
   let autoUntil = 0
-  let userHoverIdleSince = null
 
   const projectedCardAt = (clientX, clientY, rect) => {
     let best = null
@@ -388,13 +392,12 @@ export function mountHeroScene({
       autoCard = null
       return
     }
-    let next = cards[Math.floor(Math.random() * cards.length)]
-    if (cards.length > 1 && next === autoCard) {
-      const others = cards.filter((mesh) => mesh !== autoCard)
-      next = others[Math.floor(Math.random() * others.length)]
-    }
+    const next = cards.find(mesh => mesh.userData.cardId === autoCardOrder[nextAutoCardIndex])
+    // Wait for the next card to settle without skipping ahead in the cycle.
+    if (!next) return
     autoCard = next
-    autoUntil = time + AUTO_HOLD_MIN + Math.random() * (AUTO_HOLD_MAX - AUTO_HOLD_MIN)
+    nextAutoCardIndex = (nextAutoCardIndex + 1) % autoCardOrder.length
+    autoUntil = time + AUTO_HOLD
   }
 
   const publishActiveCard = (mesh, fromUser = false) => {
@@ -569,6 +572,7 @@ export function mountHeroScene({
     camera: sceneApi.camera,
     element,
     update(time, delta) {
+      if (canLoadImages()) planes.load()
       const transitionProgress = getTransitionProgress()
       const transitionClamped = Math.min(Math.max(transitionProgress, 0), 1)
       if (transitionClamped > 0.001) hasLeftHero = true
@@ -586,7 +590,7 @@ export function mountHeroScene({
       }
       if (assetsReadyPending && canReveal()) {
         assetsReadyPending = false
-        // Start the card burst together with the crystal reveal.
+        // Schedule the card burst relative to the crystal intro.
         portraitRevealAt = time + CRYSTAL_SOLO_DURATION
         crystalRevealStart = time
         introReadyAt = time
@@ -648,18 +652,18 @@ export function mountHeroScene({
       const heroLightOn = (contentReleased || lightLaunched) && transitionClamped <= 0.001
       if (heroLightVisible && userHovered) {
         activeCard = userHovered
-        userHoverIdleSince = time
-        autoCard = null
-      } else if (
-        heroLightVisible
-        && (userHoverIdleSince == null || time - userHoverIdleSince >= AUTO_IDLE)
-      ) {
+        // Pause automatic switching, not playback: the hovered card remains
+        // selected for two seconds after the pointer leaves.
+        autoCard = userHovered
+        autoUntil = time + AUTO_IDLE
+      } else if (heroLightVisible) {
         if (!autoCard || time >= autoUntil || autoCard.userData.reveal) pickAutoCard(time)
         activeCard = autoCard
       } else {
         autoCard = null
       }
       userHoverLight = null
+      planes.updateVideo(activeCard, canLoadVideos())
       publishActiveCard(activeCard, Boolean(activeCard) && activeCard === userHovered)
       heroLightState.hover = userHoverLight
       heroLightState.inHero = heroLightOn
@@ -671,7 +675,7 @@ export function mountHeroScene({
       // card the v3 way. heroLight.js only draws the rays behind the crystal.
       updateAmbient(planes.meshes, time, delta, {
         progress: transitionProgress,
-        introElapsed: introReadyAt == null ? null : time - introReadyAt,
+        introElapsed: introReadyAt == null ? null : (skipCrystal ? crystalScreen.introElapsed : time - introReadyAt),
         camera: sceneApi.camera,
         viewport,
       })

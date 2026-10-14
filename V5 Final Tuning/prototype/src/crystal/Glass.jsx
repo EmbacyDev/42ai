@@ -1,3 +1,4 @@
+import { introAngularVelocity } from './introAngularVelocity.js'
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import BeamPullGroup from './BeamPullGroup.jsx'
@@ -6,7 +7,7 @@ import { crystalScreen } from '../components/HeroScene/crystalScreen.js'
 import { Billboard, MeshTransmissionMaterial } from '@react-three/drei'
 import * as THREE from 'three'
 import { buildShards } from './shards.js'
-import { facetBeamState, FACET_STEP_TILT_X, FACET_DETACH_START } from './facetBeamState.js'
+import { facetBeamState, FACET_STEP_TILT_X, FACET_STEP_TURN_Y, FACET_DETACH_START } from './facetBeamState.js'
 import ColorCore from './ColorCore.jsx'
 import PhotoBackdrop from './PhotoBackdrop.jsx'
 import { parseMediaList } from './mediaList.js'
@@ -4052,32 +4053,47 @@ function buildFacetSurface(shard, offset, shape) {
   return geometry
 }
 
-// A detached pane with some body: the stylised face plus a back face and
-// three side walls, so it reads as a thick piece of glass, not a sheet.
-// The walls carry the barycentrics of their two edge corners, so the light
-// shader draws them as lit edges.
+// Rounded triangular outline with a physical bevel on both glass faces.
 function buildFacetPrism(shard, offset, shape, thickness) {
   const top = buildFacetSurface(shard, offset, shape)
-  const p = top.attributes.position
   const normal = new THREE.Vector3(...shard.direction).normalize()
-  const t = [0, 1, 2].map(i => new THREE.Vector3().fromBufferAttribute(p, i))
-  const b = t.map(v => v.clone().addScaledVector(normal, -thickness))
-  const bary = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-  const pos = []
-  const bc = []
-  const push = (v, w) => { pos.push(v.x, v.y, v.z); bc.push(...w) }
-  ;[0, 1, 2].forEach(i => push(t[i], bary[i]))
-  ;[0, 2, 1].forEach(i => push(b[i], bary[i]))
-  for (let i = 0; i < 3; i += 1) {
-    const j = (i + 1) % 3
-    push(t[i], bary[i]); push(t[j], bary[j]); push(b[j], bary[j])
-    push(t[i], bary[i]); push(b[j], bary[j]); push(b[i], bary[i])
+  const corners = [0, 1, 2].map(i => new THREE.Vector3().fromBufferAttribute(top.attributes.position, i))
+  const center = corners[0].clone().add(corners[1]).add(corners[2]).divideScalar(3)
+  const axisX = corners[1].clone().sub(corners[0]).normalize()
+  const axisY = normal.clone().cross(axisX).normalize()
+  const points = corners.map(p => {
+    const v = p.clone().sub(center)
+    return new THREE.Vector2(v.dot(axisX), v.dot(axisY))
+  })
+  const outline = new THREE.Shape()
+  points.forEach((corner, i) => {
+    const enter = corner.clone().lerp(points[(i + 2) % 3], .09)
+    const leave = corner.clone().lerp(points[(i + 1) % 3], .09)
+    if (i === 0) outline.moveTo(enter.x, enter.y)
+    else outline.lineTo(enter.x, enter.y)
+    outline.quadraticCurveTo(corner.x, corner.y, leave.x, leave.y)
+  })
+  outline.closePath()
+  const bevel = .018
+  const geometry = new THREE.ExtrudeGeometry(outline, {
+    depth: thickness - bevel * 2, steps: 1, curveSegments: 8,
+    bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 4,
+  })
+  const pos = geometry.attributes.position
+  const barycentrics = []
+  const point = new THREE.Vector3()
+  const bary = new THREE.Vector3()
+  for (let i = 0; i < pos.count; i++) {
+    point.copy(center).addScaledVector(axisX, pos.getX(i))
+      .addScaledVector(axisY, pos.getY(i))
+      .addScaledVector(normal, pos.getZ(i) - thickness + bevel)
+    pos.setXYZ(i, point.x, point.y, point.z)
+    THREE.Triangle.getBarycoord(point, ...corners, bary)
+    barycentrics.push(bary.x, bary.y, bary.z)
   }
-  top.dispose()
-  const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-  geometry.setAttribute('aBarycentric', new THREE.Float32BufferAttribute(bc, 3))
+  geometry.setAttribute('aBarycentric', new THREE.Float32BufferAttribute(barycentrics, 3))
   geometry.computeVertexNormals()
+  top.dispose()
   return geometry
 }
 
@@ -4436,6 +4452,14 @@ function FeaturedFacet({ shard, state, config, motionRef }) {
     y = 1.45 * faceWorld.y * reach
     z = .24 + Math.max(0, faceWorld.z) * .3
     facetScale = .74
+    if (state === 4) {
+      // Leave the visible source face first, then settle below pane three.
+      const settle = smootherstep(Math.min(1, Math.max(0, (progress - .15) / .85)))
+      x += (1.68 - x) * settle
+      y += (-1.34 - profile.offsetY - y) * settle
+      z += (.32 - profile.depth - z) * settle
+      facetScale = .68
+    }
     inverseParentQuaternion.copy(parentQuaternion).invert()
     targetPosition
       .set(
@@ -4760,14 +4784,14 @@ const Glass = forwardRef(function Glass({
     const used = new Set()
     return [1, 2, 3, 4].map(step => {
       // The gem's real pose once this step has turned (PageCrystal).
-      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(FACET_STEP_TILT_X[step - 1], -step * Math.PI / 2, -.04))
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(FACET_STEP_TILT_X[step - 1], FACET_STEP_TURN_Y[step - 1], -.04))
       let best = -Infinity
       let selected = 0
       shards.forEach((shard, index) => {
         if (used.has(index)) return
         const n = new THREE.Vector3(...shard.direction).applyQuaternion(q)
 
-        const up = step === 2 ? -.7 : .6
+        const up = step === 2 || step === 4 ? -.7 : .6
         const score = n.x * .55 + n.y * up + n.z * .55
         if (score > best) { best = score; selected = index }
       })
@@ -4840,10 +4864,13 @@ const Glass = forwardRef(function Glass({
   useEffect(() => () => tripleOpenSolid.dispose(), [tripleOpenSolid])
   useEffect(() => () => quadOpenSolid.dispose(), [quadOpenSolid])
 
+  const motionTimeRef = useRef(0)
   useFrame((state, delta) => {
+    delta = document.hidden ? 0 : Math.min(delta, 0.05)
+    motionTimeRef.current += delta
     photoBackdropRef.current?.update(Math.min(delta, 0.05))
     if (!group.current) return
-    const t = state.clock.elapsedTime
+    const t = motionTimeRef.current
     const fourthFrameLocked = Boolean(
       rotationLockRef?.current?.fourth?.reveal > 0.004,
     )
@@ -4870,6 +4897,17 @@ const Glass = forwardRef(function Glass({
       shell.visible = !fourthHoleOpen || (rotationLockRef?.current?.fourth?.portal ?? 0) < 0.12
       for (const mesh of shell.children) mesh.geometry = geometry
     }
+    const advanceRotation = () => {
+      if (spinBlendRef) {
+        const velocity = introAngularVelocity(config.rotateSpeed, spinBlendRef.current?.introBlend ?? 1)
+        group.current.rotation.x += delta * velocity.x
+        group.current.rotation.y += delta * velocity.y
+        group.current.rotation.z += delta * velocity.z
+      } else {
+        group.current.rotation.y += delta * config.rotateSpeed
+        group.current.rotation.x += delta * config.rotateSpeed * .35
+      }
+    }
     if (rotationLocked || fourthFrameLocked) {
       // Block four uses one deterministic, front-lit authored angle. Reset
       // the accumulated child rotation every frame so neither a previous
@@ -4879,15 +4917,12 @@ const Glass = forwardRef(function Glass({
     } else if (siteMode) {
 
       if (!siteRotationPaused) {
-        group.current.rotation.y += delta * config.rotateSpeed
-        group.current.rotation.x += delta * config.rotateSpeed * 0.35
+        advanceRotation()
       }
       group.current.position.set(0, 0.15 + Math.sin(t * 0.6) * 0.08, 0)
     } else {
       if (config.autoRotate) {
-        const heroSpin = spinBlendRef?.current?.value ?? 1
-        group.current.rotation.y += delta * config.rotateSpeed * heroSpin
-        group.current.rotation.x += delta * config.rotateSpeed * 0.35 * heroSpin
+        advanceRotation()
       }
       // Едва заметное дыхание — объект не выглядит замороженным
       group.current.position.y = Math.sin(t * 0.5) * 0.04

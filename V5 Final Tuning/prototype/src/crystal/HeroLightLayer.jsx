@@ -44,6 +44,7 @@ export default function HeroLightLayer({ config }) {
     window.addEventListener('resize', resize)
 
     const clock = new THREE.Clock()
+    let animationTime = 0
     let raf = 0
     let drawn = false
     // v4: drawn right after the crystal writes its position (PageCrystal's
@@ -69,8 +70,10 @@ export default function HeroLightLayer({ config }) {
     window.addEventListener('resize', scheduleMeasure)
     let ringReveal = 0
     const draw = () => {
-      const delta = clock.getDelta()
-      ringReveal = crystalScreen.introSettled
+      const delta = Math.min(clock.getDelta(), 0.05)
+      if (document.hidden) return
+      animationTime += delta
+      ringReveal = crystalScreen.introElapsed >= 1.5
         ? Math.min(1, ringReveal + Math.min(delta, 0.05) / 0.85)
         : 0
       // v4: block two keeps the crystal's rays, drawn tighter around it.
@@ -91,7 +94,7 @@ export default function HeroLightLayer({ config }) {
       if (crystalForLight && onOpening) {
         crystalForLight = { ...crystalScreen, r: Math.min(crystalScreen.r, Math.min(width, height) * 0.12) }
       }
-      light.update(clock.elapsedTime, delta, {
+      light.update(animationTime, delta, {
         width,
         height,
         ringOn: ringReveal * ringReveal * (3 - 2 * ringReveal),

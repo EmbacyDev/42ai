@@ -128,6 +128,5 @@ export function crystalHeroBlend(scrollY = window.scrollY) {
 
 /** 0 at rest, 1 once the hero background has gone solid white. */
 export function backgroundWashProgress(progress) {
-  const t = Math.min(1, Math.max(0, progress / 0.08))
-  return 1 - (1 - t) ** 3
+  return smootherstep(progress)
 }

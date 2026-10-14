@@ -125,7 +125,10 @@ export function createChipLayer({ labels, cardsById, camera, element }) {
       }
     },
     dispose() {
-      for (const { object } of bound) object.removeFromParent()
+      for (const { node, object } of bound) {
+        node.style.opacity = '0'
+        object.removeFromParent()
+      }
     },
   }
 }

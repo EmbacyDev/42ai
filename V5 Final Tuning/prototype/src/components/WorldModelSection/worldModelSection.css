@@ -115,7 +115,7 @@
   inset: 0;
   overflow: hidden;
   isolation: isolate;
-  background-image: url('/images/world-model/field-gradient.jpg?v=5');
+  background-image: none;
   background-repeat: no-repeat;
   /* A wider crop diffuses the source image without filtering the masked
      surface itself (which can expose GPU tiles during the hand-off). */
@@ -538,7 +538,7 @@
   display: block;
   white-space: nowrap;
   text-align: center;
-  color: #ffffff;
+  color: #121212;
   -webkit-text-fill-color: currentColor;
   transform-origin: center center;
   opacity: calc(
@@ -616,7 +616,7 @@
   position: absolute;
   z-index: 0;
   inset: -12%;
-  background-image: url('/images/world-model/field-gradient.jpg?v=5');
+  background-image: none;
   background-repeat: no-repeat;
   background-size: 210% 210%;
   background-position: 42% 44%;
@@ -668,7 +668,8 @@
   --mask-opacity: 0;
   position: fixed;
   inset: 0;
-  z-index: 33;
+  /* The moving crystal can rise to z34 during the 2→3 hand-off. */
+  z-index: 35;
   pointer-events: none;
   opacity: var(--mask-opacity);
 }
@@ -679,21 +680,15 @@
 .world-model-mask__soft {
   position: absolute;
   inset: 0;
-  filter: blur(200px);
+  filter: none;
 }
 
 .world-model-mask__clip {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  clip-path: polygon(
-    50% calc(50% - var(--mask-r)),
-    calc(50% + var(--mask-r) * 0.866) calc(50% - var(--mask-r) * 0.5),
-    calc(50% + var(--mask-r) * 0.866) calc(50% + var(--mask-r) * 0.5),
-    50% calc(50% + var(--mask-r)),
-    calc(50% - var(--mask-r) * 0.866) calc(50% + var(--mask-r) * 0.5),
-    calc(50% - var(--mask-r) * 0.866) calc(50% - var(--mask-r) * 0.5)
-  );
+  -webkit-mask-image: radial-gradient(circle at var(--mask-x, 50%) var(--mask-y, 50%), #000 max(0px, calc(var(--mask-r) - 32px)), transparent calc(var(--mask-r) + 32px));
+  mask-image: radial-gradient(circle at var(--mask-x, 50%) var(--mask-y, 50%), #000 max(0px, calc(var(--mask-r) - 32px)), transparent calc(var(--mask-r) + 32px));
 }
 
 /* Zooms with the shape, around the screen centre. The flowing colour
@@ -701,7 +696,7 @@
 .world-model-mask__field {
   position: absolute;
   inset: -12%;
-  background-image: url('/images/world-model/field-gradient.jpg?v=5');
+  background-image: none;
   background-repeat: no-repeat;
   background-size: 210% 210%;
   background-position: 42% 44%;
@@ -715,8 +710,8 @@
 .world-model-mask__light {
   --size: calc(var(--mask-glow-r, 40px) * 4.2 + 120px);
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: var(--mask-x, 50%);
+  top: var(--mask-y, 50%);
   width: var(--size);
   height: var(--size);
   margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
@@ -724,22 +719,27 @@
   mix-blend-mode: screen;
   pointer-events: none;
   background:
-    radial-gradient(circle at 50% 50%,
-      rgba(225, 255, 238, 0.95) 0%,
-      rgba(120, 240, 190, 0.8) 9%,
-      rgba(40, 205, 150, 0.45) 22%,
-      rgba(20, 165, 120, 0.16) 40%,
-      transparent 62%),
-    /* Fewer, broader rays, a little fainter. */
-    repeating-conic-gradient(from 0deg at 50% 50%,
-      rgba(150, 255, 205, 0.36) 0deg 7deg,
-      transparent 7deg 26deg,
-      rgba(90, 235, 180, 0.24) 26deg 31deg,
-      transparent 31deg 48deg);
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 18%, transparent 68%);
-  mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 18%, transparent 68%);
-  filter: blur(6px);
-  animation: world-model-flash-turn 6s linear infinite;
+    radial-gradient(ellipse at 46% 48%,
+      rgba(245, 255, 248, .98) 0%,
+      rgba(210, 244, 225, .8) 12%,
+      rgba(160, 215, 189, .42) 29%,
+      rgba(155, 183, 220, .15) 47%, transparent 67%);
+  filter: blur(8px);
+  animation: none;
+}
+
+.world-model-mask__light::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-conic-gradient(from 12deg at 50% 50%,
+    rgba(210, 255, 238, .48) 0deg 9deg,
+    transparent 15deg 35deg,
+    rgba(189, 225, 255, .32) 40deg 49deg,
+    transparent 56deg 72deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 3%, #000 16%, transparent 65%);
+  mask-image: radial-gradient(circle, transparent 3%, #000 16%, transparent 65%);
+  animation: world-model-flash-turn 9s linear infinite;
 }
 
 @keyframes world-model-flash-turn {
@@ -750,40 +750,75 @@
    that opens from the bottom edge as a dome whose rim is a wide blur
    (--wave 0 → 1 grows it past the screen corners). At --wave 0 the zero-
    size ellipse leaves the layer solid. Under the header. */
+/* Shared fluid field becomes a luminous, vertically stretched title. */
 .world-model-wave {
-  --wave: 0;
-  --wave-opacity: 0;
   position: fixed;
   inset: 0;
   z-index: 34;
   overflow: hidden;
   pointer-events: none;
-  opacity: var(--wave-opacity);
-  -webkit-mask-image: radial-gradient(
-    ellipse calc(20% + var(--wave) * 130%) calc(var(--wave) * 260%) at 50% 100%,
-    transparent 0%,
-    transparent 52%,
-    #000 100%
-  );
-  mask-image: radial-gradient(
-    ellipse calc(20% + var(--wave) * 130%) calc(var(--wave) * 260%) at 50% 100%,
-    transparent 0%,
-    transparent 52%,
-    #000 100%
-  );
+  opacity: var(--wave-opacity, 0);
+  background: transparent;
 }
-
-/* Same picture and crop as block three's field (.world-model-mask__field). */
-.world-model-wave::before {
-  content: "";
+.world-model-wave__field {
   position: absolute;
-  inset: -12%;
-  background-image: url('/images/world-model/field-gradient.jpg?v=5');
-  background-repeat: no-repeat;
-  background-size: 210% 210%;
-  background-position: 42% 44%;
-  background-color: #14967a;
-  filter: blur(14px) saturate(1.05);
+  top: var(--funnel-top, 0px);
+  left: 0;
+  width: 100%;
+  height: var(--funnel-height, 100%);
+  background: #71998b;
+  opacity: var(--light-field, 1);
+  clip-path: polygon(
+    var(--funnel-upper-inset, 0px) 0,
+    calc(100% - var(--funnel-upper-inset, 0px)) 0,
+    calc(100% - var(--funnel-lower-inset, 0px)) 100%,
+    var(--funnel-lower-inset, 0px) 100%
+  );
+  filter: blur(calc(var(--funnel-rays, 0) * 5px));
+  will-change: height, clip-path, opacity;
+}
+.world-model-wave__field::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: var(--funnel-rays, 0);
+  background: repeating-conic-gradient(from 252deg at 50% 115%,
+    transparent 0deg 5deg, rgba(223, 255, 236, .65) 7deg,
+    rgba(109, 200, 237, .15) 9deg, transparent 12deg 18deg);
+  mix-blend-mode: screen;
+  filter: blur(5px);
+  pointer-events: none;
+}
+.world-model-wave .world-model-wave__copy {
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(-50%, 0, 0);
+}
+.world-model-wave__copy .physics-behavior-section__eyebrow {
+  opacity: var(--light-tag, 0);
+  filter: blur(calc((1 - var(--light-tag, 0)) * 8px));
+}
+.world-model-wave__copy h2 {
+  position: relative;
+  opacity: var(--light-letters, 0);
+  transform: var(--light-projection, none);
+  transform-origin: center bottom;
+  filter: blur(var(--light-blur, 0px));
+  text-shadow: var(--light-fringe, 0px) 0 rgba(73, 167, 224, .5),
+    calc(-1 * var(--light-fringe, 0px)) 0 rgba(70, 206, 158, .5);
+  will-change: transform, filter, opacity;
+}
+.world-model-wave__copy h2::after {
+  content: 'Behavior has learnable rules';
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background: linear-gradient(105deg, #30c9a3, #62abef 36%, #b8def0 62%, #e3ffbf);
+  background-clip: text;
+  -webkit-background-clip: text;
+  opacity: var(--light-colour, 0);
+  text-shadow: none;
 }
 
 .world-model-section__word {
@@ -793,4 +828,48 @@
 
 .world-model-section__char {
   display: inline-block;
+}
+
+/* Procedural glass interior: shared fluid surface across every hand-off. */
+.world-model-section__bloom,
+.world-model-section__image-soft,
+.world-model-mask__field {
+  background: #71998b;
+  filter: none;
+  animation: none;
+}
+.world-model-section__bloom::before,
+.world-model-section__bloom::after,
+.world-model-wave::before { display: none; }
+.world-model-section__image-soft,
+.world-model-mask__field { inset: 0; }
+.crystal-fluid { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+
+
+/* Blur outside the clipped surface, so the funnel has no hard panel edge. */
+.world-model-wave__soft-edge {
+  position: absolute;
+  inset: 0;
+  filter: blur(var(--funnel-edge-blur, 0px));
+  /* Feather the composited blur as well, so it cannot spill below the
+     shared lower edge as a second colour band. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 max(0px, calc(var(--funnel-bottom, 100vh) - 100px)), transparent var(--funnel-bottom, 100vh));
+  mask-image: linear-gradient(to bottom, #000 max(0px, calc(var(--funnel-bottom, 100vh) - 100px)), transparent var(--funnel-bottom, 100vh));
+}
+.world-model-wave__field {
+  filter: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
+}
+.world-model-wave__copy h2 { clip-path: none; }
+
+/* Narrow shafts complement the existing soft halo around the moving gem. */
+.world-model-mask__light::before {
+  content: ''; position: absolute; inset: -15%;
+  background: repeating-conic-gradient(from -18deg,
+    transparent 0deg 17deg, rgba(221,255,242,.65) 19deg 21deg,
+    transparent 24deg 43deg, rgba(195,227,255,.45) 45deg 47deg,
+    transparent 50deg 72deg);
+  mask-image: radial-gradient(circle, transparent 2%, #000 12%, transparent 66%);
+  filter: blur(3px);
 }

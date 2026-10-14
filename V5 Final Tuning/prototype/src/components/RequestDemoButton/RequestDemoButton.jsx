@@ -11,7 +11,8 @@ const NUMBER = /-?\d*\.?\d+/g
 const REST_VALUES = REST_PATH.match(NUMBER).map(Number)
 const HOVER_VALUES = HOVER_PATH.match(NUMBER).map(Number)
 const PATH_TEMPLATE = REST_PATH.replace(NUMBER, '#')
-const MORPH_MS = 420
+const MORPH_MS = 600
+const MORPH_ENTER_DELAY_MS = 100
 
 // Match the width transition: cubic-bezier(.22, 1, .36, 1).
 function easeShape(t) {
@@ -74,9 +75,9 @@ export function useDemoShape(active, extra = 0) {
       return undefined
     }
 
-    const started = performance.now()
+    const started = performance.now() + (active ? MORPH_ENTER_DELAY_MS : 0)
     const tick = (now) => {
-      const t = Math.min(1, (now - started) / MORPH_MS)
+      const t = Math.max(0, Math.min(1, (now - started) / MORPH_MS))
       const amount = from + (to - from) * easeShape(t)
       amountRef.current = amount
       pathRef.current?.setAttribute('d', widenDemoPath(demoShapePathAt(amount), extra))
@@ -129,7 +130,7 @@ export default function RequestDemoButton({
         <path ref={pathRef} fill={shapeFill} d={widenDemoPath(REST_PATH, widen)} />
       </svg>
       <span className="request-demo__label">
-        <ScrambleText text={preserveCase ? label : label.toUpperCase()} active={hot} />
+        <ScrambleText text={preserveCase ? label : label.toUpperCase()} active={hot} origin="left" />
       </span>
     </a>
   )

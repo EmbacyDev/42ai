@@ -14,6 +14,8 @@ import './figmaRefresh.css'
 export default function HeroTestPage() {
   const [heroAssetsLoaded, setHeroAssetsReady] = useState(false)
   const [crystalReady, setCrystalReady] = useState(false)
+  const [staticImagesReady, setStaticImagesReady] = useState(false)
+  const handleStaticImagesReady = useCallback(() => setStaticImagesReady(true), [])
   const [intro, setIntro] = useState({ shown: false, released: false })
   const introGateRef = useRef(null)
   useEffect(() => {
@@ -60,6 +62,9 @@ export default function HeroTestPage() {
         onReady={handleHeroReady}
         revealReady={intro.released}
         loaderShown={intro.shown}
+        headingReady={crystalReady && intro.released}
+        imagesAllowed={true}
+        videosAllowed={staticImagesReady && heroReady}
         tunedCrystalConfig={tunedCrystalConfig}
         cardHoverRef={heroCardHoverRef}
       />
@@ -71,6 +76,7 @@ export default function HeroTestPage() {
         // reach block two before that, and the late textures re-rendered the
         // rail (a jolt) and then swapped the centre photo in (a blink).
         heroReady={heroReady || heroAssetsReady}
+        onImagesReady={handleStaticImagesReady}
         onCrystalPulse={handleCrystalPulse}
         onCrystalAnchor={(x, y, meta) => {
           sectionAnchorsRef.current.second = { x, y, ...meta }
@@ -86,13 +92,13 @@ export default function HeroTestPage() {
           sectionAnchorsRef.current.fourth = { x, y, ...meta }
         }}
       />
-      <PageTail />
+      {crystalReady && <PageTail />}
       {/* The page's own crystal. Its look is the baked tab 01 material;
           nothing on the URL can swap it. */}
       <PageCrystal
         config={tunedCrystalConfig}
         introReady={intro.released}
-        visible={crystalReady && (!intro.shown || intro.released)}
+        visible={crystalReady && intro.released}
         sectionAnchorsRef={sectionAnchorsRef}
         pulseKey={crystalPulseKey}
         cardHoverRef={heroCardHoverRef}

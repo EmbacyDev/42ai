@@ -65,6 +65,7 @@ export default function HeroLabels({ labels = defaultLabels }) {
             data-card-id={label.card}
             data-skew={label.skewY ?? 0}
             style={{
+              opacity: 0,
               width: label.fit ?? label.box.width,
               height: label.fit ? 'auto' : label.box.height,
               padding: label.padding,

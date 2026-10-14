@@ -175,15 +175,23 @@ function splitLayers(svg) {
  */
 export async function loadHeroCardPhoto(src, layout) {
   if (src.startsWith('/images/hero-749/')) {
-    const response = await fetch(src)
-    if (!response.ok) throw new Error(`Failed to load Figma photo (${response.status})`)
-    const bitmap = await createImageBitmap(await response.blob())
     const photo = document.createElement('canvas')
-    photo.width = bitmap.width
-    photo.height = bitmap.height
     const ctx = photo.getContext('2d')
-    ctx.drawImage(bitmap, 0, 0)
-    bitmap.close?.()
+    if (layout.video) {
+      // Video cards need only the vector silhouette, never the old photo.
+      photo.width = Math.round(layout.sheet.w * 4)
+      photo.height = Math.round(layout.sheet.h * 4)
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(0, 0, photo.width, photo.height)
+    } else {
+      const response = await fetch(src)
+      if (!response.ok) throw new Error(`Failed to load Figma photo (${response.status})`)
+      const bitmap = await createImageBitmap(await response.blob())
+      photo.width = bitmap.width
+      photo.height = bitmap.height
+      ctx.drawImage(bitmap, 0, 0)
+      bitmap.close?.()
+    }
     // Figma's render includes a white matte; restore its original vector mask.
     const maskImage = new Image()
     maskImage.src = src.replace('.png', '-mask.svg')

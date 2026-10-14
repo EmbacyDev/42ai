@@ -1,5 +1,6 @@
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { BLOCK24_RETURN_EVENT } from '../Block24Section/block24Layout.js'
 import { HERO_PIN_VIEWPORTS, smootherstep } from './scrollShrink.js'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -96,7 +97,7 @@ export function createHeroTransition({ heroEl, onProgress }) {
     else inertia.snap = p > 0.42 ? 1 : 0
     inertia.landFrom = inertia.current
     inertia.landStart = now
-    inertia.landDuration = 0.85 + Math.abs(inertia.snap - inertia.current) * 0.75
+    inertia.landDuration = 0.85 + Math.abs(inertia.snap - inertia.current) * 0.75 + (inertia.snap === 1 ? 0.4 : 0)
     inertia.target = inertia.snap
   }
 
@@ -104,7 +105,10 @@ export function createHeroTransition({ heroEl, onProgress }) {
     commitIfIdle(now)
     if (inertia.snap != null) {
       const t = Math.min(1, (now - inertia.landStart) / Math.max(16, inertia.landDuration * 1000))
-      inertia.current = inertia.landFrom + (inertia.snap - inertia.landFrom) * smootherstep(t)
+      // A broader sine curve avoids concentrating the forward spin's speed
+      // in the middle, while retaining zero velocity at both ends.
+      const eased = inertia.snap === 1 ? (1 - Math.cos(Math.PI * t)) / 2 : smootherstep(t)
+      inertia.current = inertia.landFrom + (inertia.snap - inertia.landFrom) * eased
       writeProgress(inertia.current)
       if (t >= 1) {
         inertia.current = inertia.snap
@@ -154,6 +158,10 @@ export function createHeroTransition({ heroEl, onProgress }) {
     if (reduceMotion) return
     if (!ownsWheel(event.deltaY)) return
     event.preventDefault()
+    if (awaitingReturnGesture) {
+      if (performance.now() < returnGuardUntil || gapBeforeThisWheel < 320) return
+      awaitingReturnGesture = false
+    }
     if (!inertia.active) {
       inertia.current = progress.current
       inertia.target = progress.current
@@ -175,7 +183,7 @@ export function createHeroTransition({ heroEl, onProgress }) {
       inertia.snap = goal
       inertia.landFrom = inertia.current
       inertia.landStart = now
-      inertia.landDuration = 0.5 + Math.abs(goal - inertia.current) * 1.1
+      inertia.landDuration = 0.5 + Math.abs(goal - inertia.current) * 1.1 + (goal === 1 ? 0.4 : 0)
       inertia.target = goal
     }
     startLoop()
@@ -190,6 +198,14 @@ export function createHeroTransition({ heroEl, onProgress }) {
 
   // Every wheel packet, including ones other sections swallow, so the
   // gap before a packet tells a new gesture from momentum.
+  let awaitingReturnGesture = false
+  let returnGuardUntil = 0
+  const onReturnToCards = () => {
+    stopLoop()
+    awaitingReturnGesture = true
+    returnGuardUntil = performance.now() + 900
+  }
+  window.addEventListener(BLOCK24_RETURN_EVENT, onReturnToCards)
   let lastSeenWheelAt = 0
   let gapBeforeThisWheel = Infinity
   const noteWheel = () => {
@@ -217,6 +233,7 @@ export function createHeroTransition({ heroEl, onProgress }) {
     progress,
     dispose() {
       stopLoop()
+      window.removeEventListener(BLOCK24_RETURN_EVENT, onReturnToCards)
       window.removeEventListener('wheel', handleWheel)
       window.removeEventListener('wheel', noteWheel, { capture: true })
       window.removeEventListener('scroll', handleScroll)

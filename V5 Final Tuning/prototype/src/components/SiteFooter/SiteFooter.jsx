@@ -39,8 +39,8 @@ export default function SiteFooter() {
     let leaveStart = 0
     let startedAt = 0
     let lastTick = 0
-    const GLOW_MS = 780
-    const LEAVE_MS = 1680
+    const GLOW_MS = 750
+    const LEAVE_MS = 1000
     const FOLLOW_OMEGA = 9.5
 
     const smootherstep = (value) => {
