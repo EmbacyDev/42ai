@@ -1,0 +1,79 @@
+/* Saved tool appearance inside the existing fifth-screen scroll container. */
+.physics-behavior-section__network .physics-behavior-section__network-light{filter:blur(calc((1 - var(--physics-network-intro)) * 5px))}
+.physics-behavior-section__network .foreground-atmosphere{position:absolute;inset:0;z-index:2;width:100%;height:100%;pointer-events:none;mix-blend-mode:normal;opacity:.9}
+.physics-behavior-section__network .scene-copy{left:50%;right:auto;max-width:none;margin:0;line-height:1.2;letter-spacing:-.025em;font-family:"Public Sans",sans-serif;transform:translate3d(-50%,calc((1 - var(--copy-opacity)) * 18px),0);pointer-events:none}
+.physics-behavior-section__network .physics-behavior-section__network-tabs{position:absolute;bottom:7%;left:50%;transform:translateX(-50%);display:flex;align-items:center;justify-content:space-between;gap:0;width:112.869568px;height:44px;padding:3.826087px;border:.956522px solid transparent;border-radius:110.956522px;background:rgba(255,255,255,.25);isolation:isolate}
+.physics-behavior-section__network .physics-behavior-section__network-tabs button{display:flex;align-items:center;justify-content:center;flex:0 0 34.434783px;width:34.434783px;height:21.652174px;padding:0;border:0;border-radius:54.521739px;backdrop-filter:blur(14.347826px);-webkit-backdrop-filter:blur(14.347826px);background:transparent;color:#fff;font:500 12px/1.2 "Geist Mono",monospace;letter-spacing:.6px;text-align:center;transition:background-color 220ms ease,color 220ms ease}
+.physics-behavior-section__network .physics-behavior-section__network-tabs button[aria-selected=true]{height:34.434783px;background:#fff;color:#121212}
+.physics-behavior-section__network .physics-behavior-section__network-tabs button:focus-visible{outline:2px solid #fff;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.physics-behavior-section__network .physics-behavior-section__network-tabs button{transition:none}}
+
+.physics-behavior-section__network .physics-behavior-section__network-tabs::before{content:"";position:absolute;inset:-.956522px;pointer-events:none;background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22112.869568%22%20height%3D%2244%22%20viewBox%3D%220%200%20112.869568%2044%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22stroke%22%20gradientUnits%3D%22objectBoundingBox%22%20x1%3D%22.8731342853%22%20y1%3D%220%22%20x2%3D%22-.1604478320%22%20y2%3D%221.3888888726%22%3E%3Cstop%20stop-color%3D%22%23999999%22%20stop-opacity%3D%220%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23ffffff%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20x%3D%22.478261%22%20y%3D%22.478261%22%20width%3D%22111.913046%22%20height%3D%2243.043478%22%20rx%3D%2221.521739%22%20fill%3D%22none%22%20stroke%3D%22url%28%23stroke%29%22%20stroke-width%3D%22.956522%22%2F%3E%3C%2Fsvg%3E") center/100% 100% no-repeat}
+@media(max-width:800px){.physics-behavior-section__network .scene-copy{font-size:25px!important}}
+
+.physics-behavior-section__network .physics-behavior-section__network-tabs{backdrop-filter:none;-webkit-backdrop-filter:none}
+
+.physics-behavior-section__network .physics-behavior-section__network-tabs button:not([aria-selected=true]):is(:hover,:focus-visible){color:#121212;background:transparent;box-shadow:none}
+
+.physics-behavior-section__network .physics-behavior-section__network-tabs button{position:relative;z-index:1;color:rgb(255 255 255 / 40%);background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+.physics-behavior-section__network .physics-behavior-section__network-tabs button:not([aria-selected=true]):is(:hover,:focus-visible){color:#fff;background:transparent}
+.physics-behavior-section__network .physics-behavior-section__network-tabs button[aria-selected=true]{color:#121212;background:transparent}
+.network-step-indicator{background:#fff;border-radius:50%;position:absolute;left:3.826087px;top:3.826087px;width:34.434783px;height:34.434783px;pointer-events:none;transition:transform 560ms cubic-bezier(.22,1,.36,1)}
+@media(prefers-reduced-motion:reduce){.network-step-indicator{transition:none}}
+
+/* Match the tool's unfiltered canvas composition. A zero-radius CSS filter
+   still creates a filtered WebGL surface in WebKit. Keep the entrance on
+   the parent opacity/scale, not a permanent canvas filter. */
+.physics-behavior-section__network .physics-behavior-section__network-light {
+ filter:none;will-change:auto;background:none;mix-blend-mode:normal;opacity:1;
+}
+.physics-behavior-section__network .physics-behavior-section__network-canvas {
+ filter:none;will-change:auto;mix-blend-mode:normal;
+}
+
+/* The tunnel opens into white before the existing sixth-screen card arrives. */
+.network-exit-light {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+}
+.network-exit-light__background {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  will-change: opacity;
+}
+.network-exit-light::before,
+.network-exit-light::after {
+  content: '';
+  position: absolute;
+  left: var(--exit-x, 50%);
+  top: var(--exit-y, 50%);
+  width: var(--exit-diameter);
+  height: var(--exit-diameter);
+  will-change: transform, opacity;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(var(--exit-scale, .008));
+}
+.network-exit-light::before {
+  left: var(--exit-x, 50%);
+  transform: translate(-50%, -50%) scale(var(--exit-scale, .008));
+  filter: blur(12px);
+  opacity: calc(var(--exit-rays-opacity, 0) * .35);
+  background: repeating-conic-gradient(from 6deg,
+    rgba(142,205,243,.85) 0deg 19deg,
+    rgba(184,224,250,.35) 27deg, transparent 42deg 60deg);
+  mask-image: radial-gradient(circle, #000 0%, #000 23%, transparent 62%);
+  -webkit-mask-image: radial-gradient(circle, #000 0%, #000 23%, transparent 62%);
+}
+.network-exit-light::after {
+  opacity: var(--exit-rays-opacity, 0);
+  transform: translate(-50%, -50%) scale(var(--exit-scale, .008));
+  filter: blur(8px);
+  background: repeating-conic-gradient(from 12deg, rgba(255,255,255,.8) 0deg 8deg, transparent 15deg 35deg, rgba(223,235,255,.55) 40deg 48deg, transparent 56deg 72deg);
+  mask-image: radial-gradient(circle, #000 0%, #000 24%, transparent 62%);
+  -webkit-mask-image: radial-gradient(circle, #000 0%, #000 24%, transparent 62%);
+}
+

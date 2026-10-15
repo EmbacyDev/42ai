@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import {cameraCentre} from './networkCamera.js'
 
 const VERTEX = `
 attribute vec2 position;
@@ -8,8 +9,21 @@ void main() { gl_Position = vec4(position, 0.0, 1.0); }
 const FRAGMENT = `
 precision highp float;
 uniform vec2 resolution;
+uniform vec2 vanishingPoint;
+uniform vec2 cameraOrbit;
 uniform float time;
 uniform float progress;
+uniform vec3 paletteBlue;
+uniform vec3 paletteMint;
+uniform vec3 paletteViolet;
+uniform float noiseScale;
+uniform float warpStrength;
+uniform float brightness;
+uniform float saturation;
+uniform float shaderRays;
+uniform float fogAmount;
+uniform float glowAmount;
+uniform float grainAmount;
 
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -37,6 +51,7 @@ float fbm(vec2 p) {
 void main() {
   vec2 uv = gl_FragCoord.xy / resolution.xy - 0.5;
   uv.x *= resolution.x / resolution.y;
+  uv *= noiseScale;
   // A moving camera: the space turns slowly all the time and swings with
   // block five's progress (most on step two), so the points read as
   // floating in depth rather than over a still backdrop.
@@ -46,15 +61,15 @@ void main() {
   float t = time * 0.08;
   float n1 = fbm(uv * 1.55 + vec2(t, -t * 0.62));
   float n2 = fbm(uv * 2.35 + vec2(n1 * 1.15 - t * 0.4, n1 * 0.72 + t));
-  vec2 warped = uv + vec2(n1 - 0.5, n2 - 0.5) * 0.28;
+  vec2 warped = uv + vec2(n1 - 0.5, n2 - 0.5) * 0.28 * warpStrength;
 
   // Third-screen palette; all noise, ray, fog and motion calculations stay intact.
   // Source colours from crystalFluid: #4DCCAD, #6EB3F5, #DEF7BA,
   // lavender and ice. Reduce saturated green within the colour mix only.
-  vec3 deep = mix(vec3(0.43, 0.70, 0.96), vec3(0.30, 0.80, 0.68), 0.22);
-  vec3 blue = vec3(0.43, 0.70, 0.96);
-  vec3 green = vec3(0.82, 0.96, 0.95);
-  vec3 violet = vec3(0.73, 0.75, 0.94);
+  vec3 deep = mix(paletteBlue, vec3(0.30, 0.80, 0.68), 0.22);
+  vec3 blue = paletteBlue;
+  vec3 green = paletteMint;
+  vec3 violet = paletteViolet;
   vec3 color = mix(deep, blue, smoothstep(0.28, 0.78, n1 + uv.y * 0.2));
   color = mix(color, green, smoothstep(0.42, 0.92, n2 - uv.y * 0.3) * 0.85);
   color = mix(color, violet, smoothstep(0.58, 0.95, n1 - uv.x * 0.16) * 0.8);
@@ -64,9 +79,11 @@ void main() {
   // Light through space, after Shopify Editions: no bright star in the
   // middle, but many soft zoom-blurred streaks flying out of a wide, dim
   // glow. Noise on the direction only, drifting outward.
-  vec2 corePos = vec2(0.02, 0.12);
+  vec2 rayUV = gl_FragCoord.xy / resolution.xy;
   // Straight rays: measured on the unwarped plane.
-  vec2 d = uv - corePos;
+  vec2 d = (rayUV - vec2(vanishingPoint.x, 1.0-vanishingPoint.y)) * vec2(resolution.x/resolution.y,1.0);
+  float originalRadius = length(d);
+  d += cameraOrbit * originalRadius * .18;
   float radius = length(d);
   float angle = atan(d.y, d.x);
   float flow = time * 0.22 - radius * 1.4;
@@ -88,10 +105,10 @@ void main() {
   vec3 rayColor = mix(vec3(0.62, 0.85, 0.89), vec3(0.40, 0.72, 0.78), smoothstep(0.3, 0.7, hue));
   rayColor = mix(rayColor, vec3(0.55, 0.62, 0.72), smoothstep(0.78, 0.97, hue));
 
-  color += vec3(0.82, 0.92, 1.0) * glow * 0.12;
-  color += vec3(0.40, 0.72, 0.78) * halo * 0.14;
+  color += vec3(0.82, 0.92, 1.0) * glow * 0.12 * glowAmount;
+  color += vec3(0.40, 0.72, 0.78) * halo * 0.14 * glowAmount;
   // Half as strong: the rays read as soft light, not lines.
-  color += rayColor * streak * reach * 0.09;
+  color += rayColor * streak * reach * 0.09 * shaderRays;
   // Light blue, not green: the green veil read as chemical stains.
   color += vec3(0.24, 0.56, 0.72) * veil * 0.2;
   // Depth: a pale grey haze drifting through the space (Shopify Editions),
@@ -104,18 +121,19 @@ void main() {
   float stage = progress * 4.0;
   float stepTwo = smoothstep(1.1, 1.9, stage);
   vec3 tint = mix(
-    mix(vec3(0.73, 0.75, 0.94), vec3(0.30, 0.80, 0.68), 0.22),
-    mix(vec3(0.82, 0.96, 0.95), vec3(0.87, 0.97, 0.73), 0.25), stepTwo);
+    mix(paletteViolet, vec3(0.30, 0.80, 0.68), 0.22),
+    mix(paletteMint, vec3(0.87, 0.97, 0.73), 0.25), stepTwo);
   float tintMask = smoothstep(0.45, 0.85, fbm(warped * 1.2 + vec2(t * 0.4, -t * 0.25)));
   color = mix(color, color + tint * 0.22, tintMask * smoothstep(0.0, 0.3, stage));
   // Only a thin haze now: the grey made the colours read pastel.
-  color = mix(color, vec3(0.76, 0.89, 0.94), fogMask * 0.1);
+  color = mix(color, vec3(0.76, 0.89, 0.94), clamp(fogMask * 0.1 * fogAmount,0.0,1.0));
   color *= 0.9 + 0.1 * smoothstep(0.95, 0.18, length(uv));
   color += vec3(0.01, 0.02, 0.03);
-  color += (hash(gl_FragCoord.xy + time) - 0.5) / 255.0;
+  color += (hash(gl_FragCoord.xy + time) - 0.5) / 255.0 * grainAmount;
   // Colour grading only: preserve the existing rays, fog, noise and motion.
   float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
   color = mix(vec3(luminance), color, 0.8) * 0.9;
+  color = mix(vec3(dot(color, vec3(.2126,.7152,.0722))),color,saturation) * brightness;
   gl_FragColor = vec4(color, 1.0);
 }
 `
@@ -131,12 +149,12 @@ function compile(gl, type, source) {
   return shader
 }
 
-export default function NetworkLightShader({ motionRef }) {
+export default function NetworkLightShader({ motionRef, settingsRef }) {
   const canvasRef = useRef(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const gl = canvas?.getContext('webgl', { alpha: false, antialias: false, powerPreference: 'high-performance' })
+    const gl = canvas?.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' })
     if (!gl) return undefined
     const vertex = compile(gl, gl.VERTEX_SHADER, VERTEX)
     const fragment = compile(gl, gl.FRAGMENT_SHADER, FRAGMENT)
@@ -153,13 +171,37 @@ export default function NetworkLightShader({ motionRef }) {
     const position = gl.getAttribLocation(program, 'position')
     gl.enableVertexAttribArray(position)
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0)
+    const vanishingPoint=gl.getUniformLocation(program,'vanishingPoint')
+    const cameraOrbit=gl.getUniformLocation(program,'cameraOrbit')
     const resolution = gl.getUniformLocation(program, 'resolution')
     const time = gl.getUniformLocation(program, 'time')
     const progress = gl.getUniformLocation(program, 'progress')
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let frame = 0
+    let elapsed = 0
+    let previous = null
+    const uniforms = Object.fromEntries(["paletteBlue","paletteMint","paletteViolet","noiseScale","warpStrength","brightness","saturation","shaderRays","fogAmount","glowAmount","grainAmount"].map(k=>[k,gl.getUniformLocation(program,k)]))
 
+    let lastPaint=-Infinity
     const draw = (now) => {
+      frame = onScreen ? window.requestAnimationFrame(draw) : 0
+      if(!onScreen)return
+      if(motionRef.current.visible===false){previous=now;return}
+      if(now-lastPaint<1000/30-1)return
+      lastPaint=now
+      const config = settingsRef.current
+      const camera=cameraCentre(motionRef,config,now)
+      gl.uniform2f(vanishingPoint,camera.x,camera.y)
+      gl.uniform2f(cameraOrbit,camera.orbitX,-camera.orbitY)
+      const dt = previous===null ? 0 : Math.min(.05,(now-previous)/1000)
+      previous=now
+      if(motionRef.current.visible===false)return
+      if(!config.shader){gl.clear(gl.COLOR_BUFFER_BIT);return}
+      if(!config.paused) elapsed += dt * config.speed * config.shaderSpeed
+      for(const [uniform,key] of [['paletteBlue','backgroundBlue'],['paletteMint','backgroundMint'],['paletteViolet','backgroundViolet']]) {
+        const hex=config[key];gl.uniform3f(uniforms[uniform],...[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255))
+      }
+      for(const [uniform,key] of [['noiseScale','noiseScale'],['warpStrength','warp'],['brightness','brightness'],['saturation','saturation'],['shaderRays','shaderRays'],['fogAmount','fog'],['glowAmount','glow'],['grainAmount','grain']])gl.uniform1f(uniforms[uniform],config[key])
       const rect = canvas.getBoundingClientRect()
       const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
       const width = Math.max(1, Math.round(rect.width * dpr))
@@ -170,10 +212,10 @@ export default function NetworkLightShader({ motionRef }) {
       }
       gl.viewport(0, 0, width, height)
       gl.uniform2f(resolution, width, height)
-      gl.uniform1f(time, reduced ? 0 : now * 0.001)
-      gl.uniform1f(progress, motionRef.current?.network ?? 0)
+      gl.uniform1f(time, reduced ? 0 : elapsed)
+      // The tunnel shares step two's background orientation and colour treatment.
+      gl.uniform1f(progress, Math.min(2.5 / 4, motionRef.current?.network ?? 0))
       gl.drawArrays(gl.TRIANGLES, 0, 6)
-      frame = onScreen ? window.requestAnimationFrame(draw) : 0
     }
     // v4: only draws while the canvas is on screen. It used to run (and
     // measure its own rect) every frame from page load, costing frames on

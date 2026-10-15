@@ -526,6 +526,15 @@ function TravellingCrystal({
       fourthCleanFrame = Math.min(Math.max(fourthTarget.cleanFrame ?? 0, 0), 1)
       fourthPortal = Math.min(Math.max(fourthTarget.portal ?? 0, 0), 1)
     }
+    // The wave suspends section four's controller. Prepare its full-size
+    // introduction pose while hidden, before revealing the short upward entry.
+    if (fourthTarget && document.documentElement.dataset.worldWaveActive === 'true') {
+      fourthReveal = 1
+      fourthDescent = 1
+      fourthFocus = 1
+      fourthStateOne = fourthStateTwo = fourthStateThree = fourthStateFour = 0
+      fourthCleanFrame = fourthPortal = 0
+    }
     // The detached panes cross the camera first. The parent crystal does not
     // begin its own push until their staggered flights are almost complete,
     // so the final beat reads as panes → body instead of one simultaneous
@@ -583,7 +592,11 @@ function TravellingCrystal({
         target.y += (vh * 0.5 - target.y) * crystalPortal
       }
       // Until the block-four pane pins, the crystal scrolls with it.
-      target.y += Math.max(0, fourthTarget.sectionTop ?? 0)
+      // The wave already presents the pinned intro. Its final scroll alignment
+      // must not remove a leftover section offset from the crystal's position.
+      if (document.documentElement.dataset.worldWaveActive !== 'true') {
+        target.y += Math.max(0, fourthTarget.sectionTop ?? 0)
+      }
     }
     // The colour has to be seen leaving the gem. Hold the mesh at full
     // size while the field is still a halo around it, then fade it in
@@ -773,6 +786,18 @@ function TravellingCrystal({
       }
     }
 
+    // The explicit entry offset owns the rise; do not add a spring tail that
+    // settles by a few pixels when the wave hands over to the intro.
+    if (document.documentElement.dataset.worldWaveActive === 'true' && fourthTarget) {
+      visual.x = targetX
+      visual.y = targetY
+      visual.scale = targetScale
+      visual.turnY = targetTurnY
+      visual.tiltX = targetTiltX
+      visual.tiltZ = targetTiltZ
+      visual.vx = visual.vy = visual.vScale = 0
+      visual.vTurnY = visual.vTiltX = visual.vTiltZ = 0
+    }
     screenAnchorRef.current = { x: visual.x, y: visual.y, scale: visual.scale }
     // Shared with the hero scene, which lights around the gem (heroLight.js).
     // 0.98 world units is the gem's radius at scale 1.
@@ -828,9 +853,17 @@ function TravellingCrystal({
       drag.vY = 0
       drag.vX = 0
     }
+    const waveActive = document.documentElement.dataset.worldWaveActive === 'true'
+    const waveProgress = Number(document.documentElement.dataset.worldWaveProgress || 0)
+    // Undo the wave's power1.inOut easing to express this offset in milliseconds.
+    // Previous entry: 720–1200ms. New entry: 570–1100ms (150ms earlier, 50ms longer).
+    const waveTime = (waveProgress < .5
+      ? Math.sqrt(waveProgress / 2) : 1 - Math.sqrt((1 - waveProgress) / 2)) * 1200
+    const arrivalT = Math.max(0, Math.min(1, (waveTime - 570) / 530))
+    const waveArrival = waveActive ? smootherstep(arrivalT) : 1
     const dragY = fourthIsVisible ? 0 : drag.offY
     groupRef.current.rotation.y = fourthIsVisible
-      ? visual.turnY
+      ? visual.turnY + (1 - waveArrival) * Math.PI / 4
       // A card switch turns the gem one full turn the other way.
       : (visual.spin - pulseProgress * Math.PI * 2) * heroMotion + introReturnY + dragY
     groupRef.current.rotation.x = fourthIsVisible
@@ -920,7 +953,11 @@ function TravellingCrystal({
       const warmState = warmRef.current
       warmState.frames += 1
       const warm = Math.min(1, Math.max(0, (warmState.frames - 4) / 12))
-      shell.style.opacity = (warm * underLiquid * pageFade * gemFade * portalFade * (1 - (crystalScreen.maskHide ?? 0)) * (handedToBlockFive ? 0 : 1)).toFixed(3)
+      // Match the title's arrival; preserve the resting pose and use the
+      // actual 3D Y axis for the turn, never a screen-space roll.
+      shell.style.translate = waveArrival < 1 ? `0 ${(1 - waveArrival) * 80}px` : ''
+      shell.style.rotate = ''
+      shell.style.opacity = (waveArrival * warm * underLiquid * pageFade * gemFade * portalFade * (1 - (crystalScreen.maskHide ?? 0)) * (handedToBlockFive ? 0 : 1)).toFixed(3)
     }
   })
 

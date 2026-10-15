@@ -1,6 +1,6 @@
 # V5 Final Tuning
 
-Independent snapshot of the V5 Fine Tuning prototype, published separately from V5.
+Current tuned website. The former local V5 Fine Tuning folder is now named V5 Final Tuning to match GitHub.
 
 - App source: `prototype/`
 - Public URL: https://42ai-v5-final-tuning.scal-nv.workers.dev/v1
@@ -9,11 +9,10 @@ Independent snapshot of the V5 Fine Tuning prototype, published separately from 
 
 ## Development
 
-From `prototype/`, run `npm ci` and `npm run dev` (port 5177).
+From `prototype/`, run `npm ci`, then `npm run dev -- --host 127.0.0.1 --port 5177 --strictPort`.
 
 ## Publish
 
-From `prototype/`, run `npm ci`, `npm run build`, then
-`npx wrangler deploy`.
+From `prototype/`, run `npm ci`, `npm run build`, then `npx wrangler deploy`.
 
-This static-assets Worker is separate from the existing V5 Worker deployment.
+This Worker is separate from the existing `42ai-v4` deployment.

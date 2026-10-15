@@ -72,10 +72,9 @@ export default function HeroLightLayer({ config }) {
     const draw = () => {
       const delta = Math.min(clock.getDelta(), 0.05)
       if (document.hidden) return
-      animationTime += delta
-      ringReveal = crystalScreen.introElapsed >= 1.5
-        ? Math.min(1, ringReveal + Math.min(delta, 0.05) / 0.85)
-        : 0
+      // Start the colour cycle with the visible gem, not asset loading.
+      if (crystalScreen.valid && heroLightState.inHero) animationTime += delta
+      ringReveal = Math.min(1, Math.max(0, (crystalScreen.introElapsed ?? 0) / 0.6))
       // v4: block two keeps the crystal's rays, drawn tighter around it.
       // "On block two" = its section covers the middle of the viewport.
       // Read from the scroll listener below, not measured here: this runs
@@ -97,6 +96,7 @@ export default function HeroLightLayer({ config }) {
       light.update(animationTime, delta, {
         width,
         height,
+        startupViolet: heroLightState.inHero ? 1 - THREE.MathUtils.smoothstep(animationTime, 3, 9) : 0,
         ringOn: ringReveal * ringReveal * (3 - 2 * ringReveal),
         // Opening: the rays reach farther as the colour opens, in step
         // with the field (both follow the same expansion value).

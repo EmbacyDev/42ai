@@ -1,11 +1,12 @@
 import AnimatedHeading from '../AnimatedHeading.jsx'
-import ScrambleText from '../Scramble/ScrambleText.jsx'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import gsap from 'gsap'
+import { createLandingGestureGuard } from './landingGestureGuard.js'
 import { smootherstep } from '../HeroScene/scrollShrink.js'
 import { WORLD_MODEL_ABSORBED_EVENT, WORLD_MODEL_BACK_EVENT, WORLD_MODEL_RETURN_EVENT } from '../WorldModelSection/worldModelHandoff.js'
-import BehaviorNetworkTransition from './BehaviorNetworkTransition.jsx'
-import NetworkLightShader from './NetworkLightShader.jsx'
+const NetworkScene = lazy(() => import('./NetworkScene.jsx'))
+import {toolScenes, settingsAtRest, toolCopyStyle} from './toolSceneSettings.js'
+import './toolNetworkScene.css'
 import { crystalScreen } from '../HeroScene/crystalScreen.js'
 import './physicsBehaviorSection.css'
 
@@ -38,7 +39,18 @@ export default function PhysicsBehaviorSection({
   const panelRef = useRef(null)
   const copyRef = useRef(null)
   const glideToRestRef = useRef(() => {})
-  const networkMotionRef = useRef({ network: 0 })
+  const [networkPrepared,setNetworkPrepared]=useState(false)
+  useEffect(()=>{
+    const observer=new IntersectionObserver(([entry])=>{
+      if(entry.isIntersecting){setNetworkPrepared(true);observer.disconnect()}
+    },{rootMargin:'150% 0px'})
+    if(sectionRef.current)observer.observe(sectionRef.current)
+    return()=>observer.disconnect()
+  },[])
+  const [networkChapter,setNetworkChapter]=useState(1)
+  const networkChapterRef=useRef(1)
+  const networkMotionRef = useRef({ network: 0, stage: 0, visible: false })
+  const networkSettingsRef = useRef(settingsAtRest(5))
   const onCrystalAnchorRef = useRef(onCrystalAnchor)
   const onSectionVisibilityChangeRef = useRef(onSectionVisibilityChange)
   onCrystalAnchorRef.current = onCrystalAnchor
@@ -54,6 +66,7 @@ export default function PhysicsBehaviorSection({
     // 2→3 mask — and floods the whole screen before block five shows.
     const liquid = document.createElement('div')
     liquid.className = 'physics-liquid'
+    liquid.style.display = 'none'
     liquid.setAttribute('aria-hidden', 'true')
     liquid.innerHTML = '<div class="physics-liquid__soft"><div class="physics-liquid__clip"><div class="physics-liquid__field"></div></div></div><div class="physics-liquid__light"></div>'
     document.body.appendChild(liquid)
@@ -61,8 +74,11 @@ export default function PhysicsBehaviorSection({
     // no neutral stop with an intact crystal between screens three and four.
     const playhead = { value: 1 }
     let target = 1
+    let copyDeparture = 1
     let tween = null
     let landingCleanup = null
+    const landingGesture = createLandingGestureGuard()
+    let solutionsExitCommitted = false
     let locked = false
     let suspended = false
     // v1: upward travel is plain scrolling. The pane keeps whatever state
@@ -75,6 +91,9 @@ export default function PhysicsBehaviorSection({
     let awaitingStart = false
     // Wheel input is held while block three's wave is still opening.
     let holdUntil = 0
+    let facetTextStart = null
+    const facetTextEase = gsap.parseEase("power2.inOut")
+    let returningFromSolutions = false
     let touchY = null
     let touchUsed = false
     const names = ['one', 'two', 'three', 'four']
@@ -99,11 +118,20 @@ export default function PhysicsBehaviorSection({
       // two now covers stage 1..3 in one go: the universe changes
       // perspective and swirls until it has gathered into the sphere, while
       // the relation lines keep drawing across it.
-      const stage = value <= 5
-        ? clamp01(value - 4)
-        : value <= 6 ? 1 + 2 * (value - 5) : 3 + clamp01(value - 6)
+      const particleValue = locked && copyDeparture === 5 && target === 6 && tween
+        ? 5 + gsap.parseEase('power1.out')(clamp01(tween.progress() * 1.1)) : value
+      const stage = particleValue <= 5
+        ? clamp01(particleValue - 4)
+        : particleValue <= 6 ? 1 + 1.5 * clamp01(particleValue - 5) : 2.5 + 1.5 * clamp01(particleValue - 6)
+      networkMotionRef.current.linesActive = !locked || target === 6
+      networkMotionRef.current.labelsActive = !locked && target === 5 && Math.abs(value - 5) < .001
       const chapter = Math.max(1, Math.min(3, Math.ceil(value - 4)))
-      networkMotionRef.current = { network: stage / 4, stage, visible: portal > .1 }
+      Object.assign(networkMotionRef.current, { network: stage / 4, stage, visible: portal > .1 && visible })
+      networkSettingsRef.current = settingsAtRest(particleValue)
+      // During the wave handoff the playhead is parked at facet one for
+      // geometry, but the visible background must already match the intro.
+      const introHandoff = suspended || document.documentElement.dataset.worldWaveActive === 'true'
+      set('intro-background', introHandoff ? 1 : 1 - smootherstep(clamp01(value)))
       set('reveal', reveal)
       set('descent', reveal)
       set('focus', reveal)
@@ -111,14 +139,21 @@ export default function PhysicsBehaviorSection({
       // out while the first facet separates, so the states fit one screen.
       // The heading is read first, then scrolls up and away while the
       // crystal rises into the centre; the rail arrives with the first state.
-      const intro = smootherstep(clamp01(value))
-      set('copy', reveal * (1 - smootherstep(clamp01((value - .25) / .6))) * (1 - portal))
+      const textValue = locked && facetTextStart !== null
+        ? facetTextStart + (target - facetTextStart) * facetTextEase(clamp01((tween?.progress() ?? 0) * 1.15))
+        : value
+      const intro = smootherstep(clamp01(textValue))
+      set('copy', reveal * (1 - smootherstep(clamp01((textValue - .25) / .6))) * (1 - portal))
       set('copy-shift', intro)
       set('rail-visible', reveal * smootherstep(clamp01((value - .35) / .55)) * (1 - portal))
       set('rail-hit', reveal > .5 && portal < .1 ? 'auto' : 'none')
       names.forEach((name, i) => {
-        const copy = smootherstep(clamp01((value - i - .65) / .35))
-          * (1 - smootherstep(clamp01((value - i - 1) / .3)))
+        const changingFacet = locked && facetTextStart !== null && target !== copyDeparture
+        const departing = changingFacet && i + 1 === copyDeparture
+        const incomingReady = !changingFacet || (tween?.time() ?? 0) >= .364445
+        const copyAllowed = !locked || (i + 1 === target && incomingReady) || i + 1 === copyDeparture
+        const copy = (copyAllowed && !departing ? 1 : 0) * smootherstep(clamp01((textValue - i - .65) / .35))
+          * (1 - smootherstep(clamp01((textValue - i - 1) / .3)))
         set('state-' + name, states[i])
         set('state-' + name + '-copy', copy * reveal * (1 - portal))
         const node = copyNodes[i]
@@ -136,15 +171,20 @@ export default function PhysicsBehaviorSection({
             node.classList.remove('is-copy-visible')
           }
         }
-        set('state-' + name + '-rail', value >= i + .5 && value < i + 1.5 ? 1 : 0)
+        const railActive = value >= i + .5 && value < i + 1.5
+        set('state-' + name + '-rail', railActive ? 1 : 0)
+        section.querySelector(`.physics-behavior-section__state-rail-item--${name} button`)
+          ?.setAttribute('data-active', String(railActive))
       })
       // Liquid: after the shards have split off (portal .3), the hexagon of
       // the gem's own colour grows from its silhouette past the screen
-      // corners, holds, and dissolves into block five underneath.
-      const flood = smootherstep(clamp01((portal - .3) / .4))
+      // corners and keeps expanding as block five appears underneath.
+      const floodTravel = Math.pow(Math.max(0, (portal - .3) / .4), 1.5)
+      const flood = clamp01(floodTravel)
       // Leaves earlier, so block five's field and points are already there
       // under it instead of an empty background.
       const liquidOn = portal > .3 ? 1 - smootherstep(clamp01((portal - .68) / .22)) : 0
+      liquid.style.display = liquidOn > .001 ? '' : 'none'
       const gemR = Math.max(20, crystalScreen.r || 80)
       const coverR = Math.hypot(window.innerWidth, window.innerHeight) / 0.866 * 0.62
       const lx = crystalScreen.valid ? crystalScreen.x : window.innerWidth / 2
@@ -152,12 +192,20 @@ export default function PhysicsBehaviorSection({
       // The flood also drifts the centre to the middle of the screen.
       liquid.style.setProperty('--liquid-x', `${lx + (window.innerWidth / 2 - lx) * flood}px`)
       liquid.style.setProperty('--liquid-y', `${ly + (window.innerHeight / 2 - ly) * flood}px`)
-      liquid.style.setProperty('--liquid-r', `${(gemR + (coverR - gemR) * flood).toFixed(1)}px`)
+      liquid.style.setProperty('--liquid-r', `${(gemR + (coverR - gemR) * floodTravel).toFixed(1)}px`)
       liquid.style.setProperty('--liquid-opacity', (liquidOn * smootherstep(clamp01((portal - .3) / .06))).toFixed(3))
       liquid.style.setProperty('--liquid-swirl', `${(portal * 40).toFixed(2)}deg`)
+      // Rasterize the rays at a stable viewport size, then grow the composited layer.
+      const lightDiameter = Math.hypot(window.innerWidth, window.innerHeight) * 1.8
+      const lightRadius = gemR + (coverR - gemR) * floodTravel
+      liquid.style.setProperty('--liquid-light-diameter', `${lightDiameter}px`)
+      liquid.style.setProperty('--liquid-light-scale', String((lightRadius * 4.2 + 120) / lightDiameter))
+      const delayedTravel = locked && target === 5 && copyDeparture === 4 && tween
+        ? gsap.parseEase('sine.inOut')(clamp01((tween.time() - .05) / tween.duration())) : null
+      const lightPortal = delayedTravel === null ? portal : smootherstep(delayedTravel)
       // The flash over the cut, as in 2→3: it flares as the liquid breaks
       // out of the gem and dies down while the flood fills the screen.
-      const flash = smootherstep(clamp01((portal - .28) / .08)) * (1 - smootherstep(clamp01((portal - .5) / .3)))
+      const flash = smootherstep(clamp01((lightPortal - .28) / .08)) * (1 - smootherstep(clamp01((lightPortal - .6) / .3)))
       liquid.style.setProperty('--liquid-light', flash.toFixed(3))
       set('clean-frame', portal)
       set('portal', portal)
@@ -172,33 +220,70 @@ export default function PhysicsBehaviorSection({
       set('network-intro', smootherstep(clamp01((portal - .38) / .4)))
       section.dataset.released = portal >= .995 ? 'true' : 'false'
       section.dataset.darkCard = portal >= .48 ? 'true' : 'false'
+      const navigationChapter = locked && target >= 5 ? Math.min(3, target - 4) : chapter
+      if(networkChapterRef.current!==navigationChapter){networkChapterRef.current=navigationChapter;setNetworkChapter(navigationChapter)}
       section.dataset.chapter = String(chapter)
       section.dataset.step = String(target)
       const networkNode = section.querySelector('.physics-behavior-section__network')
-      if (networkNode) networkNode.inert = portal < .95
+      if (networkNode) {
+        networkNode.inert = portal < .95
+        networkNode.style.backgroundColor=networkSettingsRef.current.backgroundBlue
+        networkNode.querySelectorAll('.scene-copy').forEach((copy,i)=>{
+          const changing = locked && target >= 5
+          const copyChapter = changing ? target - 4 : chapter
+          // Explicit copy timings, independent of the particle transition duration.
+          const textStart = target === 7 ? .5 : target === 5 && copyDeparture > 5 ? .8 : .7
+          const textDuration = 1.2
+          const progress = changing ? clamp01(((tween?.time() ?? 0) - textStart) / textDuration) : 1
+          copy.style.transform = 'translate3d(-50%,0,0)'
+          copy.dataset.active=String(copyChapter===i+1)
+          copy.style.setProperty('--copy-opacity', copyChapter===i+1 ? '1' : '0')
+          const words = copy.querySelectorAll('.network-copy-word')
+          words.forEach((word, index) => {
+            const p = smootherstep(clamp01((progress - index / Math.max(1, words.length - 1) * .3) / .7))
+            word.style.opacity = String(p)
+            word.style.transform = `translateY(${18 * (1-p)}px)`
+            word.style.filter = `blur(${8 * (1-p)}px)`
+          })
+          copy.setAttribute('aria-hidden',String(copy.dataset.active!=='true'))
+        })
+      }
       networkNode?.setAttribute('aria-hidden', portal < .95 ? 'true' : 'false')
       section.querySelectorAll('[data-network-step]').forEach((button, i) => {
-        button.setAttribute('aria-selected', String(chapter === i + 1))
+        button.setAttribute('aria-selected', String(navigationChapter === i + 1))
         button.tabIndex = portal > .95 ? 0 : -1
       })
+      const crystalHandoff = document.documentElement.dataset.worldWaveActive === 'true'
       onCrystalAnchorRef.current?.(window.innerWidth * .5, window.innerHeight * .52, {
         sectionTop: rect.top, sectionBottom: rect.bottom,
-        progress: (value - 1) / 7, reveal, descent: reveal, focus: reveal,
-        stateOne: states[0], stateTwo: states[1], stateThree: states[2], stateFour: states[3],
-        cleanFrame: portal, portal,
+        progress: (value - 1) / 7,
+        reveal: crystalHandoff ? 1 : reveal,
+        descent: crystalHandoff ? 1 : reveal,
+        focus: crystalHandoff ? 1 : reveal,
+        stateOne: crystalHandoff ? 0 : states[0], stateTwo: crystalHandoff ? 0 : states[1],
+        stateThree: crystalHandoff ? 0 : states[2], stateFour: crystalHandoff ? 0 : states[3],
+        cleanFrame: crystalHandoff ? 0 : portal, portal: crystalHandoff ? 0 : portal,
       })
     }
     const go = (index) => {
       if (suspended || locked || index < 1 || index > 7) return
+      copyDeparture = Math.round(playhead.value)
       target = index
       locked = true
       tween?.kill()
+      // Do not read progress=1 from the previous completed tween in render().
+      tween = null
+      facetTextStart = copyDeparture <= 4 && index <= 4 ? playhead.value : null
+      const networkStepChange = copyDeparture >= 5 && index >= 5
+      // Fade the outgoing paragraph before moving geometry, in either direction.
+      render()
       const destination = top() + (index - 1) * stride()
       // Only the playhead moves while a step plays; the page is placed at
       // the step's scroll position once, at the end. Scrolling the window
       // every frame under the pinned screen made it judder up and down.
       const travel = { value: playhead.value }
       tween = gsap.to(travel, {
+        delay: 0,
         value: index,
         // 4→5 is a slow, readable sequence: the shards fly out, the glass
         // fades, its light swells and settles into the card. The portal
@@ -206,8 +291,8 @@ export default function PhysicsBehaviorSection({
         // State to state 1.5× slower (1.15 → 1.725s): turn first, then the facet.
         // 4→5 is slower than 2→3: the crack, then the liquid flooding out.
         // Block five's step two (index 6) carries two old steps: longer.
-        duration: reduced ? .01 : index === 5 ? 4.2 : index === 6 ? 2.8 : index === 7 ? 1.8 : 1.725,
-        ease: index === 5 ? 'sine.inOut' : 'power2.inOut',
+        duration: reduced ? .01 : index === 5 ? 3.5 * (copyDeparture <= 4 ? 1.1 : 1) / (copyDeparture <= 4 ? 1.3 * .9 : 1) : index === 6 ? 2.8 : index === 7 ? 2.3 : 1.725 * (facetTextStart !== null ? 1.15 : 1),
+        ease: networkStepChange ? 'power1.out' : index === 5 ? 'sine.inOut' : 'power2.inOut',
         onUpdate: () => {
           playhead.value = travel.value
           render()
@@ -217,7 +302,7 @@ export default function PhysicsBehaviorSection({
           window.scrollTo({ top: destination, left: 0, behavior: 'instant' })
           lastScrollY = window.scrollY
           locked = false
-          facetScrollReadyAt = performance.now() + 50
+          facetScrollReadyAt = performance.now() + (index === 1 ? 100 : 30)
           render()
         },
       })
@@ -226,19 +311,20 @@ export default function PhysicsBehaviorSection({
     // 3→4 arrival, rest to rest: the heading is read, then the crystal turns
     // a little and the first facet separates (playhead 0 → 1).
     const settleFirstFacet = (delay = 0) => {
+      facetTextStart = playhead.value
       locked = true
       tween?.kill()
       tween = gsap.to(playhead, {
         value: 1,
         delay: reduced ? 0 : delay,
-        // 1.5× slower: the turn, then the facet, both readable.
-        duration: reduced ? .01 : 3.3,
+        // Quicker introduction turn, with the same geometry and easing.
+        duration: reduced ? .01 : 2.2 * 1.15,
         ease: 'power2.inOut',
         onUpdate: render,
         onComplete: () => {
           playhead.value = 1
           locked = false
-          facetScrollReadyAt = performance.now() + 50
+          facetScrollReadyAt = performance.now() + 100
           render()
         },
       })
@@ -246,12 +332,13 @@ export default function PhysicsBehaviorSection({
     // 4→3 is that arrival backwards: the facet rejoins the gem and the
     // heading comes back; then block three plays its wave backwards.
     const leaveToBlockThree = () => {
+      facetTextStart = null
       awaitingStart = false
       locked = true
       tween?.kill()
       tween = gsap.to(playhead, {
         value: 0,
-        duration: reduced ? .01 : 1.8,
+        duration: reduced ? .01 : 1.2,
         ease: 'power2.inOut',
         onUpdate: render,
         onComplete: () => {
@@ -265,56 +352,104 @@ export default function PhysicsBehaviorSection({
     }
     const flyToSolutions = () => {
       const destination = document.querySelector('.solutions-section')
-      if (!destination || locked) return
+      if (!destination || locked || solutionsExitCommitted) return
+      solutionsExitCommitted = true
       locked = true
       tween?.kill()
-      // Keep the live sixth screen, including selected tabs and images.
-      // Its placeholder preserves the scroll track while it flies in front
-      // of the still-running space canvas.
-      const placeholder = document.createElement('div')
-      placeholder.style.height = `${destination.getBoundingClientRect().height}px`
-      placeholder.setAttribute('aria-hidden', 'true')
-      destination.before(placeholder)
-      destination.classList.add('solutions-section--approaching', 'solutions-section--copy-waiting')
-      window.dispatchEvent(new Event('42ai-solutions-forward-entry'))
+      // Only the temporary flash/card is animated. The sixth screen keeps
+      // its normal document position and owns scrolling after this handoff.
+      const light = document.createElement('div')
+      light.className = 'network-exit-light'
+      light.setAttribute('aria-hidden', 'true')
+      const backgroundFade = document.createElement('div')
+      backgroundFade.className = 'network-exit-light__background'
+      light.appendChild(backgroundFade)
+      light.style.setProperty('--exit-x', `${networkSettingsRef.current.vanishingX * 100}%`)
+      light.style.setProperty('--exit-y', `${networkSettingsRef.current.vanishingY * 100}%`)
+      light.style.setProperty('--exit-diameter', `${Math.hypot(window.innerWidth, window.innerHeight) * .95}px`)
+      document.body.appendChild(light)
+      const exitDuration = .8
       const approach = { value: 0 }
-      // Release the heading at 400ms on the 1200ms power3.out approach.
-      const revealScale = .154 + .846 * (1 - Math.pow(1 - .4 / 1.2, 4))
+      const flare = approach
+      const drawLight = () => {
+        // Half-size ray textures cover the same area through compositor scaling.
+        // Whiten the whole shader backdrop on the same clock as the flash.
+        // A compositor opacity layer avoids another fullscreen shader/filter.
+        backgroundFade.style.opacity = String(smootherstep(flare.value))
+        const rayScale = 2 * (.008 + .992 * flare.value)
+        light.style.setProperty('--exit-scale', String(rayScale))
+        light.style.setProperty('--exit-rays-opacity', String(.65 * smootherstep(clamp01(flare.value * exitDuration / .15))))
+        // Hold the rays after their 150ms reveal; the opaque card covers them.
+      }
+      drawLight()
+      // Animate only a lightweight blank surface. The real section remains
+      // in normal flow and never changes opacity, size or positioning.
+      const card = document.createElement('div')
+      card.className = 'solutions-section solutions-section--approaching'
+      card.setAttribute('aria-hidden', 'true')
+      card.style.padding = '0'
+      card.style.minHeight = '0'
+      document.body.appendChild(card)
+      window.dispatchEvent(new Event('42ai-solutions-forward-entry'))
+      // Reveal the heading once the growing card is large enough to read.
       const drawApproach = () => {
         const p = approach.value
+        drawLight()
         // Ease the actual size, so the approach is fast and lands softly.
-        const scale = 0.154 + 0.846 * p
-        destination.classList.toggle('solutions-section--copy-waiting', scale < revealScale)
-        destination.style.setProperty('--approach-scale', String(scale))
-        destination.style.setProperty('--approach-opacity', String(Math.min(1, p / .12)))
-        destination.style.setProperty('--approach-radius', `${32 * (1 - smootherstep(clamp01((p - .7) / .3)))}px`)
+        const scale = 0.008 + 0.992 * p
+        const cardVisibility = smootherstep(clamp01((scale - .008) / (.8 - .008)))
+        card.style.setProperty('--approach-blur', `${120 * (1 - cardVisibility)}px`)
+        card.style.setProperty('--approach-scale', String(scale))
+        const shape = smootherstep(clamp01((p - .12) / .78))
+        const side = Math.min(window.innerWidth, window.innerHeight)
+        card.style.setProperty('--approach-width', `${side + (window.innerWidth-side)*shape}px`)
+        card.style.setProperty('--approach-height', `${side + (window.innerHeight-side)*shape}px`)
+        card.style.setProperty('--approach-content', String(smootherstep(clamp01((p-.72)/.28))))
+        card.style.setProperty('--approach-opacity', String(.1 + .9 * cardVisibility))
+        card.style.setProperty('--approach-radius', `${side * .5 * (1 - smootherstep(clamp01((p - .12) / .78)))}px`)
       }
       landingCleanup = () => {
-        destination.classList.remove('solutions-section--approaching', 'solutions-section--copy-waiting')
-        destination.style.removeProperty('--approach-scale')
-        destination.style.removeProperty('--approach-opacity')
-        destination.style.removeProperty('--approach-radius')
-        placeholder.remove()
+        card.remove()
+        light.remove()
         landingCleanup = null
       }
       drawApproach()
-      tween = gsap.to(approach, {
+      tween = gsap.timeline()
+        .to(approach, {
         value: 1,
-        duration: reduced ? .01 : 1.2,
-        ease: 'power3.out',
+        duration: reduced ? .01 : exitDuration,
+        ease: 'none',
         onUpdate: drawApproach,
         onComplete: () => {
-          const y = placeholder.getBoundingClientRect().top + window.scrollY
-          landingCleanup?.()
-          window.scrollTo(0, y)
-          lastScrollY = window.scrollY
+          const y = destination.getBoundingClientRect().top + window.scrollY
+          // Release ownership before announcing the landing. Content reveal
+          // must never be responsible for unlocking wheel/touch navigation.
           locked = false
+          tween = null
+          holdUntil = 0
+          landingGesture.arm(performance.now())
+          try {
+            window.scrollTo({ top: y, left: 0, behavior: 'instant' })
+          } finally {
+            landingCleanup?.()
+            lastScrollY = window.scrollY
+            window.dispatchEvent(new Event('42ai-solutions-entry-settled'))
+          }
         },
-      })
+      }, 0)
     }
     const consume = (direction, event, fresh) => {
+      // A completed exit must never consume another downward packet while
+      // refusing to run flyToSolutions because its one-shot latch is set.
+      if (solutionsExitCommitted && !locked && direction > 0 && !returningFromSolutions) return false
       const rect = section.getBoundingClientRect()
-      if (suspended || rect.top > 2 || rect.bottom < window.innerHeight - 2) return false
+      if (document.documentElement.dataset.worldWaveActive === 'true' || suspended || rect.top > 2 || rect.bottom < window.innerHeight - 2) return false
+      if (returningFromSolutions) {
+        event.preventDefault()
+        if (!fresh || performance.now() < holdUntil) return true
+        returningFromSolutions = false
+        solutionsExitCommitted = false
+      }
       if (performance.now() < holdUntil) {
         event.preventDefault()
         return true
@@ -332,11 +467,10 @@ export default function PhysicsBehaviorSection({
         }
         return true
       }
-      if (direction < 0 && (locked || (target === 1 && Math.abs(rect.top) <= 2))) {
-        // At the first rest (or mid-arrival): step back to the heading,
-        // never a native jump up into block three's pinned track.
+      // Continuing wheel momentum must not kill and restart the current
+      // return tween on every packet. Finish it, then accept the next input.
+      if (locked) {
         event.preventDefault()
-        if (fresh && (!locked || playhead.value < 1)) leaveToBlockThree()
         return true
       }
       if (direction < 0) {
@@ -360,11 +494,18 @@ export default function PhysicsBehaviorSection({
     const wheel = (event) => {
       if (event.ctrlKey || Math.abs(event.deltaY) < 1 || event.defaultPrevented) return
       const now = performance.now()
+      if (landingGesture.consume(now, Math.sign(event.deltaY))) {
+        event.preventDefault()
+        lastWheel = now
+        return
+      }
       // Facets accept continuing wheel input after a short rest, but never
       // queue input received during the animation or advance without input.
-      const fresh = !awaitingStart && target >= 1 && target <= 4
-        ? now >= facetScrollReadyAt
-        : now - lastWheel > 220
+      const fresh = returningFromSolutions ? now - lastWheel >= 250 : awaitingStart
+        ? now - lastWheel >= 30 && now >= facetScrollReadyAt
+        : target >= 1 && target <= 4
+          ? now >= facetScrollReadyAt
+          : !locked
       lastWheel = now
       consume(Math.sign(event.deltaY), event, fresh)
     }
@@ -373,7 +514,17 @@ export default function PhysicsBehaviorSection({
       if (touchY == null || event.touches.length !== 1) return
       const distance = touchY - event.touches[0].clientY
       if (Math.abs(distance) < 16) return
-      if (consume(Math.sign(distance), event, !touchUsed)) touchUsed = true
+      if (solutionsExitCommitted && touchUsed) {
+        event.preventDefault()
+        return
+      }
+      const wasLocked = locked
+      const facets = target >= 1 && target <= 4
+      const ready = awaitingStart ? !touchUsed && performance.now() >= facetScrollReadyAt : facets ? performance.now() >= facetScrollReadyAt : !touchUsed
+      if (consume(Math.sign(distance), event, ready) && !wasLocked && locked) {
+        touchUsed = true
+        touchY = event.touches[0].clientY
+      }
     }
     const key = (event) => {
       if (event.target instanceof Element && event.target.closest('button,a,input,textarea,select')) return
@@ -385,9 +536,23 @@ export default function PhysicsBehaviorSection({
       const goingUp = y < lastScrollY
       lastScrollY = y
       const rect = section.getBoundingClientRect()
+      if (rect.bottom < window.innerHeight - 2) {
+        if (!locked) {
+          target = 7
+          playhead.value = 7
+        }
+        // Only arm the return when actually travelling back. Downward
+        // scrolling through screen six belongs entirely to the document.
+        if (goingUp) {
+          returningFromSolutions = true
+          holdUntil = performance.now() + 350
+        }
+        render()
+        return
+      }
       // Block three no longer hands off with an event; native scroll into
       // this pane is enough to wake it up.
-      if (suspended && rect.top < window.innerHeight * .5) suspended = false
+      if (suspended && document.documentElement.dataset.worldWaveActive !== 'true' && rect.top < window.innerHeight * .5) suspended = false
       if (!locked && !suspended && rect.top > 1) {
         // Entering from above (or from block three): the crystal arrives
         // whole; the first facet detaches once the pane is reached.
@@ -425,8 +590,10 @@ export default function PhysicsBehaviorSection({
       target = 1
       playhead.value = 0
       awaitingStart = true
+      touchUsed = true
       lastWheel = performance.now()
-      holdUntil = lastWheel + 1900
+      facetScrollReadyAt = lastWheel + 100
+      holdUntil = facetScrollReadyAt
       render()
     }
     const navigate = (event) => {
@@ -437,10 +604,12 @@ export default function PhysicsBehaviorSection({
       suspended = false
       locked = false
       holdUntil = 0
+      returningFromSolutions = false
+      solutionsExitCommitted = false
       awaitingStart = step === 0
       target = step || 1
       playhead.value = step
-      facetScrollReadyAt = performance.now() + 50
+      facetScrollReadyAt = performance.now() + 30
       const destination = applications ? document.getElementById('applications') : null
       const y = destination
         ? window.scrollY + destination.getBoundingClientRect().top
@@ -504,7 +673,7 @@ export default function PhysicsBehaviorSection({
                 className="physics-behavior-section__state-rail-button"
                 onClick={() => glideToRestRef.current(restIndex)}
               >
-                <span><ScrambleText text={label} /></span>
+                <span>{label}</span>
               </button>
             </li>
           ))}
@@ -512,7 +681,7 @@ export default function PhysicsBehaviorSection({
 
         <article className="physics-behavior-section__state physics-behavior-section__state--one">
           <div>
-            <AnimatedHeading as="p" reveal="lines" maxDurationMs={1000}>
+            <AnimatedHeading as="p" reveal="lines" maxDurationMs={1000 / 1.2} speed={1.2}>
               We’re born with hundreds of <strong>foundational traits</strong> that constantly interact and conflict, shaping how we experience the world.
             </AnimatedHeading>
           </div>
@@ -520,7 +689,7 @@ export default function PhysicsBehaviorSection({
 
         <article className="physics-behavior-section__state physics-behavior-section__state--two">
           <div>
-            <AnimatedHeading as="p" reveal="lines" maxDurationMs={1000}>
+            <AnimatedHeading as="p" reveal="lines" maxDurationMs={1000 / 1.2} speed={1.2}>
               Over time, traits and experiences build our <strong>personality and intuition</strong> for the world.
             </AnimatedHeading>
           </div>
@@ -528,7 +697,7 @@ export default function PhysicsBehaviorSection({
 
         <article className="physics-behavior-section__state physics-behavior-section__state--three">
           <div>
-            <AnimatedHeading as="p" reveal="lines" maxDurationMs={1000}>
+            <AnimatedHeading as="p" reveal="lines" maxDurationMs={1000 / 1.2} speed={1.2}>
               Together with our mood and circumstances, they shape how we <strong>interpret and respond to new events.</strong>
             </AnimatedHeading>
           </div>
@@ -536,7 +705,7 @@ export default function PhysicsBehaviorSection({
 
         <article className="physics-behavior-section__state physics-behavior-section__state--four">
           <div>
-            <AnimatedHeading as="p" reveal="lines" maxDurationMs={1000}>
+            <AnimatedHeading as="p" reveal="lines" maxDurationMs={1000 / 1.2} speed={1.2}>
               We combine behavioural science, psychiatry, AI and genetics to model these layers, creating the first-ever <strong>World Model that internalises<br className="physics-behavior-section__model-break" />the rules of behaviour.</strong>
             </AnimatedHeading>
           </div>
@@ -557,18 +726,10 @@ export default function PhysicsBehaviorSection({
           ))}
         </div>
         <div className="physics-behavior-section__network" aria-hidden="true">
-          <NetworkLightShader motionRef={networkMotionRef} />
-          <BehaviorNetworkTransition motionRef={networkMotionRef} />
-          <AnimatedHeading as="p" maxDurationMs={1800} className="physics-behavior-section__network-copy physics-behavior-section__network-copy--one">
-            Inside our world model, each person’s traits, personality, and context come alive.
-          </AnimatedHeading>
-          <AnimatedHeading as="p" maxDurationMs={1800} className="physics-behavior-section__network-copy physics-behavior-section__network-copy--two">
-            It models their interactions to predict how that person responds, now and over time.
-          </AnimatedHeading>
-          <AnimatedHeading as="p" maxDurationMs={1800} className="physics-behavior-section__network-copy physics-behavior-section__network-copy--three">
-            Connecting millions of human worlds together,<br />creating the foundation for human-aligned AI.
-          </AnimatedHeading>
+          {networkPrepared&&<Suspense fallback={null}><NetworkScene motionRef={networkMotionRef} settingsRef={networkSettingsRef}/></Suspense>}
+          {toolScenes.map((config,i)=><p key={i} className={`scene-copy physics-behavior-section__network-copy physics-behavior-section__network-copy--${['one','two','three'][i]}`} style={toolCopyStyle(config)} data-active="false" aria-hidden="true">{config.textValue.split(/\s+/).map((word, index)=><span key={index} className="network-copy-word" style={{display:"inline-block",whiteSpace:"pre"}}>{word+" "}</span>)}</p>)}
           <div className="physics-behavior-section__network-tabs" role="tablist" aria-label="World model stages">
+            <span className="network-step-indicator" aria-hidden="true" style={{transform:`translate3d(${(networkChapter-1)*34.434783}px,0,0)`}}></span>
             {[1, 2, 3].map(step => <button key={step} data-network-step={step} role="tab" aria-selected="false" onClick={() => glideToRestRef.current(4 + step)}>{step}</button>)}
           </div>
         </div>

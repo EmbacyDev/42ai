@@ -798,8 +798,11 @@
   opacity: var(--light-tag, 0);
   filter: blur(calc((1 - var(--light-tag, 0)) * 8px));
 }
+.world-model-wave__copy .physics-behavior-section__eyebrow,
 .world-model-wave__copy h2 {
   position: relative;
+  color: rgba(18, 18, 18, var(--light-ink, 0));
+  -webkit-text-fill-color: rgba(18, 18, 18, var(--light-ink, 0));
   opacity: var(--light-letters, 0);
   transform: var(--light-projection, none);
   transform-origin: center bottom;
@@ -808,6 +811,7 @@
     calc(-1 * var(--light-fringe, 0px)) 0 rgba(70, 206, 158, .5);
   will-change: transform, filter, opacity;
 }
+.world-model-wave__copy .physics-behavior-section__eyebrow::after,
 .world-model-wave__copy h2::after {
   content: 'Behavior has learnable rules';
   position: absolute;
@@ -850,7 +854,7 @@
 .world-model-wave__soft-edge {
   position: absolute;
   inset: 0;
-  filter: blur(var(--funnel-edge-blur, 0px));
+  filter: blur(var(--funnel-edge-blur, 0px)) drop-shadow(0 18px 24px rgba(92, 215, 211, .45));
   /* Feather the composited blur as well, so it cannot spill below the
      shared lower edge as a second colour band. */
   -webkit-mask-image: linear-gradient(to bottom, #000 max(0px, calc(var(--funnel-bottom, 100vh) - 100px)), transparent var(--funnel-bottom, 100vh));
@@ -882,4 +886,9 @@
 .world-model-wave__soft-edge {
   -webkit-mask-image: none;
   mask-image: none;
+}
+
+.world-model-wave__copy .physics-behavior-section__eyebrow::after {
+  content: "Our thesis";
+  padding: inherit;
 }

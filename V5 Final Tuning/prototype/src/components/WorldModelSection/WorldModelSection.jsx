@@ -633,27 +633,38 @@ export default function WorldModelSection({
       lightCopy.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'))
       waveEl.appendChild(lightCopy)
     }
+    let waveMetrics = null
+    let departingCopy = null
+    let waveScrubbing = false
+    let waveTarget = 0
     const waveProxy = { value: 0, opacity: 0 }
     const writeWave = () => {
+      document.documentElement.dataset.worldWaveActive = waveProxy.opacity > 0 ? 'true' : 'false'
       waveEl.style.setProperty('--wave', waveProxy.value.toFixed(4))
       waveEl.style.setProperty('--wave-opacity', waveProxy.opacity.toFixed(4))
       const p = waveProxy.value
+      document.documentElement.dataset.worldWaveProgress = String(p)
       const smooth = (start, end) => {
         const t = Math.max(0, Math.min(1, (p - start) / (end - start)))
         return t * t * (3 - 2 * t)
       }
-      // Collapse the entire field into a trapezoid whose lower edge meets
-      // the title. Its top follows later, carrying the rays down into type.
-      const heading = lightCopy?.querySelector('h2')
-      const copyBox = lightCopy?.getBoundingClientRect()
-      const titleTop = copyBox && heading ? copyBox.top + heading.offsetTop : 244
-      const titleHeight = heading?.offsetHeight || 62.4
-      const titleWidth = Math.min(heading?.offsetWidth || 676, window.innerWidth - 32)
+      // Gather the trailing edge into a parabola before the light resolves into type.
+      if (!waveMetrics || waveMetrics.viewportWidth !== window.innerWidth || waveMetrics.viewportHeight !== window.innerHeight) {
+        const heading = lightCopy?.querySelector('h2')
+        const copyBox = lightCopy?.getBoundingClientRect()
+        waveMetrics = {
+          viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
+          titleTop: copyBox && heading ? copyBox.top + heading.offsetTop : 244,
+          titleHeight: heading?.offsetHeight || 62.4,
+          titleWidth: Math.min(heading?.offsetWidth || 676, window.innerWidth - 32),
+        }
+      }
+      const { titleTop, titleHeight, titleWidth } = waveMetrics
       const inset = Math.max(0, (window.innerWidth - titleWidth) / 2)
       // One geometry for the field and the projected letters: reveal white
       // below first, then gather the same surface into the title.
-      const clearBelow = smooth(0, 0.55)
-      const collapse = smooth(0.42, 0.9)
+      const clearBelow = smooth(0, 0.68)
+      const collapse = smooth(0.38, 1)
       const titleBottom = titleTop + titleHeight
       const travel = (window.innerHeight - titleBottom) * clearBelow
       // Translate the intact screen upwards before gathering its trailing edge.
@@ -661,16 +672,22 @@ export default function WorldModelSection({
       const bottom = window.innerHeight - travel
       const upperWidth = window.innerWidth + (titleWidth - window.innerWidth) * collapse
       const upperInset = (window.innerWidth - upperWidth) / 2
-      const lowerInset = inset * smooth(0.08, 0.55)
+      const lowerInset = inset * smooth(0.30, 0.78)
+      const fieldHeight = Math.max(titleHeight, bottom - top)
+      const curveDepth = Math.min(fieldHeight * .72, window.innerHeight * .38) * smooth(.16, .52) * (1 - smooth(.68, 1))
+      const edgeY = fieldHeight - curveDepth
+      // Quadratic control point is twice the sag so the centre reaches bottom.
+      waveField.style.clipPath = `path('M ${upperInset} 0 L ${window.innerWidth - upperInset} 0 L ${window.innerWidth - lowerInset} ${edgeY} Q ${window.innerWidth / 2} ${fieldHeight + curveDepth} ${lowerInset} ${edgeY} Z')`
+      waveEl.style.setProperty('--light-ink', smooth(.68, 1).toFixed(4))
       waveEl.style.setProperty('--funnel-top', `${top.toFixed(2)}px`)
       waveEl.style.setProperty('--funnel-height', `${Math.max(titleHeight, bottom - top).toFixed(2)}px`)
       waveEl.style.setProperty('--funnel-upper-inset', `${upperInset.toFixed(2)}px`)
       waveEl.style.setProperty('--funnel-lower-inset', `${lowerInset.toFixed(2)}px`)
       waveEl.style.setProperty('--funnel-bottom', `${bottom.toFixed(2)}px`)
-      waveEl.style.setProperty('--funnel-edge-blur', `${(80 * smooth(0, 0.2) * (1 - smooth(0.78, 1))).toFixed(2)}px`)
+      waveEl.style.setProperty('--funnel-edge-blur', `${(28 * smooth(0, 0.2) * (1 - smooth(0.78, 1))).toFixed(2)}px`)
       waveEl.style.setProperty('--funnel-rays', (smooth(0.28, 0.48) * (1 - smooth(0.7, 1))).toFixed(4))
-      waveEl.style.setProperty('--light-field', (1 - smooth(0.48, 0.82)).toFixed(4))
-      waveEl.style.setProperty('--light-letters', smooth(0.48, 0.74).toFixed(4))
+      waveEl.style.setProperty('--light-field', (1 - smooth(0.54, 0.94)).toFixed(4))
+      waveEl.style.setProperty('--light-letters', smooth(0.40, 0.74).toFixed(4))
       // Project the actual letterforms into the same trapezoid as the field.
       // The lower edge stays registered with the final title; each upper
       // row spreads farther sideways, rather than stretching straight up.
@@ -679,41 +696,99 @@ export default function WorldModelSection({
       const stretch = (bottom - top) * (1 - perspective) / titleHeight
       waveEl.style.setProperty('--light-projection', `translateY(${bottom - titleBottom}px) matrix3d(${lowerWidth / titleWidth},0,0,0,0,${stretch},0,${perspective / titleHeight},0,0,1,0,0,0,0,1)`)
       waveEl.style.setProperty('--light-blur', `${(20 * (1 - smooth(0.22, 0.94))).toFixed(3)}px`)
-      waveEl.style.setProperty('--light-colour', (1 - smooth(0.58, 0.95)).toFixed(4))
+      waveEl.style.setProperty('--light-colour', (1 - smooth(0.68, 1)).toFixed(4))
       waveEl.style.setProperty('--light-fringe', `${(2.5 * (1 - smooth(0.55, 1))).toFixed(3)}px`)
       waveEl.style.setProperty('--light-tag', smooth(0.65, 0.96).toFixed(4))
+      if (departingCopy) {
+        departingCopy.style.transform = `translateY(${-window.innerHeight * 1.15 * smooth(0, .68)}px)`
+        departingCopy.style.opacity = String(1 - smooth(.5, .68))
+      }
       if (fourthCopy) fourthCopy.style.visibility = waveProxy.opacity > 0 ? 'hidden' : ''
     }
     let waveTween = null
     const WAVE_COVER = 0.3
-    const WAVE_OPEN = 1.8
-    const playExit = () => {
+    const WAVE_OPEN = 1.2 / .93
+    const advanceWave = () => {
+      // One gesture plays the complete handoff; momentum cannot scrub,
+      // restart or reverse it before the introduction has landed.
+      if (waveTween?.isActive()) return
+      waveTarget = 1
+      waveTween = gsap.to(waveProxy, {
+        value: 1, duration: reduceMotion ? .01 : WAVE_OPEN, ease: 'power1.inOut',
+        onUpdate: writeWave,
+        onComplete: () => {
+          if (waveTarget === 0) {
+            waveScrubbing = false
+            handedOff = false
+            exitCommitted = false
+            departingCopy?.remove()
+            departingCopy = null
+            window.scrollTo(0, readingRestY())
+            setColourOpen(true, true)
+            waveProxy.opacity = 0
+            writeWave()
+            return
+          }
+          if (waveTarget < 1) return
+          waveTween = null
+          waveScrubbing = false
+          exitFlying = false
+          exitPlaying = false
+          exitReversing = false
+          handedOff = true
+          departingCopy?.remove()
+          departingCopy = null
+          waveProxy.opacity = 0
+          writeWave()
+          window.scrollTo({ top: fourthIntroScrollY(), left: 0, behavior: 'instant' })
+          releaseFourth()
+        },
+      })
+    }
+    const playExit = (pixels = window.innerHeight * .22) => {
       if (handedOff || returningHome || returningToCopy) return
       queuedExitAfterRoll = false
       queuedHomeAfterRoll = false
       exitCommitted = true
       handedOff = true
       waveTween?.kill()
-      const swapToFourth = () => {
-        gsap.killTweensOf(window)
-        window.scrollTo(0, fourthIntroScrollY())
-        setColourOpen(false, true)
-        releaseFourth()
+      // Freeze the visible paragraph, including its drum pose, before moving
+      // the page beneath the overlay. Text and field leave together.
+      const source = section.querySelector('.world-model-section__copy')
+      departingCopy?.remove()
+      departingCopy = document.createElement('div')
+      Object.assign(departingCopy.style, { position: 'absolute', inset: '0', zIndex: '2', pointerEvents: 'none' })
+      // Snapshot only the visible rows, not hundreds of computed glyph styles.
+      if (source) {
+        const typography = getComputedStyle(source)
+        const rows = [...source.querySelectorAll('.world-model-section__line')].map(row => ({
+          text: row.textContent, box: row.getBoundingClientRect(), opacity: Number(getComputedStyle(row).opacity),
+        }))
+        for (const {text, box, opacity} of rows) {
+          if (opacity < .05 || box.bottom < 0 || box.top > window.innerHeight) continue
+          const row = document.createElement('div')
+          row.textContent = text
+          Object.assign(row.style, {
+            position: 'absolute', left: box.left + 'px', top: box.top + 'px',
+            width: box.width + 'px', fontFamily: typography.fontFamily,
+            fontSize: typography.fontSize, fontWeight: typography.fontWeight,
+            lineHeight: typography.lineHeight, letterSpacing: typography.letterSpacing,
+            color: '#121212', whiteSpace: 'nowrap', textAlign: 'center', opacity: String(opacity),
+          })
+          departingCopy.appendChild(row)
+        }
       }
-      if (reduceMotion) {
-        swapToFourth()
-        return
-      }
+      waveEl.appendChild(departingCopy)
       waveProxy.value = 0
-      waveProxy.opacity = 0
+      waveProxy.opacity = 1
+      waveTarget = 0
+      waveScrubbing = true
       writeWave()
-      waveTween = gsap.timeline()
-        // The green layer settles over the field (the paragraph goes).
-        .to(waveProxy, { opacity: 1, duration: WAVE_COVER, ease: 'power1.inOut', onUpdate: writeWave })
-        .add(swapToFourth)
-        // Light narrows into the title; the last frame matches the DOM below.
-        .to(waveProxy, { value: 1, duration: WAVE_OPEN, ease: 'none', onUpdate: writeWave })
-        .set(waveProxy, { opacity: 0, value: 0, onComplete: writeWave })
+      window.dispatchEvent(new CustomEvent(WORLD_MODEL_RETURN_EVENT))
+      gsap.killTweensOf(window)
+      window.scrollTo(0, fourthIntroScrollY())
+      setColourOpen(false, true)
+      advanceWave(reduceMotion ? window.innerHeight * 3 : pixels)
     }
     // 4→3 reverses the same light-to-type transition before restoring the field.
     const playWaveBack = () => {
@@ -1291,7 +1366,7 @@ export default function WorldModelSection({
       crystalScreen.preZoom = smootherstep(Math.min(1, p / .6))
       maskProxy.r = maskStartRadius * p + (coverRadius() - maskStartRadius) * p * p
       maskProxy.light = Math.sin(Math.PI * Math.min(1, p * .85)) * .9
-      crystalScreen.maskHide = smootherstep(Math.max(0, Math.min(1, (p - .38) / .24)))
+      crystalScreen.maskHide = smootherstep(Math.max(0, Math.min(1, (p - .68) / .30)))
       writeMask()
     }
     let centreWait = null
@@ -1574,6 +1649,15 @@ export default function WorldModelSection({
     }
 
     const holdExitScroll = (event) => {
+      if (waveScrubbing) {
+        event.preventDefault()
+        lastAnyWheelAt = performance.now()
+        advanceWave(wheelPixels(event))
+        return
+      }
+      // Once the wave has finished, only block four may consume gestures.
+      // Stale transition flags must not intercept its facet navigation.
+      if (handedOff && waveProxy.opacity === 0 && !exitFlying && !returningHome && !returningToCopy) return
       // v4: every wheel packet counts toward "is this a new gesture", even
       // ones this handler ignores — otherwise the 2→3 flick's trackpad
       // momentum looked fresh the moment the paragraph became readable.
@@ -1685,7 +1769,7 @@ export default function WorldModelSection({
         }
         if (holdExit || !freshGesture) return
         tailOverscroll = 0
-        playExit()
+        playExit(pixels)
         return
       }
       tailOverscroll = 0
@@ -1714,6 +1798,11 @@ export default function WorldModelSection({
       const forwardKey = ['ArrowDown', 'PageDown', ' ', 'Spacebar', 'End'].includes(event.key)
       const reverseKey = ['ArrowUp', 'PageUp', 'Home'].includes(event.key)
       if (!forwardKey && !reverseKey) return
+      if (waveScrubbing) {
+        event.preventDefault()
+        advanceWave(window.innerHeight * (forwardKey ? .28 : -.28))
+        return
+      }
       if (returningHome || returningToCopy || exitReversing || collapsing || maskOpening) {
         event.preventDefault()
         return
@@ -1752,10 +1841,20 @@ export default function WorldModelSection({
       }
       releaseToBlock2()
     }
-    const armExitFromTouch = () => {}
+    let transitionTouchY = null
+    const armExitFromTouch = (event) => { transitionTouchY = event.touches.length === 1 ? event.touches[0].clientY : null }
+    const moveExitFromTouch = (event) => {
+      if (transitionTouchY === null || event.touches.length !== 1) return
+      const y = event.touches[0].clientY
+      const delta = transitionTouchY - y
+      transitionTouchY = y
+      if (!delta || !(waveScrubbing || (colourOpen && fieldIsReadable()))) return
+      holdExitScroll({ deltaY: delta, deltaMode: 0, preventDefault: () => event.preventDefault() })
+    }
     window.addEventListener('wheel', holdExitScroll, { passive: false, capture: true })
     window.addEventListener('keydown', holdExitKeys)
     window.addEventListener('touchstart', armExitFromTouch, { passive: true })
+    window.addEventListener('touchmove', moveExitFromTouch, { passive: false, capture: true })
 
     // How far the drop has to travel to clear the screen: from the impact
     // point (centre of the pane, where the crystal now sits) to the
@@ -2006,6 +2105,9 @@ export default function WorldModelSection({
       window.removeEventListener(BLOCK24_HANDOFF_EVENT, handleHandoff)
       waveTween?.kill()
       waveEl.remove()
+      departingCopy?.remove()
+      delete document.documentElement.dataset.worldWaveActive
+      delete document.documentElement.dataset.worldWaveProgress
       if (fourthCopy) fourthCopy.style.visibility = ''
       window.removeEventListener(WORLD_MODEL_BACK_EVENT, playWaveBack)
       homePauseCall?.kill()
@@ -2015,6 +2117,7 @@ export default function WorldModelSection({
       window.removeEventListener('wheel', holdExitScroll, { capture: true })
       window.removeEventListener('keydown', holdExitKeys)
       window.removeEventListener('touchstart', armExitFromTouch)
+      window.removeEventListener('touchmove', moveExitFromTouch, { capture: true })
       section.classList.remove('world-model-section--handoff-cover')
       document.documentElement.classList.remove('on-world-model')
       onSectionVisibilityChangeRef.current?.(false)

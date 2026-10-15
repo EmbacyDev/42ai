@@ -32,6 +32,7 @@ const fragmentShader = /* glsl */ `
   uniform float uRingOn;
   uniform float uGain;
   uniform float uTime;
+  uniform float uStartupViolet;
   uniform float uIdle;
   uniform float uSpin;
   uniform float uSpin2;
@@ -219,6 +220,7 @@ const fragmentShader = /* glsl */ `
     // v4: mostly white light, the crystal hue only as a tint.
     rayColor = mix(rayColor, vec3(1.0), 0.6);
     vec3 idleRingColor = mix(palette(hueA * 0.7 + hueB * 0.5 + uTime * 0.02), uCore, 0.15);
+    idleRingColor = mix(idleRingColor, vec3(0.57, 0.52, 1.0), uStartupViolet * 0.85);
     light += idleRingColor * idleRing * ringVar * 0.14 * uIdle * (1.0 - uStrength) * uRingOn;
     light += rayColor * rayMask * rayFall * rayGate * 0.34 * uIdle * (1.0 - 0.55 * s);
     // v4: a second, finer set of rays turning a little faster than the
@@ -293,6 +295,7 @@ export function createHeroLight(config) {
       uTint: { value: new THREE.Color('#13a57e') },
       uTintAmount: { value: 0 },
       uTime: { value: 0 },
+      uStartupViolet: { value: 0 },
       uC0: { value: new THREE.Color(config?.friendFlowColor1 ?? '#756cff') },
       uC1: { value: new THREE.Color(config?.friendFlowColor2 ?? '#29ae57') },
       uC2: { value: new THREE.Color(config?.friendFlowColor3 ?? '#1d81ed') },
@@ -324,9 +327,10 @@ export function createHeroLight(config) {
    * crystal: { x, y, r } in CSS px or null; hover: { cardId, x, y, rect }
    * in CSS px (rect = [x0, y0, x1, y1]) for a real pointer hover, or null.
    */
-  function update(time, delta, { width, height, crystal, hover, inHero, masks = [], idleOff = false, volume = 0, ringOn = 1, gain = 1, spread = 1, tint = 0 }) {
+  function update(time, delta, { width, height, crystal, hover, inHero, masks = [], idleOff = false, volume = 0, ringOn = 1, gain = 1, spread = 1, tint = 0, startupViolet = 0 }) {
     u.uGain.value += (gain - u.uGain.value) * (1 - Math.exp(-3 * Math.min(delta, 0.05)))
     u.uVolume.value += (volume - u.uVolume.value) * (1 - Math.exp(-2.4 * Math.min(delta, 0.05)))
+    u.uStartupViolet.value = startupViolet
     u.uRingOn.value = ringOn
     u.uTintAmount.value = tint
     u.uSpread.value += (spread - u.uSpread.value) * (1 - Math.exp(-3 * Math.min(delta, 0.05)))

@@ -499,7 +499,7 @@
 .physics-behavior-section__state.is-copy-exiting {
   opacity: 0;
   transform: translateY(-36px);
-  transition: opacity .82s linear, transform .82s linear;
+  transition: opacity .364445s linear, transform .364445s linear;
 }
 .physics-behavior-section__state.is-copy-resetting { opacity: 0; transform: translateY(18px); transition: none; }
 @media (prefers-reduced-motion: reduce) {
@@ -541,9 +541,9 @@
 }
 
 /* Share the final introduction pose with the light-to-type transition clone. */
-.physics-behavior-section__copy { top: calc(16% + 40px); }
+.physics-behavior-section__copy { top: calc(16% + 80px); }
 @media (max-width: 720px) {
-  .physics-behavior-section__copy { top: 194px; }
+  .physics-behavior-section__copy { top: 234px; }
 }
 .world-model-wave__copy .physics-behavior-section__eyebrow {
   background: #f0f1f2;

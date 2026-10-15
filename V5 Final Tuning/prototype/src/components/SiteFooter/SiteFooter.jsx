@@ -18,12 +18,14 @@ export default function SiteFooter() {
     const links = [...root.querySelectorAll('.site-footer__nav a')]
     const targets = [...links, mark]
     targets.forEach(node => { node.style.opacity = '0' })
+    const revealThreshold = .3
+    const textSpeed = 1.2
     let stopMenu
     let markTimer
     let stopMark
     let playing = false
     const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting || entry.intersectionRatio < .4) {
+      if (!entry.isIntersecting || entry.intersectionRatio < revealThreshold) {
         playing = false
         clearTimeout(markTimer)
         stopMenu?.()
@@ -36,10 +38,10 @@ export default function SiteFooter() {
       stopMenu = playSmoothLines(links.map(link => [link]), Infinity, {
         lineDurationMs: 700,
         lineStaggerMs: 150,
-
+        speed: textSpeed,
       })
-      markTimer = setTimeout(() => { stopMark = playSmoothLines([[mark]], Infinity, { lineDurationMs: 700 }) }, 950)
-    }, { threshold: 0.4 })
+      markTimer = setTimeout(() => { stopMark = playSmoothLines([[mark]], Infinity, { lineDurationMs: 700 }) }, 950 / textSpeed)
+    }, { threshold: revealThreshold })
     observer.observe(root)
     return () => {
       clearTimeout(markTimer)

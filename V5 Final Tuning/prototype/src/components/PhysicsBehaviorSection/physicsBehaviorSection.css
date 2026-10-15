@@ -145,13 +145,9 @@
   transition: color 0.32s ease, background-color 0.32s ease;
 }
 
-.physics-behavior-section__state-rail-button:hover,
-.physics-behavior-section__state-rail-button:focus-visible {
-  color: rgb(
-    calc(18 + 237 * var(--physics-rail-active, 0))
-    calc(18 + 237 * var(--physics-rail-active, 0))
-    calc(18 + 237 * var(--physics-rail-active, 0))
-  );
+.physics-behavior-section__state-rail-button:not([data-active="true"]):hover,
+.physics-behavior-section__state-rail-button:not([data-active="true"]):focus-visible {
+  color: #121212;
 }
 
 .physics-behavior-section__state-rail-button span {
@@ -411,11 +407,12 @@
   overflow: hidden;
   background: #0b1420;
   opacity: var(--physics-network-intro);
-  /* Grows out of the expanding light into the card. */
-  transform: scale(calc(0.9 + 0.1 * var(--physics-network-intro)));
+  /* Keep the shader edge outside the visible transition. Scaling this
+     opaque rectangle exposed its perimeter against the white backdrop. */
+  transform: none;
   pointer-events: none;
   isolation: isolate;
-  will-change: opacity, transform;
+  will-change: opacity;
 }
 
 .physics-behavior-section__network-light {
@@ -593,11 +590,18 @@
   .physics-behavior-section__network-copy { transition: none; }
 }
 
-/* Same faint grey as the hero stage (#f7f7f6): the facet beams are light
-   in the crystal's colours and vanish against pure white. */
+/* Keep the white-top intro, then blend back to the original facet atmosphere. */
 .physics-behavior-section,
 .physics-behavior-section__sticky {
-  background: #f7f7f6;
+  background:
+    linear-gradient(to bottom left,
+      rgb(255 255 255 / var(--physics-intro-background, 1)) 0%,
+      rgb(255 255 255 / var(--physics-intro-background, 1)) 30%,
+      rgb(243 248 252 / var(--physics-intro-background, 1)) 60%,
+      rgb(232 241 249 / var(--physics-intro-background, 1)) 100%),
+    linear-gradient(180deg, #d4e7f8 0%, #edf6fd 52%, #ffffff 100%);
+  background-size: 100% 100svh;
+  background-attachment: fixed;
 }
 
 /* The heading leaves upward as the first state forms. */
@@ -624,11 +628,11 @@
 
 /* Larger than the screen, so the blur has colour to draw from at the
    viewport edges once the flood is full (else a pale frame stays). The
-   edge is blurred hard (200px), like the 2→3 cut. */
+   edge is softened with a 60px blur, like the 2→3 cut. */
 .physics-liquid__soft {
   position: absolute;
   inset: -420px;
-  filter: blur(200px);
+  filter: blur(60px);
 }
 
 .physics-liquid__clip {
@@ -664,8 +668,10 @@
 /* The flash over the cut: the crystal's light (hot core, soft rays in its
    colours), sized with the hexagon and slowly turning — the same idea as
    .world-model-mask__light on 2→3. */
+/* Same layered halo / broad rays / fine shafts as the 2→3 light.
+   Colour stays in the glass palette instead of bleaching the flood white. */
 .physics-liquid__light {
-  --size: calc(var(--liquid-r) * 3 + 240px);
+  --size: var(--liquid-light-diameter, 180vmax);
   position: absolute;
   left: var(--liquid-x);
   top: var(--liquid-y);
@@ -673,24 +679,45 @@
   height: var(--size);
   margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
   opacity: var(--liquid-light, 0);
-  mix-blend-mode: screen;
   pointer-events: none;
+  /* Fade the complete light surface, including offset glows and ray
+     children, before its rectangular texture boundary can become visible. */
+  -webkit-mask-image: radial-gradient(ellipse closest-side, #000 55%, transparent 98%);
+  mask-image: radial-gradient(ellipse closest-side, #000 55%, transparent 98%);
+  /* Light palette: soft lavender-blue accents over pale and sky blue. */
   background:
-    radial-gradient(circle at 50% 50%,
-      rgba(240, 255, 250, 0.95) 0%,
-      rgba(170, 238, 226, 0.75) 10%,
-      rgba(120, 190, 240, 0.45) 24%,
-      rgba(150, 140, 230, 0.2) 40%,
-      transparent 62%),
-    repeating-conic-gradient(from 0deg at 50% 50%,
-      rgba(150, 255, 205, 0.34) 0deg 7deg,
-      transparent 7deg 26deg,
-      rgba(120, 170, 255, 0.26) 26deg 31deg,
-      transparent 31deg 48deg);
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 18%, transparent 68%);
-  mask-image: radial-gradient(circle at 50% 50%, #000 0%, #000 18%, transparent 68%);
+    radial-gradient(ellipse at 46% 48%, rgba(133, 157, 226, .05), transparent 67%),
+    radial-gradient(ellipse at 46% 48%, rgba(119, 185, 241, .50), transparent 67%),
+    radial-gradient(ellipse at 46% 48%, rgba(66, 169, 222, .45), transparent 67%);
+  background-blend-mode: screen;
   filter: blur(8px);
-  transform: rotate(var(--liquid-swirl));
+  transform: rotate(var(--liquid-swirl)) scale(var(--liquid-light-scale, 1));
+  will-change: transform, opacity;
+}
+.physics-liquid__light::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-conic-gradient(from 12deg at 50% 50%,
+    rgba(133, 157, 226, .48) 0deg 1.2deg, transparent 1.8deg 24deg,
+    rgba(119, 185, 241, .48) 24deg 36deg, transparent 36.6deg 48deg,
+    rgba(66, 169, 222, .48) 48deg 58.8deg, transparent 59.4deg 72deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 3%, #000 16%, transparent 65%);
+  mask-image: radial-gradient(circle, transparent 3%, #000 16%, transparent 65%);
+  transform: rotate(calc(var(--liquid-swirl) * -1.5));
+}
+.physics-liquid__light::before {
+  content: '';
+  position: absolute;
+  inset: -15%;
+  background: repeating-conic-gradient(from -18deg,
+    transparent 0deg 17deg, rgba(133, 157, 226, .40) 17deg 17.3deg,
+    transparent 22deg 41deg, rgba(119, 185, 241, .40) 41deg 44deg,
+    transparent 46deg 65deg, rgba(66, 169, 222, .40) 65deg 67.7deg,
+    transparent 68deg 72deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 2%, #000 12%, transparent 66%);
+  mask-image: radial-gradient(circle, transparent 2%, #000 12%, transparent 66%);
+  filter: blur(3px);
 }
 
 @media (prefers-reduced-motion: reduce) {

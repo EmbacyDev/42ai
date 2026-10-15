@@ -21,7 +21,7 @@ function textKey(children) {
     ? `${child.type}:${textKey(child.props.children)}` : String(child)).join('')
 }
 
-export default function AnimatedHeading({ as: Tag = 'h2', children, reveal = 'characters', maxDurationMs = Infinity, delayMs = 0, visibilityCheckMs = 100, once = false, viewportStart = 1, enabled = true, lineDurationMs, lineStaggerMs, blurPx = Tag === 'ul' ? 0 : 10, speed = 1, onRevealStart, onRevealComplete, onRevealReset, ...props }) {
+export default function AnimatedHeading({ as: Tag = 'h2', children, reveal = 'characters', maxDurationMs = Infinity, delayMs = 0, visibilityCheckMs = 100, once = false, viewportStart = 1, observeViewport = true, enabled = true, lineDurationMs, lineStaggerMs, blurPx = Tag === 'ul' ? 0 : 10, speed = 1, onRevealStart, onRevealComplete, onRevealReset, ...props }) {
   const ref = useRef(null)
   const callbacks = useRef({})
   callbacks.current = { onRevealStart, onRevealComplete, onRevealReset }
@@ -60,7 +60,7 @@ export default function AnimatedHeading({ as: Tag = 'h2', children, reveal = 'ch
     let stop = null
     let played = false
     chars.forEach((char) => { char.style.opacity = '0' })
-    let inView = false
+    let inView = !observeViewport
     const reset = () => {
       stop?.()
       stop = null
@@ -91,19 +91,23 @@ export default function AnimatedHeading({ as: Tag = 'h2', children, reveal = 'ch
       }
       frame = setTimeout(check, visibilityCheckMs)
     }
-    const observer = new IntersectionObserver(([entry]) => {
+    // Explicitly enabled child reveals already have a visible parent. Do not
+    // wait for a second intersection notification after visibility changes.
+    const observer = observeViewport ? new IntersectionObserver(([entry]) => {
       clearTimeout(frame)
       inView = entry.isIntersecting
       if (inView) check()
       else { if (!once) reset(); playAt = null }
     }, { threshold: 0, rootMargin: `0px 0px -${window.innerHeight * (1 - viewportStart)}px 0px` })
-    observer.observe(el)
+    : null
+    if (observer) observer.observe(el)
+    else check()
     return () => {
-      observer.disconnect()
+      observer?.disconnect()
       clearTimeout(frame)
       stop?.()
       chars.forEach((char) => { char.style.opacity = '' })
     }
-  }, [contentKey, reveal, maxDurationMs, delayMs, visibilityCheckMs, once, viewportStart, enabled, lineDurationMs, lineStaggerMs, blurPx, speed])
+  }, [contentKey, reveal, maxDurationMs, delayMs, visibilityCheckMs, once, viewportStart, observeViewport, enabled, lineDurationMs, lineStaggerMs, blurPx, speed])
   return <Tag {...props} ref={ref} style={{ ...props.style, visibility: enabled ? props.style?.visibility : 'hidden' }}>{splitText(children, reveal !== 'characters')}</Tag>
 }

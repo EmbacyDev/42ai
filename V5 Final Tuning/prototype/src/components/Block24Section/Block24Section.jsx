@@ -133,7 +133,7 @@ const SLIDES = [
   }
 ]
 
-const TAB_ROW_HEIGHT = 15 * 1.15 + 12
+const TAB_ROW_HEIGHT = 15 * 1.15 + 14
 
 /**
  * Figma Block 24 (node 122:2495), inserted between the hero and the glass
@@ -168,12 +168,6 @@ export default function Block24Section({
   const activeIndexRef = useRef(0)
   const wheelTargetRef = useRef(0)
   const wheelValueRef = useRef(0)
-  const tabsWheelRef = useRef({
-    accumulated: 0,
-    direction: 0,
-    lastAt: 0,
-    lockedUntil: 0,
-  })
   const onCrystalAnchorRef = useRef(onCrystalAnchor)
   const onCrystalPulseRef = useRef(onCrystalPulse)
   const onSectionVisibilityChangeRef = useRef(onSectionVisibilityChange)
@@ -301,7 +295,6 @@ export default function Block24Section({
       if (!next) {
         handoffScrollTween?.kill()
         queuedHandoff = false
-        leaveGestures = 0
       }
       if (reduceMotion || instant) {
         // Band transition: an instant reset must also bring the carried
@@ -421,6 +414,9 @@ export default function Block24Section({
             // jumps to block three only once that covers the screen.
             // The gem is in the centre once its descent has finished.
             gsap.delayedCall(MASK_DESCENT / 2, dispatchHandoff),
+            // The completion event normally releases the pin. A lost event
+            // must never leave all wheel input captured indefinitely.
+            gsap.delayedCall(MASK_DESCENT + MASK_BURST + .5, onMaskReady),
 
           ]
           : [
@@ -445,8 +441,8 @@ export default function Block24Section({
     let lastMoveAt = performance.now()
     let lastScrollY = window.scrollY
     let lastWheelAt = 0
-    let leaveGestures = 0
     let queuedHandoff = false
+    let contentSettledAt = Infinity
 
     const noteMovement = () => {
       lastMoveAt = performance.now()
@@ -515,9 +511,9 @@ export default function Block24Section({
       reportVisibility()
       window.clearTimeout(settleTimer)
       if (!next) {
+        contentSettledAt = Infinity
         hasSettledOnBlock2 = false
         queuedHandoff = false
-        leaveGestures = 0
       }
       enterTween?.kill()
       enterTween = gsap.to(enterProxy, {
@@ -536,12 +532,14 @@ export default function Block24Section({
           ) {
             queuedHandoff = false
             hasSettledOnBlock2 = true
-            leaveGestures = Math.max(leaveGestures, 1)
+            returningFromWorld = false
+            setHandoff(true)
           }
         },
         onComplete: () => {
           section.style.setProperty('--block24-enter-content', Math.min(1, Math.max(0, (enterProxy.value * BLOCK24_ENTRANCE_DURATION - 0.8) / 0.35)).toFixed(4))
           if (next) {
+            contentSettledAt = performance.now()
             setContentReady(true)
             // Once the editorial reveal has completed, the section is a
             // deterministic reading rest. Waiting for an additional quiet
@@ -703,7 +701,6 @@ export default function Block24Section({
       },
       onLeaveBack: () => {
         returningFromWorld = false
-        leaveGestures = 0
         setHandoff(false, true)
       },
     })
@@ -715,10 +712,6 @@ export default function Block24Section({
       }
       if (!canArmHandoff()) return false
       event.preventDefault()
-      if (leaveGestures < 1) {
-        leaveGestures = 1
-        return true
-      }
       setHandoff(true)
       return true
     }
@@ -766,6 +759,7 @@ export default function Block24Section({
       // is still landing. Once the reveal has visibly started, remember the
       // deliberate gesture and launch as soon as the stage is readable.
       if (!crystalLanded || enterProxy.value < 0.15) {
+        if (freshGesture) queuedHandoff = true
         return
       }
       if (!isOnBlock2Stage()) {
@@ -778,13 +772,9 @@ export default function Block24Section({
       if (!hasSettledOnBlock2) {
         hasSettledOnBlock2 = true
       }
-      if (!freshGesture) return
-      if (leaveGestures < 1) {
-        leaveGestures = 1
-        return
-      }
+      // Do not require an endless quiet gap once the screen is fully settled.
+      if (!freshGesture && now - contentSettledAt < 350) return
       returningFromWorld = false
-      leaveGestures = 0
       queuedHandoff = false
       setHandoff(true)
     }
@@ -844,7 +834,6 @@ export default function Block24Section({
       // moment, so one long flick cannot carry on straight to the hero.
       returnHoldUntil = performance.now() + RETURN_HOLD_MS
       lastMoveAt = performance.now() - 500
-      leaveGestures = 0
       hasSettledOnBlock2 = true
       returningFromWorld = true
       queuedHandoff = false
@@ -978,40 +967,7 @@ export default function Block24Section({
     )
   }
 
-  // The picker is a circular drum: wheel movement always advances one item
-  // in sequence and wraps without a first or last state. A small accumulator
-  // keeps high-resolution trackpads from advancing several items per tick.
-  const handleTabsWheel = (event) => {
-    // The page-level listener runs in the capture phase and claims the
-    // flick that leaves this section. Don't also advance the drum.
-    if (event.defaultPrevented || !contentReady || isExiting) return
-    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
-
-    const direction = event.deltaY > 0 ? 1 : -1
-    event.preventDefault()
-    event.stopPropagation()
-
-    const now = window.performance.now()
-    const wheel = tabsWheelRef.current
-    const unit = event.deltaMode === 1
-      ? 16
-      : event.deltaMode === 2
-        ? window.innerHeight
-        : 1
-
-    if (wheel.direction !== direction || now - wheel.lastAt > 180) {
-      wheel.accumulated = 0
-      wheel.direction = direction
-    }
-    wheel.lastAt = now
-    wheel.accumulated += Math.abs(event.deltaY) * unit
-
-    if (now < wheel.lockedUntil || wheel.accumulated < 30) return
-    wheel.accumulated = 0
-    wheel.lockedUntil = now + 340
-    moveBy(direction)
-  }
-
+  // Vertical wheel gestures belong to page navigation, including over the rail.
   useEffect(() => {
     const section = sectionRef.current
     if (!section) return undefined
@@ -1149,7 +1105,6 @@ export default function Block24Section({
           className="block24-section__tabs"
           role="listbox"
           aria-label="Industries"
-          onWheel={handleTabsWheel}
         >
           <div className="block24-section__tabs-drum">
             {virtualTabs.map(({ slide, index, virtualSlot }) => {

@@ -219,9 +219,22 @@ html.on-world-model .site-header__glyph--scramble {
   }
 }
 
-/* The fifth chapter keeps the navigation black over its light header area. */
-.site-header--network .site-header__logo > img { filter: brightness(0); }
+/* White navigation over the fifth-screen colour field. */
+.site-header--network .site-header__logo > img { filter: brightness(0) invert(1); }
 .site-header--network .site-header__links a,
-.site-header--network .site-header__glyph--scramble { color: #121212; }
-.site-header--network .site-header__cta { color: #ffffff; }
-.site-header--network .site-header__cta .request-demo__shape path { fill: #121212; }
+.site-header--network .site-header__links a:hover,
+.site-header--network .site-header__glyph--scramble { color: #fff; }
+.site-header--network .site-header__cta { color: #121212; }
+.site-header--network .site-header__cta .request-demo__shape path { fill: #fff; }
+/* Hover and React focus state use the same animation name and timing.
+   Switching names on pointer entry/exit restarted the glyph animation. */
+.site-header .scramble__glyph { backface-visibility: hidden; }
+.site-header :is(a,button):is(:hover,:focus-visible) .scramble__glyph,
+.site-header .scramble--active .scramble__glyph {
+ animation: header-letter-reveal 560ms cubic-bezier(.22,1,.36,1) var(--reveal-delay) both;
+}
+@keyframes header-letter-reveal {
+ 0% { opacity: .55; filter: blur(3px); transform: translate3d(0,3px,0); }
+ 100% { opacity: 1; filter: blur(0); transform: translate3d(0,0,0); }
+}
+@media(prefers-reduced-motion:reduce){.site-header .scramble__glyph{animation:none!important}}

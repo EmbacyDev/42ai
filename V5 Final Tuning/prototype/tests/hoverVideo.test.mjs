@@ -3,13 +3,16 @@ import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { createHoverVideo } from '../src/components/HeroScene/hoverVideo.js'
 
-test('hover video waits for the media stage, plays only while selected, and restores the poster', async () => {
+test('hero video preloads and crossfades, then stops after return or when hidden', async (t) => {
   const previousDocument = globalThis.document
+  let now = 0
+  t.mock.method(performance, 'now', () => now)
+  const mediaEvents = new Map()
   const events = new Map()
   const video = {
     readyState: 2, currentTime: 0, videoWidth: 960, videoHeight: 540,
     paused: true, loads: 0,
-    addEventListener() {},
+    addEventListener(name, fn) { mediaEvents.set(name, fn) },
     load() { this.loads++ },
     play() { this.paused = false; return Promise.resolve() },
     pause() { this.paused = true },
@@ -25,10 +28,12 @@ test('hover video waits for the media stage, plays only while selected, and rest
   const poster = new THREE.Texture()
   poster.userData.sourceCanvas = {}
   const mesh = { material: { map: poster }, userData: { cleanMaterial: { map: poster } } }
-  const controller = createHoverVideo(mesh, { sheet: { w: 188, h: 152 }, mask: { x: 5, y: 6, w: 171, h: 136 } }, poster)
+  const controller = createHoverVideo(mesh, { video: { src: '/hero.mp4', zoom: 1, centerX: .5, centerY: .5, offsetY: 0 }, sheet: { w: 188, h: 152 }, mask: { x: 5, y: 6, w: 171, h: 136 } }, poster)
   try {
+    mediaEvents.get('loadeddata')()
+    await controller.ready
     controller.update(true, false)
-    assert.equal(video.src, undefined)
+    assert.equal(video.src, '/hero.mp4')
     assert.equal(video.paused, true)
     controller.update(false, true)
     assert.equal(video.loads, 1)
@@ -38,16 +43,22 @@ test('hover video waits for the media stage, plays only while selected, and rest
     assert.equal(video.paused, false)
     assert.notEqual(mesh.material.map, poster)
     video.currentTime = 1.5
+    controller.update(true, true)
+    now = 350
+    controller.update(true, true)
+    controller.update(false, true)
+    assert.equal(video.paused, false)
+    now = 700
     controller.update(false, true)
     assert.equal(video.paused, true)
     assert.equal(video.currentTime, 0)
-    assert.equal(mesh.material.map, poster)
-    assert.equal(mesh.userData.cleanMaterial.map, poster)
+    assert.notEqual(mesh.material.map, poster)
+    assert.equal(mesh.userData.cleanMaterial.map, mesh.material.map)
     controller.update(true, true)
     document.hidden = true
     events.get('visibilitychange')()
     assert.equal(video.paused, true)
-    assert.equal(mesh.material.map, poster)
+    assert.notEqual(mesh.material.map, poster)
   } finally {
     controller.dispose()
     globalThis.document = previousDocument

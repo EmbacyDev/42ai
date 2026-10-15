@@ -4288,7 +4288,7 @@ function RemainingFragments({ shards, selected, motionRef }) {
     if (!root.current) return
     const portal = motionRef?.current?.fourth?.portal ?? 0
     root.current.visible = portal > .08 && portal < .96
-    const flight = smootherstep(Math.min(1, Math.max(0, (portal - .08) / .78)))
+    const flight = Math.pow(Math.max(0, (portal - .08) / .78), 1.5)
     root.current.children.forEach((mesh, index) => {
       const shard = remaining[index]
       mesh.position.set(...shard.position)
@@ -4498,9 +4498,12 @@ function FeaturedFacet({ shard, state, config, motionRef }) {
     // outward drift. Avoid a literal Z push: the whole crystal is already
     // scaling toward the camera, and adding local Z at that scale would hit
     // the near plane and create the large rectangular/triangular glitches.
-    group.position.addScaledVector(targetPosition.clone().normalize(), portalFlight * 7)
+    // Keep travelling outward while opacity falls; do not ease to a stop
+    // at the edge before the following colour layer takes over.
+    const outwardTravel = Math.pow(Math.max(0, (portal - profile.delay) / profile.span), 1.5)
+    group.position.addScaledVector(targetPosition.clone().normalize(), outwardTravel * 9)
     const readingScale = 1 + (facetScale - 1) * progress
-    group.scale.setScalar(readingScale * (1 + profile.scale * portalFlight))
+    group.scale.setScalar(readingScale * (1 + profile.scale * outwardTravel))
     if (facetPaintRef.current) {
       // Each pane completes its own camera pass, then disappears behind the
       // rectangular aperture before the parent crystal starts moving. This
@@ -4872,7 +4875,8 @@ const Glass = forwardRef(function Glass({
     if (!group.current) return
     const t = motionTimeRef.current
     const fourthFrameLocked = Boolean(
-      rotationLockRef?.current?.fourth?.reveal > 0.004,
+      rotationLockRef?.current?.fourth?.reveal > 0.004
+      || document.documentElement.dataset.worldWaveActive === 'true',
     )
     const firstHoleOpen = Boolean(
       rotationLockRef?.current?.fourth?.stateOne > FACET_DETACH_START,

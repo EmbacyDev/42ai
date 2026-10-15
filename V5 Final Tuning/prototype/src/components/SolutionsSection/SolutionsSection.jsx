@@ -1,4 +1,3 @@
-import AnimatedHeading from '../AnimatedHeading.jsx'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import RequestDemoButton, {
   DEMO_REST_PATH,
@@ -113,7 +112,7 @@ function mapDemoShapeToTab(path, width, height) {
   }).join(' ')
 }
 
-function TabIndicatorShape({ transitionKey, width, height }) {
+export function TabIndicatorShape({ transitionKey, width, height }) {
   const pathRef = useRef(null)
   const amountRef = useRef(0)
   const dimensionsRef = useRef({ width, height })
@@ -210,49 +209,40 @@ function TabIndicatorShape({ transitionKey, width, height }) {
 export default function SolutionsSection() {
   const sectionRef = useRef(null)
   const [activeIndex, setActiveIndex] = useState(0)
-  const [headingReady, setHeadingReady] = useState(false)
+  const [entryVisible, setEntryVisible] = useState(false)
   const [revealCycle, setRevealCycle] = useState(0)
-  const panelReady = headingReady
-  const [panelSettled, setPanelSettled] = useState(false)
-  const [listReady, setListReady] = useState(false)
   useEffect(() => {
-    if (!panelReady) return
-    const timer = setTimeout(() => setPanelSettled(true), window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1070)
-    return () => clearTimeout(timer)
-  }, [panelReady])
-  useEffect(() => {
-    const restart = () => {
-      setHeadingReady(false)
-      setPanelSettled(false)
-      setListReady(false)
+    const section = sectionRef.current
+    let cinematicEntry = false
+    const reveal = () => setEntryVisible(true)
+    const onScroll = () => {
+      // The cinematic handoff has a single explicit completion signal.
+      // Native/anchor entries also work without waiting for text callbacks.
+      const overlayActive = Boolean(document.querySelector('.solutions-section--approaching'))
+      if ((!cinematicEntry || !overlayActive) && section.getBoundingClientRect().top < window.innerHeight * .9) {
+        cinematicEntry = false
+        reveal()
+      }
+    }
+    const onForwardEntry = () => {
+      cinematicEntry = true
+      setEntryVisible(false)
       setRevealCycle(cycle => cycle + 1)
     }
-    const section = sectionRef.current
-    let previousY = window.scrollY
-    let aboveEntry = section.getBoundingClientRect().top >= window.innerHeight
-    const onScroll = () => {
-      const y = window.scrollY
-      const top = section.getBoundingClientRect().top
-      const approaching = section.classList.contains('solutions-section--approaching')
-      if (!approaching && y > previousY && aboveEntry && top < window.innerHeight) restart()
-      aboveEntry = top >= window.innerHeight
-      previousY = y
+    const onEntrySettled = () => {
+      cinematicEntry = false
+      reveal()
     }
-    // Cinematic and ordinary downward entries both re-arm the reveal.
-    // Upward scrolling never resets the already visible text.
-    const onForwardEntry = () => {
-      aboveEntry = false
-      restart()
-    }
+    window.addEventListener('42ai-solutions-entry-settled', onEntrySettled)
     window.addEventListener('42ai-solutions-forward-entry', onForwardEntry)
     window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
     return () => {
+      window.removeEventListener('42ai-solutions-entry-settled', onEntrySettled)
       window.removeEventListener('42ai-solutions-forward-entry', onForwardEntry)
       window.removeEventListener('scroll', onScroll)
     }
   }, [])
-  const supportingRevealTimer = useRef(null)
-  useEffect(() => () => window.clearTimeout(supportingRevealTimer.current), [])
   const tabsRef = useRef(null)
   const tabRefs = useRef([])
   const [indicator, setIndicator] = useState(null)
@@ -285,7 +275,7 @@ export default function SolutionsSection() {
     const observer = new ResizeObserver(measureIndicator)
     observer.observe(tabs)
     return () => observer.disconnect()
-  }, [measureIndicator])
+  }, [measureIndicator, entryVisible])
 
   const selectTab = (index) => {
     setActiveIndex(index)
@@ -313,33 +303,16 @@ export default function SolutionsSection() {
     <section
       ref={sectionRef}
       className="solutions-section"
-      data-heading-ready={headingReady}
-      data-panel-ready={panelReady}
-      data-more-ready={panelSettled && listReady}
+      data-entry-visible={entryVisible}
       id="applications"
       aria-labelledby="solutions-heading"
     >
       <div className="solutions-section__intro">
-        <AnimatedHeading key={revealCycle} as="h2" id="solutions-heading" className="solutions-section__title"
-          reveal="lines" lineDurationMs={600} lineStaggerMs={150} visibilityCheckMs={16}
-          once
-          onRevealStart={() => {
-            window.clearTimeout(supportingRevealTimer.current)
-            // Heading starts at 400ms; supporting content at 800ms.
-            supportingRevealTimer.current = window.setTimeout(() => setHeadingReady(true), 400)
-          }}
-          onRevealComplete={() => {
-            window.clearTimeout(supportingRevealTimer.current)
-            setHeadingReady(true)
-          }}
-          onRevealReset={() => {
-            window.clearTimeout(supportingRevealTimer.current)
-            setHeadingReady(false)
-          }}>
+        <h2 key={revealCycle} id="solutions-heading" className="solutions-section__title">
           Universal solution for human
           <br />
           and agentic behaviour
-        </AnimatedHeading>
+        </h2>
         <p className="solutions-section__lead">
           One behavioral intelligence engine for your high-value environments.
         </p>
@@ -414,13 +387,13 @@ export default function SolutionsSection() {
                 aria-hidden={!active}
                 style={{ '--solutions-panel-direction': direction }}
               >
-                <AnimatedHeading key={revealCycle} as="ul" once reveal="characters" blurPx={4} enabled={active && panelReady} onRevealComplete={() => { if (active) setListReady(true) }} onRevealReset={() => { if (active) setListReady(false) }} speed={1 / 1.3} lineDurationMs={225 + 300 / 1.3} lineStaggerMs={100}>
+                <ul key={`${revealCycle}-${active}`}>
                   {solution.rows.map((row, rowIndex) => <li key={row} style={{ '--row-delay': `${rowIndex * 130}ms` }}>{row}</li>)}
-                </AnimatedHeading>
+                </ul>
                 <RequestDemoButton
                   className="solutions-section__more"
                   label="Show more"
-                  tabIndex={active && panelSettled && listReady ? 0 : -1}
+                  tabIndex={active && entryVisible ? 0 : -1}
                   hidden={!active}
                 />
               </div>
