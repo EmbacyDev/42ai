@@ -102,7 +102,7 @@ export function mountHeroScene({
   const CRYSTAL_LOADING_SCALE = 0.55
   const CRYSTAL_REVEAL_DURATION = 1.5
   // Cards launch 300ms after the crystal starts growing.
-  const CRYSTAL_SOLO_DURATION = INTRO_GROW_DELAY + 0.3
+  const CRYSTAL_SOLO_DURATION = INTRO_GROW_DELAY + 0.35
   // A longer rest-to-rest flight gives each card enough time to accelerate
   // and visibly brake. The tighter stagger keeps the sequence feeling like
   // one composed burst rather than six separate slow animations.
@@ -595,7 +595,10 @@ export function mountHeroScene({
         crystalRevealStart = time
         introReadyAt = time
       }
-      if (portraitRevealAt !== null && time >= portraitRevealAt) {
+      // Wait for rendered crystal growth as well as the portrait assets.
+      // A slow GPU must not spend the 350ms delay before the gem is visible.
+      const crystalHasStarted = !skipCrystal || crystalScreen.introElapsed >= CRYSTAL_SOLO_DURATION
+      if (portraitRevealAt !== null && time >= portraitRevealAt && crystalHasStarted) {
         const portraitRevealTotal = planes.reveal(
           time,
           PORTRAIT_REVEAL_STAGGER,

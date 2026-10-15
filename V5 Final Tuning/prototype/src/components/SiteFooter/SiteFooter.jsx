@@ -1,7 +1,6 @@
-import { useEffect, useRef } from 'react'
-import { useSequentialReveal } from '../scrollReveal.js'
+import { useEffect, useLayoutEffect, useRef } from 'react'
+import { playSmoothLines } from '../appearText.js'
 import { drawFooterHoverLight } from './footerHoverLight.js'
-import '../scrollReveal.css'
 import './siteFooter.css'
 import { ScrambleLink } from '../Scramble/ScrambleText.jsx'
 
@@ -12,7 +11,44 @@ export default function SiteFooter() {
   const rootRef = useRef(null)
   const markRef = useRef(null)
   const lightCanvasRef = useRef(null)
-  useSequentialReveal(rootRef)
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    const mark = markRef.current
+    if (!root || !mark || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const links = [...root.querySelectorAll('.site-footer__nav a')]
+    const targets = [...links, mark]
+    targets.forEach(node => { node.style.opacity = '0' })
+    let stopMenu
+    let markTimer
+    let stopMark
+    let playing = false
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || entry.intersectionRatio < .4) {
+        playing = false
+        clearTimeout(markTimer)
+        stopMenu?.()
+        stopMark?.()
+        targets.forEach(node => { node.style.opacity = '0' })
+        return
+      }
+      if (playing) return
+      playing = true
+      stopMenu = playSmoothLines(links.map(link => [link]), Infinity, {
+        lineDurationMs: 700,
+        lineStaggerMs: 150,
+
+      })
+      markTimer = setTimeout(() => { stopMark = playSmoothLines([[mark]], Infinity, { lineDurationMs: 700 }) }, 950)
+    }, { threshold: 0.4 })
+    observer.observe(root)
+    return () => {
+      clearTimeout(markTimer)
+      observer.disconnect()
+      stopMenu?.()
+      stopMark?.()
+      targets.forEach(node => { node.style.opacity = '' })
+    }
+  }, [])
 
   useEffect(() => {
     const mark = markRef.current
@@ -171,7 +207,7 @@ export default function SiteFooter() {
   return (
     <footer className="site-footer" id="contact" ref={rootRef}>
       <div className="site-footer__inner">
-        <nav className="site-footer__nav scroll-reveal" data-reveal="0" aria-label="Footer">
+        <nav className="site-footer__nav" aria-label="Footer">
           <div className="site-footer__group">
             <ScrambleLink href="#technology" text="TECHNOLOGY" />
             <ScrambleLink href="#applications" text="PRODUCT" />
@@ -181,7 +217,7 @@ export default function SiteFooter() {
             <ScrambleLink href="#contact" text="CONTACT US" />
           </div>
         </nav>
-        <div className="site-footer__mark scroll-reveal" data-reveal="1" ref={markRef}>
+        <div className="site-footer__mark" ref={markRef}>
           <img src="/images/v2/footer-mark.svg" alt="42AI" width={1128} height={239} />
           <div className="site-footer__shine" aria-hidden="true">
             <div className="site-footer__glass" />

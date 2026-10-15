@@ -40,19 +40,19 @@ function HeroBar({ onDark }) {
 
 export default function SiteHeader({ ready = true }) {
   const [onDark, setOnDark] = useState(false)
+  const [onNetwork, setOnNetwork] = useState(false)
 
   useEffect(() => {
     const updateTheme = () => {
       const probeY = 40
-      const darkSections = // Block five's dark card starts below the header, which stays in its
-      // regular colours there (black logo and button, grey links).
-      document.querySelectorAll('.breakthroughs-section, .site-footer')
-      // Block five (the full-screen network) is dark too.
+      const darkSections = document.querySelectorAll('.breakthroughs-section, .site-footer')
+      // The network chapter uses black navigation, independently of its dark card.
       const physics = document.querySelector('.physics-behavior-section')
       const onBlockFive = physics?.dataset.darkCard === 'true'
         && physics.getBoundingClientRect().top <= probeY
         && physics.getBoundingClientRect().bottom > probeY
-      setOnDark(onBlockFive || Array.from(darkSections).some((section) => {
+      setOnNetwork(onBlockFive)
+      setOnDark(!onBlockFive && Array.from(darkSections).some((section) => {
         const rect = section.getBoundingClientRect()
         return rect.top <= probeY && rect.bottom > probeY
       }))
@@ -74,7 +74,7 @@ export default function SiteHeader({ ready = true }) {
 
   return (
     <header
-      className={`site-header site-header--top${ready ? '' : ' site-header--pending'}${onDark ? ' site-header--dark' : ''}`}
+      className={`site-header site-header--top${ready ? '' : ' site-header--pending'}${onDark ? ' site-header--dark' : ''}${onNetwork ? ' site-header--network' : ''}`}
       aria-hidden={!ready}
       inert={!ready}
     >

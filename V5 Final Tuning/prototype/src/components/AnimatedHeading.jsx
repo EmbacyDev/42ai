@@ -21,11 +21,31 @@ function textKey(children) {
     ? `${child.type}:${textKey(child.props.children)}` : String(child)).join('')
 }
 
-export default function AnimatedHeading({ as: Tag = 'h2', children, reveal = 'characters', maxDurationMs = Infinity, delayMs = 0, enabled = true, lineDurationMs, lineStaggerMs, speed = 1, onRevealStart, onRevealComplete, onRevealReset, ...props }) {
+export default function AnimatedHeading({ as: Tag = 'h2', children, reveal = 'characters', maxDurationMs = Infinity, delayMs = 0, visibilityCheckMs = 100, once = false, viewportStart = 1, enabled = true, lineDurationMs, lineStaggerMs, blurPx = Tag === 'ul' ? 0 : 10, speed = 1, onRevealStart, onRevealComplete, onRevealReset, ...props }) {
   const ref = useRef(null)
   const callbacks = useRef({})
   callbacks.current = { onRevealStart, onRevealComplete, onRevealReset }
   const contentKey = textKey(children)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el?.closest('.physics-behavior-section__state')) return
+    const syncGradient = () => {
+      el.querySelectorAll('strong').forEach(phrase => {
+        const words = [...phrase.querySelectorAll('.appear-word')].filter(word => word.textContent.trim())
+        if (!words.length) return
+        const left = Math.min(...words.map(word => word.offsetLeft))
+        const right = Math.max(...words.map(word => word.offsetLeft + word.offsetWidth))
+        phrase.style.setProperty('--phrase-gradient-width', `${right - left}px`)
+        words.forEach(word => word.style.setProperty('--phrase-gradient-x', `${left - word.offsetLeft}px`))
+      })
+    }
+    syncGradient()
+    const observer = new ResizeObserver(syncGradient)
+    observer.observe(el)
+    document.fonts.ready.then(syncGradient)
+    return () => observer.disconnect()
+  }, [contentKey])
+
   useLayoutEffect(() => {
     const el = ref.current
     if (!enabled || !el) return
@@ -54,27 +74,29 @@ export default function AnimatedHeading({ as: Tag = 'h2', children, reveal = 'ch
       let visible = true
       for (let node = el; node && node !== document.body; node = node.parentElement) {
         const style = getComputedStyle(node)
-        if (Number(style.opacity) < 0.1 || style.visibility === 'hidden' || style.display === 'none') { visible = false; break }
+        // Let an outgoing facet finish fading before hiding its individual words.
+        const opacityThreshold = node.classList.contains('is-copy-exiting') ? 0.001 : 0.1
+        if (Number(style.opacity) < opacityThreshold || style.visibility === 'hidden' || style.display === 'none') { visible = false; break }
       }
       if (!visible) {
-        if (played) reset()
+        if (played && !once) reset()
         playAt = null
       } else if (!played) {
         if (playAt === null) playAt = performance.now() + delayMs
         if (performance.now() >= playAt) {
           played = true
           callbacks.current.onRevealStart?.()
-          stop = (reveal === 'lines' ? playSmoothLines : playAppearLines)(visualLines(chars), maxDurationMs, { lineDurationMs, lineStaggerMs, speed, onComplete: () => callbacks.current.onRevealComplete?.() })
+          stop = (reveal === 'lines' ? playSmoothLines : playAppearLines)(visualLines(chars), maxDurationMs, { lineDurationMs, lineStaggerMs, blurPx, speed, onComplete: () => callbacks.current.onRevealComplete?.() })
         }
       }
-      frame = setTimeout(check, 100)
+      frame = setTimeout(check, visibilityCheckMs)
     }
     const observer = new IntersectionObserver(([entry]) => {
       clearTimeout(frame)
       inView = entry.isIntersecting
       if (inView) check()
-      else { reset(); playAt = null }
-    }, { threshold: 0, rootMargin: '0px' })
+      else { if (!once) reset(); playAt = null }
+    }, { threshold: 0, rootMargin: `0px 0px -${window.innerHeight * (1 - viewportStart)}px 0px` })
     observer.observe(el)
     return () => {
       observer.disconnect()
@@ -82,6 +104,6 @@ export default function AnimatedHeading({ as: Tag = 'h2', children, reveal = 'ch
       stop?.()
       chars.forEach((char) => { char.style.opacity = '' })
     }
-  }, [contentKey, reveal, maxDurationMs, delayMs, enabled, lineDurationMs, lineStaggerMs, speed])
+  }, [contentKey, reveal, maxDurationMs, delayMs, visibilityCheckMs, once, viewportStart, enabled, lineDurationMs, lineStaggerMs, blurPx, speed])
   return <Tag {...props} ref={ref} style={{ ...props.style, visibility: enabled ? props.style?.visibility : 'hidden' }}>{splitText(children, reveal !== 'characters')}</Tag>
 }

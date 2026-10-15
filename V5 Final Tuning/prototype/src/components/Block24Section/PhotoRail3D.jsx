@@ -1,4 +1,3 @@
-import { cardCaption } from './cardCaption.js'
 import {
   Suspense,
   useCallback,
@@ -6,7 +5,6 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useTexture } from '@react-three/drei'
@@ -32,15 +30,17 @@ const SIDE_CENTER_X = FIRST_CARD_LEFT + CARD_WIDTH / 2
 // Keep the primary optical hinge just beside the active card. Centering it in
 // the whole gap pushed the bulge too far right and produced an S-shaped panel.
 const CAMERA_FOV = 35
-export const BLOCK24_CARD_TRANSITION_DURATION = 1.7 / 1.5
+export const BLOCK24_CARD_TRANSITION_DURATION = 1.2375
+export const BLOCK24_ENTRANCE_DURATION = 1.55
 export const BLOCK24_CARD_PHASES = Object.freeze({
   exitEnd: 0.16,
   transitionStart: 0.16,
   transitionEnd: 0.62,
+  captionFadeEnd: 0.46,
   // The gradient starts dissolving into the photo while it is still
   // sliding over the old one, so the hand-off reads as one move.
-  photoStart: 0.3,
-  photoEnd: 0.82,
+  photoStart: 0.56,
+  photoEnd: 0.56 + 0.1375 / BLOCK24_CARD_TRANSITION_DURATION,
 })
 
 function clamp01(value) {
@@ -152,7 +152,7 @@ const vertexShader = /* glsl */ `
     // Near the right screen edge the resting card bows into an arc and
     // drifts upward as it dissolves into the frosted margin.
     float edgeT = smoothstep(uEdgeStart, uEdgeEnd, screenX);
-    float edgeCurve = edgeT * edgeT;
+    float edgeCurve = edgeT * edgeT * uMotion;
     // Trapezoid: the top edge rises and the bottom edge drops toward the
     // screen edge, both bowing slightly outward.
     float arcLiftPx = 0.0;
@@ -174,10 +174,10 @@ const vertexShader = /* glsl */ `
 
 const fragmentShader = /* glsl */ `
   uniform sampler2D uTexture;
-  uniform sampler2D uPhotoLabel;
   uniform float uCornerRadius;
   uniform sampler2D uGradientTexture;
   uniform float uGradientMix;
+  uniform float uCaptionOpacity;
   uniform float uGradientSeed;
   uniform float uTime;
   uniform float uOpacity;
@@ -196,7 +196,6 @@ const fragmentShader = /* glsl */ `
   uniform float uActiveRightX;
   uniform float uLayoutScale;
   uniform float uHeroPass;
-  uniform sampler2D uLabel;
   varying vec2 vUv;
   varying float vEdgeWarp;
 
@@ -220,19 +219,16 @@ const fragmentShader = /* glsl */ `
 
   vec4 sampleCard(vec2 uv) {
     vec2 safeUv = clamp(uv, vec2(0.003), vec2(0.997));
-    // The gradient melts into blur while the photograph underneath comes
-    // into focus out of the same blur, so the two never swap hard.
-    float photoReveal = 1.0 - uGradientMix;
-    float gradientBlur = smoothstep(0.0, 0.7, photoReveal);
-    float photoBlur = 1.0 - smoothstep(0.3, 1.0, photoReveal);
-    float crossfade = smoothstep(0.18, 0.82, photoReveal);
-    vec3 gradientColor = crossfade < 0.999
-      ? blurTexture(uGradientTexture, safeUv, gradientBlur)
-      : vec3(0.0);
-    vec3 photoColor = crossfade > 0.001
-      ? blurTexture(uTexture, safeUv, photoBlur)
-      : vec3(0.0);
-    return vec4(mix(gradientColor, photoColor, crossfade), 1.0);
+    vec4 gradient = texture2D(uGradientTexture, safeUv);
+    // Captions are baked into the exports. Reconstruct just their smooth
+    // gradient band while the moving card's caption is faded out.
+    float band = smoothstep(0.37, 0.40, safeUv.y) * (1.0 - smoothstep(0.65, 0.68, safeUv.y));
+    vec3 clean = mix(texture2D(uGradientTexture, vec2(safeUv.x, 0.37)).rgb,
+      texture2D(uGradientTexture, vec2(safeUv.x, 0.68)).rgb,
+      clamp((safeUv.y - 0.37) / 0.31, 0.0, 1.0));
+    gradient.rgb = mix(gradient.rgb, clean, band * (1.0 - uCaptionOpacity));
+    vec4 photo = texture2D(uTexture, safeUv);
+    return mix(gradient, photo, 1.0 - uGradientMix);
   }
 
   float roundedBox(vec2 uv, float radius, float feather) {
@@ -243,201 +239,22 @@ const fragmentShader = /* glsl */ `
   }
 
   void main() {
-    float screenX = gl_FragCoord.x / max(uViewportWidth, 1.0);
-    float cssScreenX = screenX * uCssViewportWidth;
-    float lensCoordinate = (cssScreenX - uLensCenterX) / max(uLensWidth, 1.0);
-    float lensBand = exp(-lensCoordinate * lensCoordinate * 1.85);
-    float rightLensCoordinate = (cssScreenX - uRightLensCenterX)
-      / max(uRightLensWidth, 1.0);
-    float rightLensBand = exp(-rightLensCoordinate * rightLensCoordinate * 1.85)
-      * uRightEntryMotion;
-    float animatedLensBand = lensBand * uMotion;
-    float edge = max(max(animatedLensBand, rightLensBand), vEdgeWarp * 0.92);
-    float edgeSquared = edge * edge;
-    float opticalMotion = max(uMotion, uRightEntryMotion);
-
-    float leftCardEdge = exp(-vUv.x * vUv.x * 30.0);
-    float rightCardUv = 1.0 - vUv.x;
-    float rightCardEdge = exp(-rightCardUv * rightCardUv * 30.0);
-    float edgeTransfer = smoothstep(0.26, 0.74, uActivation);
-    float activatingEdge = mix(leftCardEdge, rightCardEdge, edgeTransfer)
-      * uMotion;
-
-    // Compress the sampled UVs while the geometry itself keeps its width.
-    // This creates the long optical stretch visible in the reference rather
-    // than simply skewing the rectangular card.
-    vec2 uv = vUv;
-    float magnification = 1.0 - edgeSquared * (0.115 + opticalMotion * 0.085);
-    uv.x = 0.5 + (uv.x - 0.5) * magnification;
-
-    // The image is mirrored on the inactive side of the lens and unfolds as
-    // it crosses into the active-card side. Halfway through that change,
-    // details collapse into long soft streaks.
-    float pixelRatio = uViewportWidth / max(uCssViewportWidth, 1.0);
-    float cssScreenY = gl_FragCoord.y / max(pixelRatio, 0.0001);
-    float filterZone = smoothstep(-0.72, 0.42, lensCoordinate) * uMotion;
-    float mirrorMix = smoothstep(-0.74, 0.72, lensCoordinate) * uMotion;
-    float foldFocus = sin(mirrorMix * 3.14159265);
-    uv.x = mix(uv.x, 1.0 - uv.x, mirrorMix);
-
-    // The outer lens keeps the already-mirrored inactive rail orientation,
-    // but introduces a second compression/blur peak at the viewport edge.
-    float rightFilterZone = smoothstep(-0.82, 0.38, rightLensCoordinate)
-      * uRightEntryMotion;
-    float rightFoldFocus = rightLensBand;
-
-    // The blur is horizontal. A slow, soft variation along Y creates the
-    // hazy horizontal streaks seen in the footage without slicing the image
-    // into visible rows.
-    float streakBand = 0.76 + 0.24 * (0.5 + 0.5 * sin(cssScreenY * 0.115 + 0.7));
-    float transitionGlass = filterZone
-      * (0.28 + uMotion * 0.36 + foldFocus * 0.36);
-    float rightGlass = rightFilterZone
-      * (0.22 + uRightEntryMotion * 0.24 + rightFoldFocus * 0.46);
-    float edgeT = smoothstep(uEdgeStart, uEdgeEnd, cssScreenX);
-    float glassStrength = clamp(
-      transitionGlass
-        + rightGlass
-        + edgeT * 0.85
-        + uHeroPass * animatedLensBand * uMotion * 0.30,
-      0.0,
-      1.0
-    );
-    foldFocus = max(foldFocus, rightFoldFocus);
-    uv = clamp(uv, vec2(0.003), vec2(0.997));
-
-    float trail = edgeSquared * (0.0032 + opticalMotion * 0.0105)
-      + activatingEdge * (0.008 + foldFocus * 0.012);
-    float signedTrail = trail * mix(1.0, uDirection, step(0.001, abs(uDirection)));
-    vec2 redUv = clamp(uv + vec2(signedTrail, 0.0), vec2(0.003), vec2(0.997));
-    vec2 blueUv = clamp(uv - vec2(signedTrail * 0.82, 0.0), vec2(0.003), vec2(0.997));
-    vec2 nearSmearUv = clamp(uv - vec2(signedTrail * 1.8, 0.0), vec2(0.003), vec2(0.997));
-    vec2 farSmearUv = clamp(uv - vec2(signedTrail * 3.7, 0.0), vec2(0.003), vec2(0.997));
-    float glassBlur = glassStrength * streakBand * (
-      0.006 + foldFocus * 0.021 + opticalMotion * 0.008
-    );
-    // The smear belongs to the single activating surface: it begins on the
-    // gradient's left edge and sweeps to that same card's right edge as the
-    // card reaches the hero. No clone of the old active photograph is used.
-    glassBlur += filterZone * (0.0025 + foldFocus * 0.0075)
-      + uHeroPass * animatedLensBand * (0.003 + foldFocus * 0.009)
-      + activatingEdge * streakBand * (0.009 + uMotion * 0.012);
-    vec2 glassUvA = clamp(uv + vec2(glassBlur * 0.45, 0.0), vec2(0.003), vec2(0.997));
-    vec2 glassUvB = clamp(uv - vec2(glassBlur * 0.45, 0.0), vec2(0.003), vec2(0.997));
-    vec2 glassUvC = clamp(uv + vec2(glassBlur * 1.25, 0.0), vec2(0.003), vec2(0.997));
-    vec2 glassUvD = clamp(uv - vec2(glassBlur * 1.25, 0.0), vec2(0.003), vec2(0.997));
-    vec2 glassUvE = clamp(uv + vec2(glassBlur * 2.35, 0.0), vec2(0.003), vec2(0.997));
-    vec2 glassUvF = clamp(uv - vec2(glassBlur * 2.35, 0.0), vec2(0.003), vec2(0.997));
-
-    vec4 base = sampleCard(uv);
-    vec3 split = vec3(
-      sampleCard(redUv).r,
-      base.g,
-      sampleCard(blueUv).b
-    );
-    vec3 nearSmear = sampleCard(nearSmearUv).rgb;
-    vec3 farSmear = sampleCard(farSmearUv).rgb;
-    vec3 refracted = split * 0.62 + nearSmear * 0.25 + farSmear * 0.13;
-    vec3 color = mix(base.rgb, refracted, edgeSquared * (0.38 + opticalMotion * 0.46));
-
-    vec3 glassBlurred = (
-      base.rgb * 0.9
-      + sampleCard(glassUvA).rgb
-      + sampleCard(glassUvB).rgb
-      + sampleCard(glassUvC).rgb * 0.72
-      + sampleCard(glassUvD).rgb * 0.72
-      + sampleCard(glassUvE).rgb * 0.38
-      + sampleCard(glassUvF).rgb * 0.38
-    ) / 5.1;
-    color = mix(
-      color,
-      glassBlurred,
-      clamp(
-        glassStrength * (0.35 + foldFocus * 0.42)
-          + activatingEdge * 0.72,
-        0.0,
-        0.94
-      )
-    );
-
-    // A broad, low-contrast sheen keeps the fold optical rather than glitchy.
-    float glassSheen = foldFocus * max(filterZone, rightFilterZone)
-      * (0.035 + opticalMotion * 0.025);
-    color = mix(color, min(color * 1.035 + vec3(0.014), vec3(1.0)), glassSheen);
-
-    // Industry name sits on the inactive gradient. It leaves with that
-    // gradient as the card becomes the hero photograph.
-    vec4 labelSample = texture2D(uLabel, vUv);
-    // The name leaves in the first half of the dissolve, before the photo
-    // starts to resolve, so it never ghosts over the picture.
-    vec4 photoLabel = texture2D(uPhotoLabel, vUv);
-    // Mix premultiplied captions: a single name changes colour, never ghosts.
-    float a = mix(photoLabel.a, labelSample.a, uGradientMix);
-    vec3 ink = mix(photoLabel.rgb * photoLabel.a, labelSample.rgb * labelSample.a, uGradientMix);
-    color = color * (1.0 - a) + ink;
-
-    float rounded = roundedBox(
-      vUv,
-      mix(8.0 / 310.0, 8.0 / 227.0, uGradientMix),
-      0.0022
-    );
-    // Reserve a clean breathing gap beside the active DOM card. As the rail
-    // card crosses the portal its left side fades behind this mask and the
-    // centred hero takes over, so the two surfaces never visibly overlap.
-    float animatedGapStart = mix(8.0, -8.0, uMotion) * uLayoutScale;
-    float animatedGapFeather = mix(18.0, 10.0, uMotion) * uLayoutScale;
-    float entryMask = smoothstep(
-      uActiveRightX + animatedGapStart,
-      uActiveRightX + animatedGapStart + animatedGapFeather,
-      cssScreenX
-    );
-    entryMask = mix(entryMask, 1.0, uHeroPass);
-    // Dissolve toward the edge instead of a hard clip under the frost.
-    float edgeFade = 1.0 - smoothstep(0.25, 1.0, edgeT) * 0.92;
-    color = mix(color, min(color * 1.06 + vec3(0.06), vec3(1.0)), edgeT * 0.5);
-    // While the incoming card slides over the old photo its rim is soft,
-    // like the frosted right edge, so it melts in rather than cutting.
-    float travelSoft = uHeroPass * uMotion;
-    float softRim = roundedBox(vUv, 0.06, 0.004 + 0.07 * travelSoft);
-    float alpha = base.a * mix(rounded, softRim, travelSoft) * uOpacity * entryMask * edgeFade;
-    // Drop the extremely faint fringe produced by the rounded alpha feather.
-    // On a white background that fringe read as a grey one-pixel outline.
-    if (alpha < 0.035) discard;
-    gl_FragColor = vec4(color, alpha);
+    vec4 card = sampleCard(vUv);
+    float cssScreenX = gl_FragCoord.x / max(uViewportWidth, 1.0) * uCssViewportWidth;
+    float edgeFade = 1.0 - smoothstep(uEdgeStart, uEdgeEnd, cssScreenX);
+    float alpha = card.a * roundedBox(vUv, 12.0 / 310.0, 0.0022) * uOpacity * edgeFade;
+    if (alpha < 0.01) discard;
+    gl_FragColor = vec4(card.rgb, alpha);
   }
+
 `
 
-function wrapLabelLines(ctx, text, maxWidth) {
-  const words = text.trim().split(/\s+/)
-  const lines = []
-  let line = ''
-  words.forEach((word) => {
-    const next = line ? `${line} ${word}` : word
-    if (line && ctx.measureText(next).width > maxWidth) {
-      lines.push(line)
-      line = word
-    } else {
-      line = next
-    }
-  })
-  if (line) lines.push(line)
-  return lines
-}
-
-function captionTexture(text, photo) {
-  const texture = new THREE.CanvasTexture(cardCaption(text, photo))
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 8
-  return texture
-}
-const createInactiveLabelTexture = text => captionTexture(text, false)
-const createPhotoLabelTexture = text => captionTexture(text, true)
-
-function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, labelTexture, photoLabelTexture, cornerRadius, register }) {
+function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, cornerRadius, register }) {
   const uniforms = useMemo(() => ({
     uTexture: { value: texture },
     uGradientTexture: { value: gradientTexture },
     uGradientMix: { value: 1 },
+    uCaptionOpacity: { value: 1 },
     uGradientSeed: { value: gradientSeed },
     uTime: { value: 0 },
     uScale: { value: 1 },
@@ -460,8 +277,6 @@ function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, labelTextu
     uActiveRightX: { value: 0 },
     uLayoutScale: { value: 1 },
     uHeroPass: { value: 0 },
-    uLabel: { value: labelTexture },
-    uPhotoLabel: { value: photoLabelTexture },
     uCornerRadius: { value: cornerRadius },
   }), [])
 
@@ -475,10 +290,8 @@ function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, labelTextu
     live.uTexture.value = texture
     live.uGradientTexture.value = gradientTexture
     live.uGradientSeed.value = gradientSeed
-    live.uLabel.value = labelTexture
-    live.uPhotoLabel.value = photoLabelTexture
     live.uCornerRadius.value = cornerRadius
-  }, [texture, gradientTexture, gradientSeed, labelTexture, photoLabelTexture, cornerRadius, uniforms])
+  }, [texture, gradientTexture, gradientSeed, cornerRadius, uniforms])
 
   return (
     <mesh
@@ -487,7 +300,7 @@ function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, labelTextu
         register(offset, node)
       }}
       frustumCulled={false}
-      renderOrder={20 - offset}
+      renderOrder={offset === -1 ? 10 : 20 - offset}
     >
       <planeGeometry args={[CARD_WIDTH, CARD_HEIGHT, 40, 20]} />
       <shaderMaterial
@@ -503,46 +316,16 @@ function PhotoPlane({ offset, texture, gradientTexture, gradientSeed, labelTextu
   )
 }
 
-function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
+function PhotoRailScene({ slides, activeIndex, flight, reduceMotion, entranceRef }) {
   const sources = useMemo(() => slides.map((slide) => slide.image), [slides])
   const textures = useTexture(sources)
   const gradientTextures = useTexture(slides.map((slide) => slide.gradient))
-  const [labelRevision, setLabelRevision] = useState(0)
-  const labelTextures = useMemo(
-    () => slides.map((slide) => createInactiveLabelTexture(
-      slide.tab,
-      slide.labelColor || '#ffffff',
-    )),
-    [slides, labelRevision],
-  )
-
-  const photoLabels = useMemo(() => slides.map(slide => createPhotoLabelTexture(slide.tab)), [slides, labelRevision])
-  useEffect(() => () => photoLabels.forEach(texture => texture.dispose()), [photoLabels])
-  useEffect(() => {
-    let alive = true
-    const ready = Promise.all([
-      document.fonts.load('450 72px "Public Sans"'),
-      document.fonts.load('493.75 72px "TT Hoves Pro Trial"'),
-      document.fonts.load('500 12px "Geist Mono"'),
-    ])
-    ready.then(() => {
-      if (alive) setLabelRevision((value) => value + 1)
-    })
-    return () => {
-      alive = false
-    }
-  }, [])
-
-  useEffect(() => () => {
-    labelTextures.forEach((texture) => texture.dispose())
-  }, [labelTextures])
-
   const { gl: rendererForUpload } = useThree()
   useEffect(() => {
-    ;[...textures, ...gradientTextures, ...labelTextures, ...photoLabels].forEach((texture) => {
+    ;[...textures, ...gradientTextures].forEach((texture) => {
       rendererForUpload.initTexture(texture)
     })
-  }, [rendererForUpload, textures, gradientTextures, labelTextures, photoLabels])
+  }, [rendererForUpload, textures, gradientTextures])
   const cardRefs = useRef(new Map())
   const progressRef = useRef(1)
   const timeRef = useRef(0)
@@ -596,9 +379,8 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
 
     const rawProgress = progressRef.current
     const elapsed = timeRef.current
-    // A strict three-beat hand-off: the old hero exits first, then the
-    // gradient card travels through the optical hinge, and only after the
-    // hinge has resolved does the new photograph begin to appear.
+    // The incoming surface covers the previous photo, develops its own
+    // photograph, then reveals the caption once its geometry has settled.
     const transitionProgress = clamp01((
       rawProgress - BLOCK24_CARD_PHASES.transitionStart
     ) / (
@@ -669,23 +451,23 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
     const bufferWidth = gl.getDrawingBufferSize(drawingBufferSize).x
 
     cardRefs.current.forEach((mesh, offset) => {
-      const travel = shiftRef.current[offset]
+      const outgoing = offset === -1
+      const hero = offset <= 0
+      const travel = outgoing ? 0 : shiftRef.current[offset]
       const slot = offset + travel
 
       const isActivating = Boolean(flight && offset === 0)
 
       const activationT = transitionProgress
       const activationProgress = isActivating
-        ? activationT * activationT * (3 - 2 * activationT)
-        : 0
+        ? smootherstep(activationT)
+        : hero ? 1 : 0
       const activation = activationProgress
       const heightActivation = isActivating
         ? THREE.MathUtils.smoothstep(activationProgress, 0.08, 0.64)
         : 0
-      // The travelling card remains the one real inactive gradient surface
-      // all the way to the hand-off. Its width never changes; it only grows
-      // vertically, crosses the fixed hero and dissolves to expose the next
-      // photo underneath. This removes the old double-gradient illusion.
+      // The same surface grows from the rail to the hero bounds and develops
+      // its photograph in place; it is never swapped for a DOM image.
       const photoProgress = clamp01((
         rawProgress - BLOCK24_CARD_PHASES.photoStart
       ) / (
@@ -696,9 +478,9 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
       // cards through uniform opacity.
       const gradientMix = isActivating
         ? 1 - smootherstep(photoProgress)
-        : offset === 0 ? 0 : 1
+        : hero ? 0 : 1
       const regularCenterX = SIDE_CENTER_X + (slot - 1) * SLOT_STEP
-      const designCenterX = isActivating
+      const designCenterX = hero
         ? THREE.MathUtils.lerp(SIDE_CENTER_X, HERO_CENTER_X, activation)
         : regularCenterX
       // Interpolate directly onto the one fixed hero centre. The previous
@@ -711,7 +493,7 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
       )
       const floatingAmount = isActivating
         ? 1 - THREE.MathUtils.smoothstep(activationProgress, 0.06, 0.70)
-        : offset === 0 ? 0 : 1
+        : hero ? 0 : 1
       const floatPhase = elapsed * 0.34 + (activeIndex + offset) * 1.73
       const floatX = 0
       // Only two inactive cards remain visible at rest. The next one starts
@@ -731,31 +513,33 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
         && offset === 2
         ? 1 - THREE.MathUtils.smoothstep(rawProgress, 0.74, 0.98)
         : 0
-      const transitionJoin = isActivating ? motion * 16 * scale : 0
+      const transitionJoin = 0
       const screenCenterX = layout.originX + designCenterX * scale
-        + floatX + rightEntry * 82 * scale - transitionJoin
-      const screenCenterY = layout.originY + designCenterY * scale
-      // Keep the completed WebGL photograph fully opaque through the end of
-      // the flight. The identical DOM image is already underneath it, and
-      // the stacking-order switch removes this surface without a one-frame
-      // alpha dip or white flash.
-      const nearVisibility = isActivating
-        ? 1
-        : offset === 0
-          ? 0
-          : THREE.MathUtils.smoothstep(slot, 0.34, 0.78)
+        + floatX - transitionJoin
+      // Apple reference: 30px lift / 700ms, opacity / 900ms, stagger / 150ms.
+      const entranceTime = entranceRef.current.value * BLOCK24_ENTRANCE_DURATION
+      const entranceElapsed = entranceTime - Math.max(0, offset) * 0.15
+      const ease = t => t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2
+      const entrance = ease(clamp01(entranceElapsed / 0.9))
+      const lift = ease(clamp01(entranceElapsed / 0.7))
+      const screenCenterY = layout.originY + designCenterY * scale + 30 * (1 - lift)
+      // The old card remains beneath the incoming opaque surface until it
+      // covers the hero. Both stay in this renderer, including their captions.
+      const nearVisibility = outgoing
+        ? 1 - smootherstep((rawProgress - 0.62) / 0.22)
+        : hero ? 1 : THREE.MathUtils.smoothstep(slot, 0.34, 0.78)
       const farVisibility = 1 - THREE.MathUtils.smoothstep(slot, 2.54, 3.02)
-      const opacity = nearVisibility * farVisibility
+      const opacity = nearVisibility * farVisibility * entrance
       const idleScale = 1
       // Reach the hero's exact default bounds while the gradient is still
       // deforming. The photograph is developed only afterwards, so the
-      // final WebGL-to-DOM hand-off is pixel-for-pixel and cannot jump in
-      // size. The ratio is uniform because both cards share one aspect ratio.
+      // settled image cannot jump in size at the end of the flight.
+      // Width and height use their exact endpoint ratios.
       const heroScaleRatioX = HERO_WIDTH / CARD_WIDTH
       const heroScaleRatioY = HERO_HEIGHT / CARD_HEIGHT
       const sizeActivation = isActivating
         ? smootherstep((activationProgress - 0.16) / 0.68)
-        : 0
+        : hero ? 1 : 0
       const activationScaleX = THREE.MathUtils.lerp(
         1,
         heroScaleRatioX,
@@ -766,11 +550,12 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
         heroScaleRatioY,
         sizeActivation,
       )
-      const cardScale = scale * idleScale * activationScaleX
+      const overshoot = isActivating ? 1 + .02 * smootherstep(activationProgress) * (1 - smootherstep(photoProgress)) : 1
+      const cardScale = scale * idleScale * activationScaleX * overshoot
       // Preserve the compact inactive-card silhouette. The full-height seam
       // is handled by a narrow DOM glass band, so the moving surface never
       // grows into a large panel over the hero.
-      const cardScaleY = scale * idleScale * activationScaleY
+      const cardScaleY = scale * idleScale * activationScaleY * overshoot
       const targetHalfHeightPx = HERO_HEIGHT * scale / 2
       const currentHalfHeightPx = CARD_HEIGHT * cardScaleY / 2
       const heightStretchPx = Math.max(0, targetHalfHeightPx - currentHalfHeightPx)
@@ -793,38 +578,41 @@ function PhotoRailScene({ slides, activeIndex, flight, reduceMotion }) {
       material.uniforms.uLensWidth.value = lensWidth
       material.uniforms.uRightLensCenterX.value = rightLensCenterX
       material.uniforms.uRightLensWidth.value = rightLensWidth
-      material.uniforms.uRightEntryMotion.value = rightEntryMotion
+      material.uniforms.uRightEntryMotion.value = 0
       // Desktop only: the rail fades into the right margin (Figma 559:658).
       const edgeOn = size.width > 980
       material.uniforms.uEdgeStart.value = edgeOn ? layout.originX + 1190 * scale : 1e6
       material.uniforms.uEdgeEnd.value = edgeOn ? Math.min(size.width, layout.originX + 1450 * scale) + 40 * scale : 1e6 + 1
-      material.uniforms.uHeightStretchPx.value = heightStretchPx
+      material.uniforms.uHeightStretchPx.value = isActivating ? heightStretchPx : 0
       material.uniforms.uEdgeCenterShiftPx.value = edgeCenterShiftPx
       material.uniforms.uActiveRightX.value = activeRightX
       material.uniforms.uLayoutScale.value = scale
       material.uniforms.uHeroPass.value = isActivating
         ? THREE.MathUtils.smoothstep(activationProgress, 0.06, 0.24)
-        : 0
+        : hero ? 1 : 0
       material.uniforms.uOpacity.value = opacity
       material.uniforms.uGradientMix.value = gradientMix
       material.uniforms.uTime.value = elapsed
-      material.uniforms.uMotion.value = motion
+      material.uniforms.uMotion.value = isActivating ? motion : 0
+      // Keep the baked caption on the same curved mesh during the approach.
+      // Fade only once travel starts, finishing before the photograph develops.
+      const captionFade = clamp01((rawProgress - BLOCK24_CARD_PHASES.transitionStart)
+        / (BLOCK24_CARD_PHASES.captionFadeEnd - BLOCK24_CARD_PHASES.transitionStart))
+      material.uniforms.uCaptionOpacity.value = isActivating ? 1 - smootherstep(captionFade) : 1
       material.uniforms.uActivation.value = isActivating ? activationProgress : 0
       material.uniforms.uDirection.value = direction
       material.uniforms.uViewportWidth.value = bufferWidth
     })
   })
 
-  return [0, 1, 2, 3, 4].map((offset) => {
-    const slideIndex = (activeIndex + offset + slides.length) % slides.length
+  return (flight ? [-1, 0, 1, 2, 3, 4] : [0, 1, 2, 3, 4]).map((offset) => {
+    const slideIndex = offset === -1 ? flight.outgoing : (activeIndex + offset + slides.length) % slides.length
     return (
       <PhotoPlane
         key={offset}
         offset={offset}
         texture={textures[slideIndex]}
         gradientTexture={gradientTextures[slideIndex]}
-        labelTexture={labelTextures[slideIndex]}
-        photoLabelTexture={photoLabels[slideIndex]}
         cornerRadius={slides[slideIndex].id === 'personalized-ai' ? 8 : 5.874}
         gradientSeed={(slideIndex + 1) * 1.371}
         register={register}
@@ -839,6 +627,7 @@ export default function PhotoRail3D({
   flight,
   ready,
   visible,
+  entranceRef,
 }) {
   const reduceMotion = typeof window !== 'undefined'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -865,6 +654,7 @@ export default function PhotoRail3D({
             activeIndex={activeIndex}
             flight={flight}
             reduceMotion={reduceMotion}
+            entranceRef={entranceRef}
           />
         </Suspense>
       </Canvas>

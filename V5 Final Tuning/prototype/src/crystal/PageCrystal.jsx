@@ -124,7 +124,7 @@ const STATE_ONE_CENTER_Y = 0.52
 // While the block-four heading is on screen the crystal waits below it
 // (this share of the viewport under the centre), then rises to the centre
 // as the heading leaves and the first facet separates.
-const PHYSICS_INTRO_DROP = 0.32
+const PHYSICS_INTRO_DROP = 0.24
 const STATE_TWO_CENTER_Y = 0.52
 const STATE_THREE_CENTER_Y = 0.52
 const STATE_FOUR_CENTER_Y = 0.52
@@ -402,7 +402,8 @@ function TravellingCrystal({
   // frames and fade it in, instead of flashing a black crystal.
   const warmRef = useRef({ frames: 0 })
   const physicsSectionRef = useRef(null)
-  const introProgressRef = useRef(introReady ? 1 : 0)
+  // Readiness starts the growth; it must not initialise the gem at full size.
+  const introProgressRef = useRef(0)
   const introDelayRef = useRef(0)
   const idleAxesRef = useRef(0)
   const visualRef = useRef(null)
@@ -567,11 +568,11 @@ function TravellingCrystal({
       poseY += (vh * STATE_THREE_CENTER_Y - poseY) * fourthStateThree * fourthFocus
       poseY += (vh * STATE_FOUR_CENTER_Y - poseY) * fourthStateFour * fourthFocus
       // Breathing room under the block-four heading.
-      poseY += vh * PHYSICS_INTRO_DROP * (1 - fourthStateOne) * fourthFocus
+      poseY += vh * (vw > 980 ? 0.30 : PHYSICS_INTRO_DROP) * (1 - fourthStateOne) * fourthFocus
       const introX = vw * PHYSICS_INTRO_CENTER_X
       const focusedX = fourthTarget.x + stateX
       target = {
-        x: introX + (focusedX - introX) * fourthFocus,
+        x: introX + (focusedX - introX) * fourthFocus * fourthStateOne,
         y: poseY,
       }
       // The clean frame holds the exact fourth-state pose while its labels
@@ -606,6 +607,8 @@ function TravellingCrystal({
         + (PHYSICS_TARGET_SCALE - PHYSICS_HANDOFF_SCALE) * fourthDescent
       const focusedScale = vw < 900 ? PHYSICS_STATES_SCALE * 0.63 : PHYSICS_STATES_SCALE
       fullScale += (focusedScale - fullScale) * fourthFocus
+      if (vw > 980) fullScale *= 1 + 0.25 * (1 - fourthStateOne) * fourthFocus
+      fullScale *= 1 - (1 - 1 / 1.2) * (1 - fourthStateOne) * fourthFocus
       const compactScale = vw < 900 ? 0.63 : 1
       fullScale += (STATE_ONE_SCALE * compactScale - fullScale) * fourthStateOne * fourthFocus
       fullScale += (STATE_TWO_SCALE * compactScale - fullScale) * fourthStateTwo * fourthFocus

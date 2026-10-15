@@ -873,3 +873,13 @@
   mask-image: radial-gradient(circle, transparent 2%, #000 12%, transparent 66%);
   filter: blur(3px);
 }
+
+/* Keep a readable moving lower edge before it gathers into the heading. */
+.world-model-wave__field {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.world-model-wave__soft-edge {
+  -webkit-mask-image: none;
+  mask-image: none;
+}

@@ -78,6 +78,7 @@ export default function PhysicsBehaviorSection({
     let touchY = null
     let touchUsed = false
     const names = ['one', 'two', 'three', 'four']
+    const copyNodes = names.map(name => section.querySelector('.physics-behavior-section__state--' + name))
     const top = () => section.getBoundingClientRect().top + window.scrollY
     // Seven rests now (block five has three steps, not four).
     const stride = () => (section.offsetHeight - window.innerHeight) / 6
@@ -120,6 +121,21 @@ export default function PhysicsBehaviorSection({
           * (1 - smootherstep(clamp01((value - i - 1) / .3)))
         set('state-' + name, states[i])
         set('state-' + name + '-copy', copy * reveal * (1 - portal))
+        const node = copyNodes[i]
+        const visible = copy * reveal * (1 - portal) > .12
+        if (node && visible !== node.classList.contains('is-copy-visible')) {
+          if (visible) {
+            // Every incoming paragraph starts below, including reverse navigation.
+            node.classList.remove('is-copy-exiting')
+            node.classList.add('is-copy-resetting')
+            void node.offsetWidth
+            node.classList.remove('is-copy-resetting')
+            node.classList.add('is-copy-visible')
+          } else {
+            node.classList.add('is-copy-exiting')
+            node.classList.remove('is-copy-visible')
+          }
+        }
         set('state-' + name + '-rail', value >= i + .5 && value < i + 1.5 ? 1 : 0)
       })
       // Liquid: after the shards have split off (portal .3), the hexagon of
@@ -198,7 +214,7 @@ export default function PhysicsBehaviorSection({
         },
         onComplete: () => {
           playhead.value = index
-          window.scrollTo(0, destination)
+          window.scrollTo({ top: destination, left: 0, behavior: 'instant' })
           lastScrollY = window.scrollY
           locked = false
           facetScrollReadyAt = performance.now() + 50
@@ -259,18 +275,22 @@ export default function PhysicsBehaviorSection({
       placeholder.style.height = `${destination.getBoundingClientRect().height}px`
       placeholder.setAttribute('aria-hidden', 'true')
       destination.before(placeholder)
-      destination.classList.add('solutions-section--approaching')
+      destination.classList.add('solutions-section--approaching', 'solutions-section--copy-waiting')
+      window.dispatchEvent(new Event('42ai-solutions-forward-entry'))
       const approach = { value: 0 }
+      // Release the heading at 400ms on the 1200ms power3.out approach.
+      const revealScale = .154 + .846 * (1 - Math.pow(1 - .4 / 1.2, 4))
       const drawApproach = () => {
         const p = approach.value
-        // Perspective grows slowly in the distance and rapidly near us.
-        const scale = 1 / (1 + 5.5 * (1 - p))
+        // Ease the actual size, so the approach is fast and lands softly.
+        const scale = 0.154 + 0.846 * p
+        destination.classList.toggle('solutions-section--copy-waiting', scale < revealScale)
         destination.style.setProperty('--approach-scale', String(scale))
         destination.style.setProperty('--approach-opacity', String(Math.min(1, p / .12)))
         destination.style.setProperty('--approach-radius', `${32 * (1 - smootherstep(clamp01((p - .7) / .3)))}px`)
       }
       landingCleanup = () => {
-        destination.classList.remove('solutions-section--approaching')
+        destination.classList.remove('solutions-section--approaching', 'solutions-section--copy-waiting')
         destination.style.removeProperty('--approach-scale')
         destination.style.removeProperty('--approach-opacity')
         destination.style.removeProperty('--approach-radius')
@@ -280,8 +300,8 @@ export default function PhysicsBehaviorSection({
       drawApproach()
       tween = gsap.to(approach, {
         value: 1,
-        duration: reduced ? .01 : 2.2,
-        ease: 'sine.inOut',
+        duration: reduced ? .01 : 1.2,
+        ease: 'power3.out',
         onUpdate: drawApproach,
         onComplete: () => {
           const y = placeholder.getBoundingClientRect().top + window.scrollY
@@ -471,9 +491,9 @@ export default function PhysicsBehaviorSection({
         <ol className="physics-behavior-section__state-rail" aria-label="Behavior model layers">
           {[
             ['one', 'Foundational traits', 1],
-            ['two', 'Personal interpretation', 2],
-            ['three', 'Personal context', 3],
-            ['four', 'The event', 4],
+            ['two', 'Personal context', 2],
+            ['three', 'World events', 3],
+            ['four', '42AI world model', 4],
           ].map(([step, label, restIndex]) => (
             <li
               key={step}
@@ -492,37 +512,33 @@ export default function PhysicsBehaviorSection({
 
         <article className="physics-behavior-section__state physics-behavior-section__state--one">
           <div>
-            <AnimatedHeading as="h3">Foundational traits</AnimatedHeading>
-            <p>
-              We’re born with <strong>hundreds of foundational traits</strong> that constantly interact and conflict, shaping how we experience and learn from the world.
-            </p>
+            <AnimatedHeading as="p" reveal="lines" maxDurationMs={1000}>
+              We’re born with hundreds of <strong>foundational traits</strong> that constantly interact and conflict, shaping how we experience the world.
+            </AnimatedHeading>
           </div>
         </article>
 
         <article className="physics-behavior-section__state physics-behavior-section__state--two">
           <div>
-            <AnimatedHeading as="h3">Personal Interpretation</AnimatedHeading>
-            <p>
-              Over time, that learning builds <strong>our personality and intuition</strong> for the world.
-            </p>
+            <AnimatedHeading as="p" reveal="lines" maxDurationMs={1000}>
+              Over time, traits and experiences build our <strong>personality and intuition</strong> for the world.
+            </AnimatedHeading>
           </div>
         </article>
 
         <article className="physics-behavior-section__state physics-behavior-section__state--three">
           <div>
-            <AnimatedHeading as="h3">Personal Context</AnimatedHeading>
-            <p>
-              Together with our mood and circumstances, they shape how we <strong>interpret and respond to each new event</strong>.
-            </p>
+            <AnimatedHeading as="p" reveal="lines" maxDurationMs={1000}>
+              Together with our mood and circumstances, they shape how we <strong>interpret and respond to new events.</strong>
+            </AnimatedHeading>
           </div>
         </article>
 
         <article className="physics-behavior-section__state physics-behavior-section__state--four">
           <div>
-            <AnimatedHeading as="h3">The Event</AnimatedHeading>
-            <p>
-              Over three years, 42AI combined AI, behavioral science, psychiatry, and genetics to model these layers, creating the first-ever World Model that internalizes <strong>the rules of behavior.</strong>
-            </p>
+            <AnimatedHeading as="p" reveal="lines" maxDurationMs={1000}>
+              We combine behavioural science, psychiatry, AI and genetics to model these layers, creating the first-ever <strong>World Model that internalises<br className="physics-behavior-section__model-break" />the rules of behaviour.</strong>
+            </AnimatedHeading>
           </div>
         </article>
 

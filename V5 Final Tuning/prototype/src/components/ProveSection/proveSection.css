@@ -165,9 +165,37 @@
 .prove-section__copy p.prove-section__subtitle {
   margin-top: 8px;
   opacity: 0;
-  transition: opacity 450ms ease;
+  transform: translateY(18px);
+  transition: opacity .72s cubic-bezier(.22, 1, .36, 1), transform .82s cubic-bezier(.22, 1, .36, 1);
 }
-.prove-section__copy p.prove-section__subtitle.is-visible { opacity: 1; }
+.prove-section__copy p.prove-section__subtitle.is-visible { opacity: 1; transform: translateY(0); }
 @media (prefers-reduced-motion: reduce) {
-  .prove-section__copy p.prove-section__subtitle { transition: none; }
+  .prove-section__copy p.prove-section__subtitle { transition: none; transform: none; }
 }
+
+.prove-section .prove-section__cta {
+  opacity: 0; translate: 0 18px;
+  transition: width .6s cubic-bezier(.22,1,.36,1), opacity .72s cubic-bezier(.22,1,.36,1), translate .82s cubic-bezier(.22,1,.36,1);
+}
+.prove-section .prove-section__cta.is-visible { opacity: 1; translate: 0 0; transition-delay: 0ms; }
+@media (prefers-reduced-motion: reduce) {
+  .prove-section .prove-section__cta { transition: none; translate: none; }
+}
+
+.prove-section__card {
+  transform: scale(var(--cta-card-scale, .9));
+  transform-origin: center center;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .prove-section__card { transform: none; will-change: auto; }
+}
+
+/* Hide immediately on reset; only the final reveal may animate the button. */
+.prove-section .prove-section__cta:not(.is-visible) {
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: none;
+}
+.prove-section .prove-section__cta.is-visible { visibility: visible; }

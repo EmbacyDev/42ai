@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import HeroScene from '../components/HeroScene'
 import SiteHeader from '../components/SiteHeader'
 import Block24Section from '../components/Block24Section'
@@ -8,7 +8,6 @@ import PageTail from '../components/PageTail/PageTail.jsx'
 import PageCrystal from '../crystal/PageCrystal.jsx'
 import { DEFAULT_CRYSTAL_CONFIG } from '../crystal/defaultCrystalConfig.js'
 import { resolveHeroBackgroundColor } from '../components/HeroScene/heroBackground.js'
-import { createIntroGate } from '../components/HeroScene/loaderTiming.js'
 import './figmaRefresh.css'
 
 export default function HeroTestPage() {
@@ -16,16 +15,6 @@ export default function HeroTestPage() {
   const [crystalReady, setCrystalReady] = useState(false)
   const [staticImagesReady, setStaticImagesReady] = useState(false)
   const handleStaticImagesReady = useCallback(() => setStaticImagesReady(true), [])
-  const [intro, setIntro] = useState({ shown: false, released: false })
-  const introGateRef = useRef(null)
-  useEffect(() => {
-    const gate = createIntroGate(setIntro)
-    introGateRef.current = gate
-    return () => gate.dispose()
-  }, [])
-  useEffect(() => {
-    if (heroAssetsLoaded && crystalReady) introGateRef.current?.setReady()
-  }, [heroAssetsLoaded, crystalReady])
   const heroAssetsReady = heroAssetsLoaded
   const [heroReady, setHeroReady] = useState(false)
   const [crystalPulseKey, setCrystalPulseKey] = useState(0)
@@ -56,13 +45,12 @@ export default function HeroTestPage() {
   const sectionAnchorsRef = useRef({ second: null, third: null, fourth: null })
   return (
     <>
-      <SiteHeader ready={intro.released} />
+      <SiteHeader ready={true} />
       <HeroScene
         onAssetsReady={handleHeroAssetsReady}
         onReady={handleHeroReady}
-        revealReady={intro.released}
-        loaderShown={intro.shown}
-        headingReady={crystalReady && intro.released}
+        revealReady={crystalReady}
+        headingReady={crystalReady}
         imagesAllowed={true}
         videosAllowed={staticImagesReady && heroReady}
         tunedCrystalConfig={tunedCrystalConfig}
@@ -97,8 +85,8 @@ export default function HeroTestPage() {
           nothing on the URL can swap it. */}
       <PageCrystal
         config={tunedCrystalConfig}
-        introReady={intro.released}
-        visible={crystalReady && intro.released}
+        introReady={crystalReady}
+        visible={crystalReady}
         sectionAnchorsRef={sectionAnchorsRef}
         pulseKey={crystalPulseKey}
         cardHoverRef={heroCardHoverRef}

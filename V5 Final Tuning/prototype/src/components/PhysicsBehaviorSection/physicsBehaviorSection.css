@@ -35,6 +35,7 @@
   width: 100%;
   height: 700vh;
   height: 700svh;
+  overflow-anchor: none;
   overflow-x: clip;
   background: #ffffff;
   color: #121212;
@@ -49,9 +50,9 @@
   width: 100%;
   height: 100vh;
   height: 100svh;
-  /* The introductory copy is viewport-fixed so it can fade in at its final
-     position while the section itself is still completing the 3→4 handoff. */
-  overflow: visible;
+  /* Clip animated light and text locally, including Safari scroll overflow.
+     Keep the outer section free to provide the sticky scroll track. */
+  overflow: hidden;
   /* Block four keeps the hero atmosphere through its intro and all four
      facet states. Because this is the sticky viewport layer, the gradient
      does not stretch across the section's 900svh scroll track.

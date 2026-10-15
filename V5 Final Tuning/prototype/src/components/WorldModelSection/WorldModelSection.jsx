@@ -97,9 +97,9 @@ function FillLines({ lines, centerSlot }) {
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value))
 
-function appearLines(lines, speed) {
+function appearLines(lines, speed, playbackSpeed = 1) {
   const rows = lines.flatMap((line) => visualLines([...line.querySelectorAll('.world-model-section__word')]))
-  return playAppearLines(rows, rows.flat().length * 200 / speed)
+  return playAppearLines(rows, rows.flat().length * 200 / speed, { characters: true, blurPx: 10, speed: playbackSpeed })
 }
 
 // The reveal is deliberately much larger than the viewport. Its mask is
@@ -298,10 +298,11 @@ export default function WorldModelSection({
     const headLines = [...section.querySelectorAll('.world-model-section__copy-block--head .world-model-section__line')]
     const tailLines = [...section.querySelectorAll('.world-model-section__copy-block--tail .world-model-section__line')]
     const reduceAppear = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    let revealOnDownwardEntry = true
     let stopHeadAppear = null
     let stopTailAppear = null
     const playHeadAppear = () => {
-      if (stopHeadAppear || reduceAppear) return
+      if (stopHeadAppear || reduceAppear || !revealOnDownwardEntry) return
       // Relative to the existing per-word timing: 1.5× and 2× faster.
       stopHeadAppear = appearLines(headLines, 1.5)
     }
@@ -313,8 +314,8 @@ export default function WorldModelSection({
     }
     const writeCopyProgress = () => {
       // Reveal the second paragraph once it starts rolling into view.
-      if (!stopTailAppear && !reduceAppear && rollProxy.value > 0.3) {
-        stopTailAppear = appearLines(tailLines, 2)
+      if (!stopTailAppear && !reduceAppear && revealOnDownwardEntry && rollProxy.value > 0.3) {
+        stopTailAppear = appearLines(tailLines, 2, 1.25)
       }
       if (!copyIsUnlocked()) {
         if (!rollTween?.isActive()) wheelTarget = 0
@@ -651,20 +652,22 @@ export default function WorldModelSection({
       const inset = Math.max(0, (window.innerWidth - titleWidth) / 2)
       // One geometry for the field and the projected letters: reveal white
       // below first, then gather the same surface into the title.
-      const clearBelow = smooth(0, 0.34)
-      const collapse = smooth(0.34, 0.9)
+      const clearBelow = smooth(0, 0.55)
+      const collapse = smooth(0.42, 0.9)
       const titleBottom = titleTop + titleHeight
-      const top = titleTop * collapse
-      const bottom = window.innerHeight + (titleBottom - window.innerHeight) * clearBelow
+      const travel = (window.innerHeight - titleBottom) * clearBelow
+      // Translate the intact screen upwards before gathering its trailing edge.
+      const top = -travel * (1 - collapse) + titleTop * collapse
+      const bottom = window.innerHeight - travel
       const upperWidth = window.innerWidth + (titleWidth - window.innerWidth) * collapse
       const upperInset = (window.innerWidth - upperWidth) / 2
-      const lowerInset = inset * smooth(0.28, 0.62)
+      const lowerInset = inset * smooth(0.08, 0.55)
       waveEl.style.setProperty('--funnel-top', `${top.toFixed(2)}px`)
       waveEl.style.setProperty('--funnel-height', `${Math.max(titleHeight, bottom - top).toFixed(2)}px`)
       waveEl.style.setProperty('--funnel-upper-inset', `${upperInset.toFixed(2)}px`)
       waveEl.style.setProperty('--funnel-lower-inset', `${lowerInset.toFixed(2)}px`)
       waveEl.style.setProperty('--funnel-bottom', `${bottom.toFixed(2)}px`)
-      waveEl.style.setProperty('--funnel-edge-blur', `${(56 * smooth(0, 0.18)).toFixed(2)}px`)
+      waveEl.style.setProperty('--funnel-edge-blur', `${(80 * smooth(0, 0.2) * (1 - smooth(0.78, 1))).toFixed(2)}px`)
       waveEl.style.setProperty('--funnel-rays', (smooth(0.28, 0.48) * (1 - smooth(0.7, 1))).toFixed(4))
       waveEl.style.setProperty('--light-field', (1 - smooth(0.48, 0.82)).toFixed(4))
       waveEl.style.setProperty('--light-letters', smooth(0.48, 0.74).toFixed(4))
@@ -717,6 +720,8 @@ export default function WorldModelSection({
       waveTween?.kill()
       returnTween?.kill()
       arrivalScrollTween?.kill()
+      revealOnDownwardEntry = false
+      resetAppear()
       returningToCopy = true
       suppressColourOpen = true
       queuedExitAfterRoll = false
@@ -766,6 +771,8 @@ export default function WorldModelSection({
 
     // Scrolling back up to the reading rest re-arms the paragraph drum.
     const reclaimFromNativeScroll = (rest) => {
+      revealOnDownwardEntry = false
+      resetAppear()
       handedOff = false
       exitCommitted = false
       textRollArmed = true
@@ -1279,6 +1286,14 @@ export default function WorldModelSection({
     // Radius at which the hexagon's flat sides clear the screen corners.
     const coverRadius = () => Math.hypot(window.innerWidth, window.innerHeight) / 2 / 0.866 * 1.06
     const gemRadius = () => Math.max(12, crystalScreen.r || 40)
+    let maskStartRadius = 40
+    const writeMaskProgress = (p) => {
+      crystalScreen.preZoom = smootherstep(Math.min(1, p / .6))
+      maskProxy.r = maskStartRadius * p + (coverRadius() - maskStartRadius) * p * p
+      maskProxy.light = Math.sin(Math.PI * Math.min(1, p * .85)) * .9
+      crystalScreen.maskHide = smootherstep(Math.max(0, Math.min(1, (p - .38) / .24)))
+      writeMask()
+    }
     let centreWait = null
     const playMaskIn = () => {
       if (bandActive()) return
@@ -1291,7 +1306,7 @@ export default function WorldModelSection({
       suppressColourOpen = true
       maskOpening = true
       followMaskCrystal = true
-      const startRadius = gemRadius()
+      maskStartRadius = gemRadius()
       maskProxy.r = 0
       maskProxy.opacity = 1
       maskProxy.light = 0
@@ -1300,15 +1315,10 @@ export default function WorldModelSection({
       maskTween = gsap.timeline()
         .to(opening, {
           progress: 1,
-          duration: (MASK_DESCENT + MASK_BURST) / 2,
+          duration: reduceMotion ? 0 : (MASK_DESCENT + MASK_BURST) / 2,
           ease: 'sine.inOut',
           onUpdate: () => {
-            const p = opening.progress
-            crystalScreen.preZoom = smootherstep(Math.min(1, p / .6))
-            maskProxy.r = startRadius * p + (coverRadius() - startRadius) * p * p
-            maskProxy.light = Math.sin(Math.PI * Math.min(1, p * .85)) * .9
-            crystalScreen.maskHide = smootherstep(Math.max(0, Math.min(1, (p - .38) / .24)))
-            writeMask()
+            writeMaskProgress(opening.progress)
           },
         })
         .add(() => {
@@ -1346,26 +1356,34 @@ export default function WorldModelSection({
       if (copyProxy.value > 0) hideCopy()
       maskProxy.r = coverRadius()
       writeMask()
+      const closing = { progress: 1 }
+      maskProxy.opacity = 1
+      maskProxy.light = 0
+      crystalScreen.maskHide = 1
+      writeMask()
+      setColourOpen(false, true)
+      gsap.killTweensOf(window)
+      window.scrollTo({ top: crystalTravelRangePx() + 2, behavior: 'instant' })
+      followMaskCrystal = true
       maskTween = gsap.timeline()
-        .to(maskProxy, { opacity: 1, duration: 0.08, ease: 'none', onUpdate: writeMask })
-        .add(() => {
-          setColourOpen(false, true)
-          gsap.killTweensOf(window)
-          window.scrollTo(0, crystalTravelRangePx() + 2)
+        .to(maskProxy, {
+          light: Math.sin(Math.PI * .85) * .9,
+          duration: reduceMotion ? 0 : .225,
+          ease: 'power2.in', onUpdate: writeMask,
         })
-        .add(() => { crystalScreen.maskHide = 1 })
-        .to(maskProxy, { r: () => gemRadius(), light: 1, duration: MASK_BURST * 1.5, ease: 'power3.out', onUpdate: writeMask })
-        // The silhouette becomes the gem again, still pushed toward the
-        // camera as it was at the burst; it settles back while the light
-        // dies, then rises to its seat (block two's return, spinning back).
+        .to(closing, {
+          progress: 0,
+          duration: reduceMotion ? 0 : (MASK_DESCENT + MASK_BURST) / 2,
+          ease: 'sine.inOut',
+          onUpdate: () => writeMaskProgress(closing.progress),
+        })
         .add(() => {
-          crystalScreen.preZoom = 1
+          crystalScreen.preZoom = 0
           crystalScreen.maskHide = 0
           maskProxy.opacity = 0
+          maskProxy.light = 0
           writeMask()
         })
-        .to(crystalScreen, { preZoom: 0, duration: MASK_PRE_ZOOM, ease: 'power2.out' })
-        .to(maskProxy, { light: 0, duration: MASK_PRE_ZOOM, ease: 'power2.out', onUpdate: writeMask }, '<')
         .add(() => {
           maskState.collapsing = false
           maskArmed = false
@@ -1460,6 +1478,8 @@ export default function WorldModelSection({
     }
     const unreleaseIfBack = () => {
       if (!releasedUp) return
+      revealOnDownwardEntry = true
+      resetAppear()
       releasedUp = false
       suppressColourOpen = false
     }
@@ -1469,6 +1489,8 @@ export default function WorldModelSection({
     // paragraph and open the field again.
     const returnToFinishedCopy = () => {
       if ((returningToCopy && returnTween?.isActive()) || exitPlaying || returningHome) return
+      revealOnDownwardEntry = false
+      resetAppear()
       returningToCopy = true
       suppressColourOpen = true
       handedOff = false
@@ -1692,7 +1714,7 @@ export default function WorldModelSection({
       const forwardKey = ['ArrowDown', 'PageDown', ' ', 'Spacebar', 'End'].includes(event.key)
       const reverseKey = ['ArrowUp', 'PageUp', 'Home'].includes(event.key)
       if (!forwardKey && !reverseKey) return
-      if (returningHome || returningToCopy || exitReversing) {
+      if (returningHome || returningToCopy || exitReversing || collapsing || maskOpening) {
         event.preventDefault()
         return
       }
@@ -1705,6 +1727,7 @@ export default function WorldModelSection({
       if (releasedUp) return
       if (!(colourOpen && fieldIsReadable()) || !textRollArmed) return
       if (reverseKey && atHeadRest()) {
+        event.preventDefault()
         releaseToBlock2()
         return
       }
@@ -1773,6 +1796,8 @@ export default function WorldModelSection({
     }
 
     const handleHandoff = () => {
+      revealOnDownwardEntry = true
+      resetAppear()
       // Every arrival is a fresh reading session, including after 4→3→2.
       maskOpening = true
       collapseCall?.kill()
@@ -1875,8 +1900,7 @@ export default function WorldModelSection({
           && nextScrollY >= readingRestY() - 2
           && nextScrollY <= readingRestY() + window.innerHeight) {
           lastScrollY = nextScrollY
-          window.scrollTo({ top: readingRestY(), behavior: 'instant' })
-          handleHandoff()
+          window.dispatchEvent(new Event('42ai-block24-replay-handoff'))
           return
         }
         lastScrollY = nextScrollY
@@ -1890,8 +1914,7 @@ export default function WorldModelSection({
         && nextScrollY >= readingRestY() - 2
           && nextScrollY <= readingRestY() + window.innerHeight) {
         lastScrollY = nextScrollY
-        window.scrollTo({ top: readingRestY(), behavior: 'instant' })
-        handleHandoff()
+        window.dispatchEvent(new Event('42ai-block24-replay-handoff'))
         return
       }
       if (

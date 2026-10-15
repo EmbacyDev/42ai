@@ -1,7 +1,7 @@
 .site-footer {
   box-sizing: border-box;
   width: 100%;
-  padding: 69px 0 40px;
+  padding: 93px 0 40px;
   background: #121212;
   color: #868a8d;
   -webkit-font-smoothing: antialiased;
@@ -222,7 +222,7 @@
 
 @media (max-width: 720px) {
   .site-footer {
-    padding-top: 48px;
+    padding-top: 72px;
   }
 
   .site-footer__inner {

@@ -217,6 +217,7 @@
   width: min(430px, calc(100% - 72px));
 }
 
+/* Figma 798:2152: same 48px control on wide and narrow cards. */
 .breakthroughs-section__next {
   position: absolute;
   right: 32px;
@@ -225,58 +226,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   margin: 0;
   padding: 0;
-  border: 0;
+  border: .5px solid transparent;
   border-radius: 50%;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.29) 0%, rgba(255, 255, 255, 0.055) 35%, rgba(0, 0, 0, 0.34) 100%),
-    linear-gradient(112deg, rgba(255, 255, 255, 0.2) 0%, transparent 25%, rgba(177, 213, 233, 0.09) 68%, rgba(255, 255, 255, 0.13) 100%);
-  backdrop-filter: blur(10px) saturate(1.22);
-  -webkit-backdrop-filter: blur(10px) saturate(1.22);
+  background: rgba(255, 255, 255, .25);
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease;
-}
-
-.breakthroughs-section__next::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(ellipse at 28% 22%, rgba(169, 231, 255, 0.16), transparent 42%),
-    radial-gradient(ellipse at 72% 78%, rgba(111, 94, 255, 0.1), transparent 40%),
-    linear-gradient(122deg, transparent 18%, rgba(255, 255, 255, 0.1) 42%, transparent 62%);
-  filter: blur(4px);
-  mix-blend-mode: screen;
-  opacity: 0.7;
-  pointer-events: none;
-}
-
-.breakthroughs-section__next::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(180deg, rgba(246, 253, 255, 0.92) 0%, rgba(165, 204, 224, 0.42) 34%, rgba(16, 20, 25, 0.78) 78%, rgba(211, 239, 250, 0.38) 100%);
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  mix-blend-mode: screen;
-  filter:
-    drop-shadow(0 -0.5px 0.3px rgba(255, 255, 255, 0.55))
-    drop-shadow(0 0.8px 0.4px rgba(0, 0, 0, 0.7));
-  pointer-events: none;
+  transition: opacity .4s ease, background .25s ease;
 }
 
 .breakthroughs-section__card.is-active .breakthroughs-section__next {
@@ -294,15 +254,14 @@
   position: relative;
   z-index: 1;
   display: block;
-  width: 9px;
-  height: 14px;
+  width: 6.545px;
+  height: 10.909px;
+  transform: translateX(.7px);
 }
 
 .breakthroughs-section__next:hover,
 .breakthroughs-section__next:focus-visible {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.08) 35%, rgba(0, 0, 0, 0.28) 100%),
-    linear-gradient(112deg, rgba(255, 255, 255, 0.24) 0%, transparent 25%, rgba(177, 213, 233, 0.12) 68%, rgba(255, 255, 255, 0.16) 100%);
+  background: rgba(255, 255, 255, .38);
 }
 
 .breakthroughs-section__fade {
@@ -362,17 +321,21 @@
 .breakthroughs-section__title-word { display: inline-block; white-space: nowrap; }
 
 /* Independent channels leave carousel transforms and opacity untouched.
-   Each 350ms entrance overlaps the next by 100ms. */
+   Lift and opacity have independent durations, matching the Apple reference. */
 .breakthroughs-section__row .breakthroughs-section__card {
   filter: opacity(0);
-  translate: 0 24px;
+  translate: 0 30px;
 }
 .breakthroughs-section__row.is-visible .breakthroughs-section__card {
-  animation: breakthrough-card-enter 350ms ease-out var(--entrance-delay, 50ms) both;
+  animation: breakthrough-card-enter 900ms cubic-bezier(.455,.03,.515,.955) var(--entrance-delay, 0ms) both, breakthrough-card-lift 700ms cubic-bezier(.455,.03,.515,.955) var(--entrance-delay, 0ms) both;
 }
 @keyframes breakthrough-card-enter {
-  from { filter: opacity(0); translate: 0 24px; }
-  to { filter: opacity(1); translate: 0 0; }
+  from { filter: opacity(0); }
+  to { filter: opacity(1); }
+}
+@keyframes breakthrough-card-lift {
+  from { translate: 0 30px; }
+  to { translate: 0 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .breakthroughs-section__row.is-visible .breakthroughs-section__card {
@@ -388,8 +351,32 @@
   visibility: hidden;
   transition: opacity 350ms ease-out, visibility 350ms;
 }
-.breakthroughs-section.is-heading-ready .breakthroughs-section__eyebrow,
+.breakthroughs-section.is-heading-started .breakthroughs-section__eyebrow,
 .breakthroughs-section.is-heading-ready .breakthroughs-section__cta {
   opacity: 1;
   visibility: visible;
+}
+
+.breakthroughs-section .breakthroughs-section__cta {
+  translate: 0 18px;
+  transition: opacity 350ms ease-out, visibility 350ms, translate 350ms cubic-bezier(.22,1,.36,1);
+}
+.breakthroughs-section.is-heading-ready .breakthroughs-section__cta {
+  translate: 0 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .breakthroughs-section .breakthroughs-section__cta {
+    translate: none;
+    transition: none;
+  }
+}
+
+.breakthroughs-section__card.has-arrow .breakthroughs-section__next {
+  transition: background .25s ease, opacity .25s ease;
+  transition-delay: 0s;
+}
+.breakthroughs-section__card.has-arrow .breakthroughs-section__next:hover,
+.breakthroughs-section__card.has-arrow .breakthroughs-section__next:focus-visible {
+  background: rgba(255, 255, 255, .4);
+  opacity: 1;
 }

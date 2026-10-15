@@ -208,7 +208,51 @@ function TabIndicatorShape({ transitionKey, width, height }) {
  * industry illustrations is ready.
  */
 export default function SolutionsSection() {
+  const sectionRef = useRef(null)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [headingReady, setHeadingReady] = useState(false)
+  const [revealCycle, setRevealCycle] = useState(0)
+  const panelReady = headingReady
+  const [panelSettled, setPanelSettled] = useState(false)
+  const [listReady, setListReady] = useState(false)
+  useEffect(() => {
+    if (!panelReady) return
+    const timer = setTimeout(() => setPanelSettled(true), window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1070)
+    return () => clearTimeout(timer)
+  }, [panelReady])
+  useEffect(() => {
+    const restart = () => {
+      setHeadingReady(false)
+      setPanelSettled(false)
+      setListReady(false)
+      setRevealCycle(cycle => cycle + 1)
+    }
+    const section = sectionRef.current
+    let previousY = window.scrollY
+    let aboveEntry = section.getBoundingClientRect().top >= window.innerHeight
+    const onScroll = () => {
+      const y = window.scrollY
+      const top = section.getBoundingClientRect().top
+      const approaching = section.classList.contains('solutions-section--approaching')
+      if (!approaching && y > previousY && aboveEntry && top < window.innerHeight) restart()
+      aboveEntry = top >= window.innerHeight
+      previousY = y
+    }
+    // Cinematic and ordinary downward entries both re-arm the reveal.
+    // Upward scrolling never resets the already visible text.
+    const onForwardEntry = () => {
+      aboveEntry = false
+      restart()
+    }
+    window.addEventListener('42ai-solutions-forward-entry', onForwardEntry)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('42ai-solutions-forward-entry', onForwardEntry)
+      window.removeEventListener('scroll', onScroll)
+    }
+  }, [])
+  const supportingRevealTimer = useRef(null)
+  useEffect(() => () => window.clearTimeout(supportingRevealTimer.current), [])
   const tabsRef = useRef(null)
   const tabRefs = useRef([])
   const [indicator, setIndicator] = useState(null)
@@ -267,12 +311,31 @@ export default function SolutionsSection() {
 
   return (
     <section
+      ref={sectionRef}
       className="solutions-section"
+      data-heading-ready={headingReady}
+      data-panel-ready={panelReady}
+      data-more-ready={panelSettled && listReady}
       id="applications"
       aria-labelledby="solutions-heading"
     >
       <div className="solutions-section__intro">
-        <AnimatedHeading as="h2" id="solutions-heading" className="solutions-section__title">
+        <AnimatedHeading key={revealCycle} as="h2" id="solutions-heading" className="solutions-section__title"
+          reveal="lines" lineDurationMs={600} lineStaggerMs={150} visibilityCheckMs={16}
+          once
+          onRevealStart={() => {
+            window.clearTimeout(supportingRevealTimer.current)
+            // Heading starts at 400ms; supporting content at 800ms.
+            supportingRevealTimer.current = window.setTimeout(() => setHeadingReady(true), 400)
+          }}
+          onRevealComplete={() => {
+            window.clearTimeout(supportingRevealTimer.current)
+            setHeadingReady(true)
+          }}
+          onRevealReset={() => {
+            window.clearTimeout(supportingRevealTimer.current)
+            setHeadingReady(false)
+          }}>
           Universal solution for human
           <br />
           and agentic behaviour
@@ -351,13 +414,13 @@ export default function SolutionsSection() {
                 aria-hidden={!active}
                 style={{ '--solutions-panel-direction': direction }}
               >
-                <AnimatedHeading as="ul" reveal="characters" enabled={active} speed={1 / 1.3} lineDurationMs={225} lineStaggerMs={100}>
+                <AnimatedHeading key={revealCycle} as="ul" once reveal="characters" blurPx={4} enabled={active && panelReady} onRevealComplete={() => { if (active) setListReady(true) }} onRevealReset={() => { if (active) setListReady(false) }} speed={1 / 1.3} lineDurationMs={225 + 300 / 1.3} lineStaggerMs={100}>
                   {solution.rows.map((row, rowIndex) => <li key={row} style={{ '--row-delay': `${rowIndex * 130}ms` }}>{row}</li>)}
                 </AnimatedHeading>
                 <RequestDemoButton
                   className="solutions-section__more"
                   label="Show more"
-                  tabIndex={active ? 0 : -1}
+                  tabIndex={active && panelSettled && listReady ? 0 : -1}
                   hidden={!active}
                 />
               </div>

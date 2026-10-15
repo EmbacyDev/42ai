@@ -218,3 +218,10 @@ html.on-world-model .site-header__glyph--scramble {
     transition-delay: 0s;
   }
 }
+
+/* The fifth chapter keeps the navigation black over its light header area. */
+.site-header--network .site-header__logo > img { filter: brightness(0); }
+.site-header--network .site-header__links a,
+.site-header--network .site-header__glyph--scramble { color: #121212; }
+.site-header--network .site-header__cta { color: #ffffff; }
+.site-header--network .site-header__cta .request-demo__shape path { fill: #121212; }

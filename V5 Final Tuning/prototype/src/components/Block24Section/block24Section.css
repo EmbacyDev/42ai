@@ -30,7 +30,7 @@
   top: var(--block24-origin-y);
   width: calc(1440px * var(--block24-scale));
   height: calc(786px * var(--block24-scale));
-  opacity: calc(var(--block24-enter-content) * (1 - var(--block24-exit-content)));
+  opacity: calc(1 - var(--block24-exit-content));
   /* v4 band transition: carried up the screen by the rising band. */
   transform: translateY(calc(var(--block24-exit-scroll, 0) * -100vh));
   pointer-events: none;
@@ -581,4 +581,25 @@
   max-width: 100%;
   white-space: normal;
   text-wrap: balance;
+}
+
+/* Cards finish their individual entrances before the editorial UI appears. */
+.block24-section__copy,
+.block24-section__tabs,
+.block24-section__tablet-tabs {
+  opacity: var(--block24-enter-content);
+}
+.block24-section:not(.block24-section--content-ready) .block24-section__tabs,
+.block24-section:not(.block24-section--content-ready) .block24-section__copy {
+  pointer-events: none;
+}
+
+/* Match the editorial entrance with a short upward reveal of the left rail. */
+.block24-section__tabs,
+.block24-section__tablet-tabs {
+  translate: 0 calc(20px * (1 - var(--block24-enter-content)));
+}
+@media (prefers-reduced-motion: reduce) {
+  .block24-section__tabs,
+  .block24-section__tablet-tabs { translate: none; }
 }

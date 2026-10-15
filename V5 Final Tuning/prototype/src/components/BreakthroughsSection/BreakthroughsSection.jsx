@@ -29,6 +29,8 @@ const CARDS = [
 ]
 
 const DURATION_MS = 1120
+const TEXT_REFLOW_AT_MS = 300
+const TEXT_REFLOW_DURATION_MS = 550
 const TRAVEL_AT = 1
 // Forward switch: when the outgoing card reappears on the right.
 const WRAP_AT = 0.42
@@ -111,7 +113,7 @@ function sampleForward(fromOrder, toOrder, u, metrics) {
   const text = travel
   const activeContentWidth = Math.max(0, metrics.open - 64)
   const inactiveContentWidth = Math.max(0, metrics.shut - 64)
-  const activeHeadingWidth = Math.min(430, Math.max(0, metrics.open - 136))
+  const activeHeadingWidth = Math.min(398, Math.max(0, metrics.open - 136))
   const inactiveHeadingWidth = Math.min(285, inactiveContentWidth)
   const pose = new Map()
 
@@ -205,7 +207,7 @@ function sampleReverse(fromOrder, toOrder, u, metrics) {
   const text = travel
   const activeContentWidth = Math.max(0, metrics.open - 64)
   const inactiveContentWidth = Math.max(0, metrics.shut - 64)
-  const activeHeadingWidth = Math.min(430, Math.max(0, metrics.open - 136))
+  const activeHeadingWidth = Math.min(398, Math.max(0, metrics.open - 136))
   const inactiveHeadingWidth = Math.min(285, inactiveContentWidth)
   const pose = new Map()
 
@@ -264,6 +266,7 @@ function applyPose(pose, nodes, animateText = true) {
     const heading = content?.querySelector('h3')
     const layoutChanged = heading && style.headingWidth != null
       && heading.style.width !== `${style.headingWidth}px`
+    const expanding = heading && style.headingWidth > parseFloat(heading.style.width || 0)
     const shouldAnimate = layoutChanged && animateText && style.animateText !== false
       && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
     // Only measure the words at the single reflow, not on every RAF.
@@ -294,14 +297,28 @@ function applyPose(pose, nodes, animateText = true) {
     if (shouldAnimate) {
       titleWords.forEach((word, index) => {
         const previous = before[index]
-        if (Math.abs(previous.y - word.offsetTop) < 1 && Math.abs(previous.x - word.offsetLeft) < 1) return
+        const tailStart = Math.floor(titleWords.length * .6)
+        const revealingTail = expanding && index >= tailStart
+        const moved = Math.abs(previous.y - word.offsetTop) >= 1 || Math.abs(previous.x - word.offsetLeft) >= 1
+        if (!moved && !revealingTail) return
         wordMotion.get(word)?.cancel()
         const dx = previous.x - word.offsetLeft
         const dy = previous.y - word.offsetTop
+        // Tail words start slightly apart; all settle at 850ms,
+        // 270ms before the card finishes travelling.
+        const delay = revealingTail
+          ? 40 + (index - tailStart) / Math.max(1, titleWords.length - tailStart - 1) * 50
+          : 0
         const animation = word.animate([
-          { transform: `translate(${dx}px, ${dy}px)` },
-          { transform: 'translate(0, 0)' },
-        ], { duration: 560 / 1.2, easing: 'cubic-bezier(.37, 0, .63, 1)' })
+          { transform: `translate(${dx}px, ${dy}px)`, filter: revealingTail ? 'blur(10.5px)' : 'blur(3px)', opacity: revealingTail ? 0 : 1 },
+          { filter: 'blur(6px)', opacity: revealingTail ? .6 : 1, offset: .55 },
+          { transform: 'translate(0, 0)', filter: 'blur(0px)', opacity: 1 },
+        ], {
+          duration: TEXT_REFLOW_DURATION_MS - delay,
+          delay,
+          easing: 'cubic-bezier(.37, 0, .63, 1)',
+          fill: 'backwards',
+        })
         wordMotion.set(word, animation)
       })
     }
@@ -314,7 +331,7 @@ function applyLayout(order, metrics, nodes) {
   order.forEach((id, index) => {
     const slot = placed.get(id)
     const contentWidth = slot.width - 64
-    const headingCap = index === 0 ? 430 : CARDS.find(card => card.id === id)?.tone === 'teal' ? 251 : 285
+    const headingCap = index === 0 ? 398 : CARDS.find(card => card.id === id)?.tone === 'teal' ? 251 : 285
     pose.set(id, {
       x: slot.x,
       width: slot.width,
@@ -415,10 +432,10 @@ export default function BreakthroughsSection() {
         const outgoing = id === motion.fromOrder[0]
         // The outgoing title stays wide until the card is invisible at
         // wrap, then adopts its narrow layout before entering from the right.
-        const open = incoming ? u >= .5 : outgoing && u < WRAP_AT
+        const open = incoming ? u >= TEXT_REFLOW_AT_MS / DURATION_MS : outgoing && u < WRAP_AT
         style.animateText = incoming
         const contentWidth = (open ? metrics.open : metrics.shut) - 64
-        const cap = open ? 430 : CARDS.find(card => card.id === id)?.tone === 'teal' ? 251 : 285
+        const cap = open ? 398 : CARDS.find(card => card.id === id)?.tone === 'teal' ? 251 : 285
         style.contentWidth = contentWidth
         style.headingWidth = Math.min(cap, contentWidth - (open ? 72 : 64))
       })
@@ -489,7 +506,7 @@ export default function BreakthroughsSection() {
         setCardsStarted(false)
         setHeadingReady(false)
       }
-    }, { threshold: 0, rootMargin: `0px 0px -${window.innerHeight * 0.6}px 0px` })
+    }, { threshold: 0, rootMargin: `0px 0px -${window.innerHeight * 0.4}px 0px` })
     observer.observe(rootRef.current)
     return () => observer.disconnect()
   }, [])
@@ -518,13 +535,13 @@ export default function BreakthroughsSection() {
   const activeId = visualActiveId
 
   return (
-    <section className={`breakthroughs-section${headingReady ? ' is-heading-ready' : ''}`} aria-labelledby="breakthroughs-heading" ref={rootRef}>
+    <section className={`breakthroughs-section${cardsStarted ? ' is-heading-started' : ''}${headingReady ? ' is-heading-ready' : ''}`} aria-labelledby="breakthroughs-heading" ref={rootRef}>
       <div className="breakthroughs-section__inner">
         <div className="breakthroughs-section__header">
           <div className="breakthroughs-section__copy">
             <p className="breakthroughs-section__eyebrow">Our breakthroughs</p>
-            <AnimatedHeading as="h2" id="breakthroughs-heading" speed={1.69 * 1.5} enabled={entered} onRevealStart={() => { setCardsStarted(true); setHeadingReady(false) }} onRevealComplete={() => setHeadingReady(true)}>
-              We are building the behavioral
+            <AnimatedHeading as="h2" id="breakthroughs-heading" enabled={entered} onRevealStart={() => { setCardsStarted(true); setHeadingReady(false) }} onRevealComplete={() => setHeadingReady(true)}>
+              We are building the behavioural
               <br />
               layer for every future AI system
             </AnimatedHeading>
@@ -533,7 +550,7 @@ export default function BreakthroughsSection() {
             className="breakthroughs-section__cta"
             label="Explore our vision"
             href="#vision"
-            widen={40.022}
+            widen={12.689}
           />
         </div>
 
@@ -544,7 +561,7 @@ export default function BreakthroughsSection() {
             return (
               <article
                 key={card.id}
-                style={{ '--entrance-delay': `${50 + CARDS.indexOf(source) * 250}ms` }}
+                style={{ '--entrance-delay': `${CARDS.indexOf(source) * 150}ms` }}
                 className={`breakthroughs-section__card breakthroughs-section__card--${card.tone}${active ? ' is-active' : ''} has-arrow`}
                 ref={(node) => {
                   cardRefs.current[card.id] = node

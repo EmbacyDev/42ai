@@ -4,7 +4,7 @@ import RequestDemoButton from '../RequestDemoButton/RequestDemoButton.jsx'
 export default function HeroContent({ headingReady = true }) {
   return (
     <div className="hero-content">
-      <AnimatedHeading delayMs={250} enabled={headingReady} reveal="characters" as="h1" className="hero-content__title">
+      <AnimatedHeading blurPx={10} delayMs={350} enabled={headingReady} reveal="characters" as="h1" className="hero-content__title">
         Behavioural intelligence
         <br />
         for unpredictable world

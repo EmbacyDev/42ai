@@ -1,4 +1,3 @@
-import { cardCaption } from './cardCaption.js'
 import ScrambleText from '../Scramble/ScrambleText.jsx'
 import AnimatedHeading from '../AnimatedHeading.jsx'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -15,6 +14,7 @@ import { crystalHeroBlend, crystalTravelRangePx, smootherstep } from '../HeroSce
 import RequestDemoButton from '../RequestDemoButton/RequestDemoButton.jsx'
 import PhotoRail3D, {
   BLOCK24_CARD_PHASES,
+  BLOCK24_ENTRANCE_DURATION,
   BLOCK24_CARD_TRANSITION_DURATION,
 } from './PhotoRail3D.jsx'
 import {
@@ -53,13 +53,13 @@ const PIN_SCROLL_DISTANCE = '+=100%'
 // scroll and the pin's snap — the first card read as rolling in and
 // blinking. Content now appears once the page has arrived, fast and with
 // no extra pause.
-const CONTENT_LAND_BLEND = 0.995
+const CONTENT_LAND_BLEND = 0.98
 const CONTENT_UNLAND_BLEND = 0.9
 const CONTENT_REVEAL_DELAY = 0
 // Cards fade in over ~0.9s after the crystal docks. The cinematic must
 // not arm until that reveal has actually landed — otherwise the same
 // flick that finishes the hero snap eats block 2 before it can be read.
-const CONTENT_SETTLE_ENTER = 0.7
+const CONTENT_SETTLE_ENTER = 1
 const SETTLE_QUIET_MS = 360
 // v4: the 2→3 exit, about three times slower and in sequence:
 //  0.00  cards and copy fade out where they stand (CONTENT_EXIT)
@@ -77,80 +77,63 @@ const studioEase = (t) => smootherstep(t)
 const SLIDES = [
   {
     "id": "ai-labs-robotics",
-    "image": "/images/figma/gradient-785-photo-ai-3x.png",
-    "gradient": "/images/figma/gradient-785-ai-3x.png",
+    "image": "/images/figma/cards-801/ai-photo-3x.png",
+    "gradient": "/images/figma/cards-801/ai-gradient-3x.png",
     "tab": "AI Labs & Robotics",
     "labelColor": "#121212",
     "title": "Give AI human intuition\nand simulate real reactions"
   },
   {
     "id": "hedge-funds",
-    "image": "/images/figma/slide-hedge.png",
-    "gradient": "/images/figma/gradient-785-hedge-3x.png",
+    "image": "/images/figma/cards-801/hedge-photo-3x.png",
+    "gradient": "/images/figma/cards-801/hedge-gradient-3x.png",
     "tab": "Hedge Funds & Asset Managers",
     "labelColor": "#121212",
     "title": "Alternative alpha\nin human behaviour"
   },
   {
     "id": "personalized-ai",
-    "image": "/images/figma/slide-personalized.png",
-    "gradient": "/images/figma/gradient-785-personalized-3x.png",
+    "image": "/images/figma/cards-801/personalized-photo-3x.png",
+    "gradient": "/images/figma/cards-801/personalized-gradient-3x.png",
     "tab": "Personalized AI",
     "labelColor": "#121212",
-    "title": "Know who to target, what to offer,\nwhen to say it, and why"
+    "title": "Know who to target,\nwhat to offer, and why"
   },
   {
     "id": "brokerages",
-    "image": "/images/figma/slide-brokerages.png",
-    "gradient": "/images/figma/gradient-785-brokerages-3x.png",
+    "image": "/images/figma/cards-801/brokerages-photo-3x.png",
+    "gradient": "/images/figma/cards-801/brokerages-gradient-3x.png",
     "tab": "Brokerages & Market Makers",
     "labelColor": "#121212",
-    "title": "Know what every trader will do\nbefore they act"
+    "title": "Know what every trader will\ndo before they act"
   },
   {
     "id": "simulation-decision",
-    "image": "/images/figma/slide-simulation.png",
-    "gradient": "/images/figma/gradient-785-simulation-3x.png",
+    "image": "/images/figma/cards-801/simulation-photo-3x.png",
+    "gradient": "/images/figma/cards-801/simulation-gradient-3x.png",
     "tab": "Simulation & Decision Systems",
     "labelColor": "#121212",
     "title": "Simulate real\nhuman reactions"
   },
   {
     "id": "markets-risk",
-    "image": "/images/figma/slide-markets.png",
-    "gradient": "/images/figma/gradient-785-markets-3x.png",
+    "image": "/images/figma/cards-801/markets-photo-3x.png",
+    "gradient": "/images/figma/cards-801/markets-gradient-3x.png",
     "tab": "Markets & Risk",
     "labelColor": "#121212",
     "title": "Predicts financial book\u2019s exposure\nbefore it arrives"
   },
   {
     "id": "alm-treasury",
-    "image": "/images/figma/slide-alm.png",
-    "gradient": "/images/figma/gradient-785-alm-3x.png",
+    "image": "/images/figma/cards-801/alm-photo-3x.png",
+    "gradient": "/images/figma/cards-801/alm-gradient-3x.png",
     "tab": "ALM & Treasury",
     "labelColor": "#121212",
     "title": "Turn the client-side of your\nbalance sheet predictable"
   }
 ]
 
-function HeroPhoto({ slide, ready, leaving = false }) {
-  const [caption, setCaption] = useState(() => cardCaption(slide.tab, true).toDataURL())
-  useEffect(() => {
-    let alive = true
-    Promise.all([document.fonts.load('450 20px "Public Sans"'), document.fonts.load('500 10px "Geist Mono"')]).then(() => {
-      if (alive) setCaption(cardCaption(slide.tab, true).toDataURL())
-    })
-    return () => { alive = false }
-  }, [slide.tab])
-  return (
-    <div className={`block24-section__hero-photo ${leaving ? 'is-leaving' : 'is-entering'}`}>
-      <img src={ready ? slide.image : undefined} alt="" />
-      <img className="block24-section__caption-image" src={caption} alt={`Built for ${slide.tab}`} />
-    </div>
-  )
-}
-
-const TAB_ROW_HEIGHT = 15 * 1.15 + 20
+const TAB_ROW_HEIGHT = 15 * 1.15 + 12
 
 /**
  * Figma Block 24 (node 122:2495), inserted between the hero and the glass
@@ -171,9 +154,11 @@ export default function Block24Section({
   onImagesReady,
 }) {
   const sectionRef = useRef(null)
+  const entranceRef = useRef({ value: 0 })
   const tabletTabsRef = useRef(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const [copyIndex, setCopyIndex] = useState(0)
+  const [copyRevealDelay, setCopyRevealDelay] = useState(0)
   const [isVisible, setIsVisible] = useState(false)
   const [isExiting, setIsExiting] = useState(false)
   const [contentReady, setContentReady] = useState(false)
@@ -339,8 +324,8 @@ export default function Block24Section({
       }
       handoffTween = gsap.to(handoffProxy, {
         value: next ? 1 : 0,
-        duration: reduceMotion || instant ? 0 : next ? (MASK_TRANSITION ? MASK_DESCENT / 2 : STUDIO_HANDOFF_DURATION) : 0.62,
-        ease: next ? studioEase : 'power3.in',
+        duration: reduceMotion || instant ? 0 : MASK_TRANSITION ? MASK_DESCENT / 2 : next ? STUDIO_HANDOFF_DURATION : 0.62,
+        ease: MASK_TRANSITION ? 'sine.inOut' : next ? studioEase : 'power3.in',
         overwrite: true,
         onUpdate: () => {
           // v4: leaving, the cards and copy are gone within the first
@@ -435,7 +420,7 @@ export default function Block24Section({
             // bursts out of it (WorldModelSection, MASK_BURST). The page
             // jumps to block three only once that covers the screen.
             // The gem is in the centre once its descent has finished.
-            gsap.delayedCall(0, dispatchHandoff),
+            gsap.delayedCall(MASK_DESCENT / 2, dispatchHandoff),
 
           ]
           : [
@@ -451,7 +436,7 @@ export default function Block24Section({
     // Card, titles and side copy stay invisible until the travelling
     // crystal has actually docked. Otherwise the editorial is already
     // sitting there while the crystal is still flying in from the hero.
-    const enterProxy = { value: 0 }
+    const enterProxy = entranceRef.current
     let enterTween
     let crystalLanded = false
     let intersecting = false
@@ -524,7 +509,9 @@ export default function Block24Section({
     const setCrystalLanded = (next, instant = false) => {
       if (crystalLanded === next) return
       crystalLanded = next
-      setContentReady(next)
+      // Section entrance never inherits the delay from a previous tab change.
+      setCopyRevealDelay(0)
+      setContentReady(false)
       reportVisibility()
       window.clearTimeout(settleTimer)
       if (!next) {
@@ -535,12 +522,12 @@ export default function Block24Section({
       enterTween?.kill()
       enterTween = gsap.to(enterProxy, {
         value: next ? 1 : 0,
-        duration: reduceMotion || instant ? 0 : next ? 0.45 : 0.28,
+        duration: reduceMotion || instant ? 0 : next ? BLOCK24_ENTRANCE_DURATION : 0.28,
         delay: reduceMotion || instant || !next ? 0 : CONTENT_REVEAL_DELAY,
-        ease: next ? 'power2.out' : 'power2.in',
+        ease: next ? 'none' : 'power2.in',
         overwrite: true,
         onUpdate: () => {
-          section.style.setProperty('--block24-enter-content', enterProxy.value.toFixed(4))
+          section.style.setProperty('--block24-enter-content', Math.min(1, Math.max(0, (enterProxy.value * BLOCK24_ENTRANCE_DURATION - 0.8) / 0.35)).toFixed(4))
           if (
             next
             && queuedHandoff
@@ -553,8 +540,9 @@ export default function Block24Section({
           }
         },
         onComplete: () => {
-          section.style.setProperty('--block24-enter-content', enterProxy.value.toFixed(4))
+          section.style.setProperty('--block24-enter-content', Math.min(1, Math.max(0, (enterProxy.value * BLOCK24_ENTRANCE_DURATION - 0.8) / 0.35)).toFixed(4))
           if (next) {
+            setContentReady(true)
             // Once the editorial reveal has completed, the section is a
             // deterministic reading rest. Waiting for an additional quiet
             // scroll poll made the same gesture work on some devices and be
@@ -569,10 +557,8 @@ export default function Block24Section({
 
     const updateContentEnter = (instant = false) => {
       const blend = crystalHeroBlend()
-      // v4: only once the section has actually arrived (its pin reached).
-      // The blend reaches 0.995 with the page still ~6% (≈50px) short, so
-      // the cards appeared and then rode up into place.
-      const arrived = window.scrollY >= crystalTravelRangePx() - 2
+      // Begin the reveal in the final approach, just before the section pins.
+      const arrived = window.scrollY >= crystalTravelRangePx() - 64
       if (blend >= CONTENT_LAND_BLEND && arrived) setCrystalLanded(true, instant)
       else if (
         blend < CONTENT_UNLAND_BLEND
@@ -879,6 +865,18 @@ export default function Block24Section({
     }
     window.addEventListener('wheel', handleWheel, { passive: false, capture: true })
     window.addEventListener('keydown', handleKeyDown)
+    // Native/anchor re-entry must use the same descent as a wheel gesture.
+    const replayHandoff = () => {
+      if (flightPending || maskState.collapsing) return
+      killScrollSnaps()
+      setHandoff(false, true)
+      window.scrollTo({ top: crystalTravelRangePx() + 2, behavior: 'instant' })
+      returningFromWorld = false
+      hasSettledOnBlock2 = true
+      updateAnchor()
+      setHandoff(true)
+    }
+    window.addEventListener('42ai-block24-replay-handoff', replayHandoff)
     window.addEventListener(BLOCK24_RETURN_EVENT, onReturnedHome)
 
     // The world-model trigger is created earlier, before this pin spacer
@@ -902,6 +900,7 @@ export default function Block24Section({
       window.removeEventListener('wheel', handleWheel, { capture: true })
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener(BLOCK24_RETURN_EVENT, onReturnedHome)
+      window.removeEventListener('42ai-block24-replay-handoff', replayHandoff)
       resizeObserver?.disconnect()
       observer?.disconnect()
       pinTrigger.kill()
@@ -928,7 +927,6 @@ export default function Block24Section({
   const activeSlide = SLIDES[activeIndex]
   const copySlide = SLIDES[copyIndex]
 
-  const outgoingSlide = flight ? SLIDES[flight.outgoing] : null
   const tabCycleCenter = Math.floor(wheelTargetRef.current / SLIDES.length)
   const virtualTabs = [-1, 0, 1].flatMap((cycleOffset) => {
     const cycle = tabCycleCenter + cycleOffset
@@ -959,6 +957,7 @@ export default function Block24Section({
     )
     wheelTargetRef.current += wheelStep
     activeIndexRef.current = nextIndex
+    setCopyRevealDelay(150)
     setCopyIndex(nextIndex)
     const nextFlight = {
       id: now + 150,
@@ -1062,8 +1061,6 @@ export default function Block24Section({
     const section = sectionRef.current
     if (!section || !flight) return undefined
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const heroOut = section.querySelector('.block24-section__hero-photo.is-leaving')
-    const heroIn = section.querySelector('.block24-section__hero-photo.is-entering')
     const finish = () => {
       section.style.setProperty('--block24-card-motion', '0')
       flightRef.current = null
@@ -1096,29 +1093,8 @@ export default function Block24Section({
     section.style.setProperty('--block24-card-motion', '0')
 
     const timeline = gsap.timeline({ delay: Math.max(0, (flight.id - performance.now()) / 1000), onComplete: finish })
-    const incomingSwapAt = BLOCK24_CARD_TRANSITION_DURATION
-      * BLOCK24_CARD_PHASES.photoEnd
-
-    timeline.set(heroIn, { opacity: 0, filter: 'none' }, 0)
-    timeline.set(heroOut, { opacity: 1, filter: 'blur(0px)' }, 0)
-    // The outgoing photo softens into blur as the next card approaches,
-    // then melts away underneath it: no white gap, no hard cut.
-    timeline.to(heroOut, {
-      filter: 'none',
-      duration: BLOCK24_CARD_TRANSITION_DURATION * 0.24,
-      ease: 'power2.in',
-    }, BLOCK24_CARD_TRANSITION_DURATION * 0.3)
-    timeline.to(heroOut, {
-      opacity: 0,
-      duration: BLOCK24_CARD_TRANSITION_DURATION * 0.2,
-      ease: 'sine.inOut',
-    }, BLOCK24_CARD_TRANSITION_DURATION * 0.38)
-    // The moving WebGL surface owns the complete gradient-to-photo reveal.
-    // Once the photograph is fully developed, place the identical DOM image
-    // underneath it without a fade. The two matching layers overlap until
-    // the flight ends, so a dropped frame cannot expose white or cause a
-    // one-frame size/color flash during the hand-off.
-    timeline.set(heroIn, { opacity: 1 }, incomingSwapAt)
+    // One WebGL surface owns each photograph and caption for its entire life.
+    // This timeline only drives the seam; there is no DOM image handoff.
     timeline.to(edgeMotion, {
       progress: 1,
       duration: BLOCK24_CARD_TRANSITION_DURATION,
@@ -1206,8 +1182,7 @@ export default function Block24Section({
         </div>
 
         <div className="block24-section__hero">
-          {outgoingSlide && <HeroPhoto key={outgoingSlide.id} slide={outgoingSlide} ready={heroReady} leaving />}
-          <HeroPhoto key={activeSlide.id} slide={activeSlide} ready={heroReady} />
+          <span className="block24-section__sr-copy">Built for {activeSlide.tab}</span>
           <button
             className="block24-section__glass"
             type="button"
@@ -1226,7 +1201,8 @@ export default function Block24Section({
           activeIndex={activeIndex}
           flight={flight}
           ready={heroReady}
-          visible={isVisible && contentReady && !isExiting}
+          visible={isVisible && !isExiting}
+          entranceRef={entranceRef}
         />
 
         <div className="block24-section__contact-glass" aria-hidden="true" />
@@ -1250,11 +1226,12 @@ export default function Block24Section({
           className="block24-section__copy"
         >
           <p className="block24-section__category">Product application</p>
-          <AnimatedHeading as="h2" reveal="words" maxDurationMs={1200} className="block24-section__title">{copySlide.title.split('\n').map((line, i) => <span className="block24-section__authored-line" key={i}>{line}</span>)}</AnimatedHeading>
+          <AnimatedHeading as="h2" reveal="lines" delayMs={copyRevealDelay} maxDurationMs={1200} className="block24-section__title">{copySlide.title.split('\n').map((line, i) => <span className="block24-section__authored-line" key={i}>{line}</span>)}</AnimatedHeading>
           <RequestDemoButton
             className="block24-section__more"
             widen={-9}
             label="Learn more"
+            href="#applications"
             preserveCase
             fit="stretch"
           />

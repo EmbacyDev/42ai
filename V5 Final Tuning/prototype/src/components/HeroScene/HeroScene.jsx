@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import HeroContent from './HeroContent.jsx'
 import HeroLabels from './HeroLabels.jsx'
-import HeroLoadingOverlay from './HeroLoadingOverlay.jsx'
 import { portraits as defaultPortraits, tabletPortraits } from './portraits.js'
 import { labels as defaultLabels } from './labels.js'
 import { mountHeroScene } from './mountHeroScene.js'
@@ -23,7 +22,6 @@ export default function HeroScene({
   onReady = () => {},
   onAssetsReady = () => {},
   revealReady = true,
-  loaderShown = false,
   headingReady = true,
   imagesAllowed = true,
   videosAllowed = true,
@@ -57,7 +55,6 @@ export default function HeroScene({
   // photos' own matching entrance (fade + drop-in) is driven straight off
   // the same signal inside mountHeroScene, not from React state, since
   // those are Three.js meshes.
-  const [progress, setProgress] = useState(0)
   // Assets being ready and the whole hero being ready are deliberately
   // different moments. The loading sheet leaves first, revealing only the
   // crystal. The portrait spiral plays next, and copy/navigation are
@@ -140,7 +137,6 @@ export default function HeroScene({
       canLoadImages: () => loadingStages.current.imagesAllowed,
       canLoadVideos: () => loadingStages.current.videosAllowed,
       crystalConfig: tunedCrystalConfig,
-      onProgress: setProgress,
       onAssetsReady: () => {
         setAssetsReady(true)
         onAssetsReadyRef.current()
@@ -174,7 +170,6 @@ export default function HeroScene({
       <canvas ref={canvasRef} className="hero-scene__canvas" />
       <HeroLabels labels={labels} />
       <HeroContent headingReady={headingReady} />
-      {loaderShown && <HeroLoadingOverlay progress={progress} hidden={assetsReady && revealReady} />}
     </section>
   )
 }
