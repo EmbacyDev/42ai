@@ -6,6 +6,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/v1" element={<HeroTestPage />} />
+        <Route path="/5o" element={<HeroTestPage optimizedCrystal />} />
         <Route path="*" element={<Navigate to="/v1" replace />} />
       </Routes>
     </BrowserRouter>

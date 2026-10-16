@@ -12,6 +12,8 @@ import { TRANSITION_MODE, MASK_SPIN_DESCENT, MASK_SPIN_ZOOM } from '../component
 import { FACET_STEP_TILT_X, FACET_STEP_TURN_Y, FACET_TURN_END } from './facetBeamState.js'
 import HeroLightLayer from './HeroLightLayer.jsx'
 import FacetLightLayer from './FacetLightLayer.jsx'
+import ActiveBloom from './rendering/ActiveBloom.jsx'
+import CrystalFrameDriver, { useCrystalPoseFrame } from './rendering/CrystalFrameDriver.jsx'
 import {
   smootherstep,
   easeInOutQuart,
@@ -393,6 +395,8 @@ function TravellingCrystal({
   screenAnchorRef,
   pulseProgress,
   spinBlendRef,
+  manualFrames = false,
+  poseUpdateRef,
   children,
 }) {
   const groupRef = useRef(null)
@@ -462,7 +466,7 @@ function TravellingCrystal({
     }
   }, [])
 
-  useFrame((_, delta) => {
+  useCrystalPoseFrame((_, delta) => {
     if (!groupRef.current) return
     const vw = size.width
     const vh = size.height
@@ -959,7 +963,7 @@ function TravellingCrystal({
       shell.style.rotate = ''
       shell.style.opacity = (waveArrival * warm * underLiquid * pageFade * gemFade * portalFade * (1 - (crystalScreen.maskHide ?? 0)) * (handedToBlockFive ? 0 : 1)).toFixed(3)
     }
-  })
+  }, manualFrames, poseUpdateRef)
 
   return (
     <group ref={groupRef} position={[0, CRYSTAL_BASE_Y, 0]} scale={CRYSTAL_BASE_SCALE}>
@@ -1094,7 +1098,10 @@ export default function PageCrystal({
   pulseKey = 0,
   cardHoverRef,
   onReady = () => {},
+  optimizedRendering = false,
 }) {
+  const shellRef = useRef(null)
+  const poseUpdateRef = useRef(null)
   const screenAnchorRef = useRef(null)
   const spinBlendRef = useRef({ value: introReady ? 1 : 0 })
   const { progress: pulseProgress, intensity: pulseIntensity } = useCrystalPulse(pulseKey)
@@ -1178,8 +1185,9 @@ export default function PageCrystal({
   )
 
   return (
-    <div style={canvasStyle}>
+    <div ref={shellRef} style={canvasStyle} data-crystal-layer={optimizedRendering ? '5o' : 'v1'}>
       <Canvas
+        frameloop={optimizedRendering ? 'never' : 'always'}
         dpr={crystalDpr}
         style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
         // Lets R3F throttle the effective render resolution down (and
@@ -1208,6 +1216,12 @@ export default function PageCrystal({
         }}
         camera={{ position: [0, 0, CAMERA_Z], fov: CAMERA_FOV, near: 0.1, far: 40 }}
       >
+        <CrystalFrameDriver
+          enabled={optimizedRendering}
+          introReady={introReady}
+          shellRef={shellRef}
+          poseUpdateRef={poseUpdateRef}
+        />
         <CrystalContextGuard />
         <Suspense fallback={null}>
           <Studio intensity={shimmerConfig.envIntensity ?? 0} neutral />
@@ -1219,6 +1233,8 @@ export default function PageCrystal({
             screenAnchorRef={screenAnchorRef}
             pulseProgress={pulseProgress}
             spinBlendRef={spinBlendRef}
+            manualFrames={optimizedRendering}
+            poseUpdateRef={poseUpdateRef}
           >
             <Glass
               config={shimmerConfig}
@@ -1229,12 +1245,16 @@ export default function PageCrystal({
           </TravellingCrystal>
         </Suspense>
         <EffectComposer enableNormalPass={false}>
-          <Bloom
+          {optimizedRendering ? <ActiveBloom
+            intensity={shimmerConfig.bloom ?? 0}
+            luminanceThreshold={shimmerConfig.bloomThreshold ?? 0.94}
+            luminanceSmoothing={0.3}
+          /> : <Bloom
             mipmapBlur
             intensity={shimmerConfig.bloom ?? 0}
             luminanceThreshold={shimmerConfig.bloomThreshold ?? 0.94}
             luminanceSmoothing={0.3}
-          />
+          />}
         </EffectComposer>
       </Canvas>
       <HeroLightLayer config={shimmerConfig} />
