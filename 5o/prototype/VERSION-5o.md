@@ -1,9 +1,14 @@
-# 5o — crystal GPU rendering
+# 5o — GPU optimizations and local native scroll
 
-Local branch: `codex/v5o-gpu`. No deployment or push is needed to compare versions.
+Published main snapshot: `0c88a83` (GPU/particles, original scroll).
+Local follow-up branch: `codex/v5o-native-scroll`; not pushed or deployed.
 
 - `/v1`: original V5 rendering.
-- `/5o`: identical page/assets, with crystal and particle-scene rendering optimizations.
+- `/5o`: optimized rendering plus the local native-scroll timeline.
+- `/5o-steps`: optimized rendering with the published stepped-scroll mechanics.
+
+The GPU results below predate the native-scroll follow-up. They compare rendering
+algorithms, not the performance of two different scroll timelines.
 
 5o keeps the crystal's position/opacity controller running so scrolling back,
 anchor navigation and animated hand-offs can wake the crystal. Three.js frame
@@ -60,8 +65,8 @@ intensity both remained 18. This verifies Bloom output on the fixture, not pixel
 identity of every frame of the animated website.
 
 `npm run test:rendering`, `npm run build`, and `git diff --check` passed.
-Responsive layout, scroll capture, particle rendering, and cold-load shader
-compilation are outside this version's changes and may still cause stutters.
+Responsive layout, Canvas2D particle cost, and cold-load shader compilation
+remain separate bottlenecks. See the handoff docs for native-scroll validation limits.
 
 
 ## Handoff documentation
@@ -77,3 +82,20 @@ Vite dev for deterministic image comparisons and the separate ABBA benchmark.
 
 Version isolation: copied to `5o/prototype` before publication; the original
 `V5 Final Tuning` source is restored to commit f99732f for colleague compatibility.
+
+
+## Local native-scroll follow-up
+
+Run `npm run dev -- --host 127.0.0.1 --port 5190 --strictPort` and open `/5o`.
+`npm run test:scroll` checks timeline continuity and reversibility.
+Hero/cards/world-model/facet/particle playheads follow actual scroll position.
+CSS sticky and svh tracks replace gesture locks and scripted recentering.
+Buttons retain explicit native smooth navigation. The original visual renderers
+and assets remain; animation timing is now distance-based and is intentionally
+different from the published timed transitions.
+
+Chrome inspection: nonpassive window wheel/touchmove listeners 4/2 → 0/0.
+Two long native wheel gestures: zero cancelled inputs, zero window.scrollTo writes.
+These are input-ownership checks, not an FPS or GPU-time benchmark.
+Real iPad Safari, full responsive QA and final cross-scene visual acceptance
+remain required before publishing this follow-up.

@@ -1,3 +1,4 @@
+import { observeNativeScroll, range as nativeRange } from '../NativeScroll/progress.js'
 import { createCrystalFluid } from './crystalFluid.js'
 import { playAppearLines, visualLines } from '../appearText.js'
 import { useLayoutEffect, useRef } from 'react'
@@ -115,6 +116,7 @@ const DROP_CORE_SHARE = 0.46
  * last word is solid.
  */
 export default function WorldModelSection({
+  nativeScroll = false,
   onCrystalAnchor,
   onSectionVisibilityChange,
 }) {
@@ -291,7 +293,7 @@ export default function WorldModelSection({
       if (Math.abs(flatTarget - drumFlat) < 0.002) drumFlat = flatTarget
       renderWheel()
     }
-    gsap.ticker.add(tickWheel)
+    if (!nativeScroll) gsap.ticker.add(tickWheel)
 
     const copyIsUnlocked = () => copyProxy.value >= 0.85 && expansionValue >= 0.92
 
@@ -842,7 +844,7 @@ export default function WorldModelSection({
         .add(swapToThird)
         .to(waveProxy, { opacity: 0, duration: WAVE_COVER, ease: 'power1.inOut', onUpdate: writeWave }, '+=0.05')
     }
-    window.addEventListener(WORLD_MODEL_BACK_EVENT, playWaveBack)
+    if (!nativeScroll) window.addEventListener(WORLD_MODEL_BACK_EVENT, playWaveBack)
 
     // Scrolling back up to the reading rest re-arms the paragraph drum.
     const reclaimFromNativeScroll = (rest) => {
@@ -1104,6 +1106,98 @@ export default function WorldModelSection({
       )
     }
 
+    if (nativeScroll) {
+      const mask = section.querySelector('.world-model-mask')
+      const maskHome = mask?.parentNode
+      if (mask) document.body.appendChild(mask)
+      let opening = 0, maskRadius = 40, previousEnter = 0, metricsKey = '', lastPresentation = ''
+      const wordEntries = [headLines, tailLines].flatMap((lines, tail) => {
+        const words = lines.flatMap(line => [...line.querySelectorAll('.world-model-section__word')])
+        return words.map((word, index) => ({ word, tail, delay: index / Math.max(1, words.length) * .3 }))
+      })
+      const update = () => {
+        const rect = section.getBoundingClientRect()
+        const h = Math.max(1, panel.clientHeight), w = panel.clientWidth
+        const local = -rect.top / h
+        const enter = nativeRange(local, -1, 0)
+        const roll = nativeRange(local, 1, 2)
+        const wave = nativeRange(local, 3.4, 5)
+        const active = rect.top < h && rect.bottom > 0
+        const presentation = [enter, roll, wave, w, h, active].join(':')
+        if (lastPresentation === presentation) {
+          scrollProgress = clamp01((h - rect.top) / Math.max(1, section.offsetHeight))
+          updateAnchor()
+          return
+        }
+        lastPresentation = presentation
+        if (enter > 0 && previousEnter === 0) maskRadius = Math.max(12, crystalScreen.r || 40)
+        previousEnter = enter
+        opening = enter
+        scrollProgress = clamp01((h - rect.top) / Math.max(1, section.offsetHeight))
+        colourOpen = active && enter > .001 && wave < 1
+        expansionValue = enter * (1 - nativeRange(wave, 0, .2))
+        absorbValue = wave
+        exitValue = wave
+        dropRadius = Math.ceil(Math.hypot(w / 2, h / 2) / DROP_CORE_SHARE)
+        section.style.setProperty('--drop-radius', `${dropRadius}px`)
+        if (metricsKey !== `${w}:${h}`) {
+          metricsKey = `${w}:${h}`
+          const typography = getComputedStyle(section.querySelector('.world-model-section__copy'))
+          cylinderPitchPx = parseFloat(typography.lineHeight) || 65
+          cylinderRadius = Math.hypot(w / 2, h / 2) * 1.14
+        }
+        wheelPosition = roll * TAIL_CENTER_SLOT
+        wheelVelocity = 0
+        drumFlat = 1 - Math.sin(Math.PI * roll)
+        copyProxy.value = nativeRange(enter, .68, 1)
+        section.classList.toggle('world-model-section--open', colourOpen)
+        document.documentElement.classList.toggle('on-world-model', colourOpen)
+        section.style.setProperty('--world-copy-reveal', String(copyProxy.value))
+        section.style.setProperty('--world-copy-exit', String(wave))
+        section.style.setProperty('--world-tail-enter', String(roll))
+        section.style.setProperty('--world-exit', String(wave))
+        applyColourField()
+        renderWheel()
+        // Reversible word entrance follows scroll, instead of starting a
+        // competing timer that can run ahead of a slow or reverse gesture.
+        wordEntries.forEach(({word, tail, delay}) => {
+          const reveal = nativeRange((tail ? nativeRange(roll, .3, 1) : copyProxy.value) * 1.3 - delay, 0, 1)
+          word.style.opacity = String(reveal)
+          word.style.transform = `translateY(${12 * (1 - reveal)}px)`
+          word.style.filter = `blur(${6 * (1 - reveal)}px)`
+        })
+        const cover = Math.hypot(w, h) / 2 / .866 * 1.06
+        const inMask = enter > 0 && enter < 1 && wave === 0
+        const radius = maskRadius * enter + (cover - maskRadius) * enter * enter
+        for (const [key, value] of Object.entries({
+          x: `${w / 2}px`, y: `${h / 2}px`, r: `${radius}px`,
+          'glow-r': `${Math.max(radius, maskRadius)}px`,
+          light: inMask ? Math.sin(Math.PI * enter * .85) * .9 : 0,
+          opacity: inMask ? 1 : 0,
+        })) mask?.style.setProperty('--mask-' + key, String(value))
+        crystalScreen.preZoom = inMask ? smootherstep(Math.min(1, enter / .6)) : 0
+        crystalScreen.maskHide = active && wave === 0 ? nativeRange(enter, .68, .98) : 0
+        waveProxy.value = wave
+        waveProxy.opacity = wave > 0 && wave < 1 ? 1 : 0
+        writeWave()
+        updateAnchor()
+      }
+      const stop = observeNativeScroll(update, [section, panel])
+      const stopFluid = createCrystalFluid([
+        section.querySelector('.world-model-section__image-soft'),
+        mask?.querySelector('.world-model-mask__field'), waveField,
+      ], () => colourOpen || (opening > 0 && opening < 1) || waveProxy.opacity > 0,
+      () => opening > 0 && opening < 1 ? opening : 0)
+      return () => {
+        stop(); stopFluid(); waveEl.remove(); flashEl.remove()
+        if (mask && maskHome) maskHome.appendChild(mask)
+        crystalScreen.preZoom = crystalScreen.maskHide = 0
+        delete document.documentElement.dataset.worldWaveActive
+        delete document.documentElement.dataset.worldWaveProgress
+        document.documentElement.classList.remove('on-world-model')
+        if (fourthCopy) fourthCopy.style.visibility = ''
+      }
+    }
     writeExit()
     writeExpansion(0)
 
@@ -2122,7 +2216,7 @@ export default function WorldModelSection({
       document.documentElement.classList.remove('on-world-model')
       onSectionVisibilityChangeRef.current?.(false)
     }
-  }, [])
+  }, [nativeScroll])
 
   return (
     <section

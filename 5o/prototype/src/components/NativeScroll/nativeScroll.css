@@ -1,0 +1,14 @@
+.native-scroll-page { display: flow-root; }
+.native-hero-track { position: relative; height: 200svh; z-index: 2; pointer-events: none; }
+.native-hero-track > .hero-scene { position: sticky; top: 0; height: 100svh; min-height: 100svh !important; pointer-events: auto; }
+.native-cards-track { position: relative; height: 300svh; margin-top: -100svh; z-index: 1; }
+.native-cards-track > .block24-section { position: sticky; top: 0; height: 100svh; }
+.native-scroll-page .world-model-section { height: 500svh; }
+.native-scroll-page .physics-behavior-section { height: 1000svh; }
+.native-scroll-page .block24-section__tabs { overscroll-behavior: auto; }
+.native-scroll-page canvas { touch-action: pan-y pinch-zoom; }
+.native-scroll-page .physics-behavior-section__state-rail-button,
+.native-scroll-page .physics-behavior-section__network-tabs button { touch-action: manipulation; }
+@media (prefers-reduced-motion: reduce) {
+  .native-scroll-page *, .native-scroll-page *::before, .native-scroll-page *::after { scroll-behavior: auto !important; }
+}

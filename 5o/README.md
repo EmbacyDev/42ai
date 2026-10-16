@@ -31,3 +31,16 @@ and the active site still showed a deployment from 10 days earlier.
 The release changes only this Worker root to `5o/prototype`.
 The colleague Worker belongs to a different account/subdomain and its source
 directory is byte-for-byte unchanged from origin/main f99732f in this release.
+
+
+## Published and local states
+
+The GPU/particle release was deployed successfully from main `0c88a83` on
+2026-10-16. Build ID: `b47bcc83-73ce-41bb-b431-4816d653f308`.
+The root `5o/prototype` is saved in Workers Builds. Non-production branch builds
+were disabled in this Worker's configuration.
+
+Current local branch `codex/v5o-native-scroll` adds a native-scroll candidate:
+`http://127.0.0.1:5190/5o`; same rendering with old scroll: `/5o-steps`.
+This candidate and its updated documentation have not been pushed or deployed.
+Do not merge/push it as part of the already completed GPU release.

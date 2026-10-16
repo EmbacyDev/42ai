@@ -1,7 +1,8 @@
 {
   "version": "5o",
-  "stage": "crystal-and-particles",
+  "stage": "native-scroll-local",
   "source_commit": "bfc68be",
-  "scroll_mode": "original-stepped",
-  "published_scroll_changes": false
+  "scroll_mode": "native-scroll",
+  "published_scroll_changes": false,
+  "published_main": "0c88a83"
 }

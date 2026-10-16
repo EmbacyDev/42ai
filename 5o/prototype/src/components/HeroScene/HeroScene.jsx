@@ -11,6 +11,7 @@ import { DEFAULT_CRYSTAL_CONFIG } from '../../crystal/defaultCrystalConfig.js'
 import './heroScene.css'
 
 export default function HeroScene({
+  nativeScroll = false,
   minHeight = '100vh',
   portraits = defaultPortraits,
   labels = defaultLabels,
@@ -121,6 +122,7 @@ export default function HeroScene({
 
     const transition = createHeroTransition({
       heroEl: root,
+      nativeScroll,
       onProgress: updateContentOpacity,
     })
     transitionRef.current = transition
@@ -158,7 +160,7 @@ export default function HeroScene({
       transition.dispose()
       transitionRef.current = null
     }
-  }, [scenePortraits, labels, tunedCrystalConfig])
+  }, [scenePortraits, labels, tunedCrystalConfig, nativeScroll])
 
   return (
     <section

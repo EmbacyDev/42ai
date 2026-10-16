@@ -9,8 +9,13 @@ import PageCrystal from '../crystal/PageCrystal.jsx'
 import { DEFAULT_CRYSTAL_CONFIG } from '../crystal/defaultCrystalConfig.js'
 import { resolveHeroBackgroundColor } from '../components/HeroScene/heroBackground.js'
 import './figmaRefresh.css'
+import '../components/NativeScroll/nativeScroll.css'
 
-export default function HeroTestPage({ optimizedCrystal = false }) {
+function ScrollTrack({ enabled, name, children }) {
+  return enabled ? <div className={name}>{children}</div> : children
+}
+
+export default function HeroTestPage({ optimizedCrystal = false, nativeScroll = false }) {
   const [heroAssetsLoaded, setHeroAssetsReady] = useState(false)
   const [crystalReady, setCrystalReady] = useState(false)
   const [staticImagesReady, setStaticImagesReady] = useState(false)
@@ -44,9 +49,11 @@ export default function HeroTestPage({ optimizedCrystal = false }) {
   // and to the carousel's own idle motion) for that.
   const sectionAnchorsRef = useRef({ second: null, third: null, fourth: null })
   return (
-    <>
+    <ScrollTrack enabled={nativeScroll} name="native-scroll-page">
       <SiteHeader ready={true} />
+      <ScrollTrack enabled={nativeScroll} name="native-hero-track">
       <HeroScene
+        nativeScroll={nativeScroll}
         onAssetsReady={handleHeroAssetsReady}
         onReady={handleHeroReady}
         revealReady={crystalReady}
@@ -56,7 +63,10 @@ export default function HeroTestPage({ optimizedCrystal = false }) {
         tunedCrystalConfig={tunedCrystalConfig}
         cardHoverRef={heroCardHoverRef}
       />
+      </ScrollTrack>
+      <ScrollTrack enabled={nativeScroll} name="native-cards-track">
       <Block24Section
+        nativeScroll={nativeScroll}
         backgroundColor={heroBackgroundColor}
         // v4: block two's photos and rail textures start loading as soon as
         // the hero's own photos are in (the loading screen is up until then),
@@ -70,12 +80,15 @@ export default function HeroTestPage({ optimizedCrystal = false }) {
           sectionAnchorsRef.current.second = { x, y, ...meta }
         }}
       />
+      </ScrollTrack>
       <WorldModelSection
+        nativeScroll={nativeScroll}
         onCrystalAnchor={(x, y, meta) => {
           sectionAnchorsRef.current.third = { x, y, ...meta }
         }}
       />
       <PhysicsBehaviorSection
+        nativeScroll={nativeScroll}
         optimizedRendering={optimizedCrystal}
         onCrystalAnchor={(x, y, meta) => {
           sectionAnchorsRef.current.fourth = { x, y, ...meta }
@@ -85,6 +98,7 @@ export default function HeroTestPage({ optimizedCrystal = false }) {
       {/* The page's own crystal. Its look is the baked tab 01 material;
           nothing on the URL can swap it. */}
       <PageCrystal
+        nativeScroll={nativeScroll}
         optimizedRendering={optimizedCrystal}
         config={tunedCrystalConfig}
         introReady={crystalReady}
@@ -94,6 +108,6 @@ export default function HeroTestPage({ optimizedCrystal = false }) {
         cardHoverRef={heroCardHoverRef}
         onReady={handleCrystalReady}
       />
-    </>
+    </ScrollTrack>
   )
 }

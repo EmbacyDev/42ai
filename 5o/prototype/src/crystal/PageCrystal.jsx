@@ -395,6 +395,7 @@ function TravellingCrystal({
   screenAnchorRef,
   pulseProgress,
   spinBlendRef,
+  nativeScroll = false,
   manualFrames = false,
   poseUpdateRef,
   children,
@@ -423,6 +424,7 @@ function TravellingCrystal({
   useEffect(() => {
     const drag = dragRef.current
     const onDown = (event) => {
+      if (nativeScroll && event.pointerType !== 'mouse') return
       if (event.button !== 0 || !heroLightState.inHero || !crystalScreen.valid) return
       const r = Math.max(60, crystalScreen.r || 0)
       if (Math.hypot(event.clientX - crystalScreen.x, event.clientY - crystalScreen.y) > r) return
@@ -464,7 +466,7 @@ function TravellingCrystal({
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
     }
-  }, [])
+  }, [nativeScroll])
 
   useCrystalPoseFrame((_, delta) => {
     if (!groupRef.current) return
@@ -1098,6 +1100,7 @@ export default function PageCrystal({
   pulseKey = 0,
   cardHoverRef,
   onReady = () => {},
+  nativeScroll = false,
   optimizedRendering = false,
 }) {
   const shellRef = useRef(null)
@@ -1233,6 +1236,7 @@ export default function PageCrystal({
             screenAnchorRef={screenAnchorRef}
             pulseProgress={pulseProgress}
             spinBlendRef={spinBlendRef}
+            nativeScroll={nativeScroll}
             manualFrames={optimizedRendering}
             poseUpdateRef={poseUpdateRef}
           >

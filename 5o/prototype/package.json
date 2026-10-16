@@ -8,7 +8,8 @@
     "build": "vite build",
     "test:rendering": "node --test tests/active-bloom.test.js",
     "preview": "vite preview",
-    "deploy": "npx --yes wrangler@4.107.0 deploy --config wrangler.jsonc"
+    "deploy": "npx --yes wrangler@4.107.0 deploy --config wrangler.jsonc",
+    "test:scroll": "node --test tests/native-scroll.test.js"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

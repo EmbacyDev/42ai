@@ -1,3 +1,4 @@
+import { observeNativeScroll, chapterValue, CHAPTER_SCROLL_SPAN, clamp01 as nativeClamp, range as nativeRange } from '../NativeScroll/progress.js'
 import AnimatedHeading from '../AnimatedHeading.jsx'
 import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import gsap from 'gsap'
@@ -32,6 +33,7 @@ const PORTAL_DOTS = [
  * the intro and into the block-three/block-two hand-off.
  */
 export default function PhysicsBehaviorSection({
+  nativeScroll = false,
   optimizedRendering = false,
   onCrystalAnchor,
   onSectionVisibilityChange,
@@ -126,7 +128,7 @@ export default function PhysicsBehaviorSection({
         : particleValue <= 6 ? 1 + 1.5 * clamp01(particleValue - 5) : 2.5 + 1.5 * clamp01(particleValue - 6)
       networkMotionRef.current.linesActive = !locked || target === 6
       networkMotionRef.current.labelsActive = !locked && target === 5 && Math.abs(value - 5) < .001
-      const chapter = Math.max(1, Math.min(3, Math.ceil(value - 4)))
+      const chapter = Math.max(1, Math.min(3, (nativeScroll ? Math.round(value) - 4 : Math.ceil(value - 4))))
       Object.assign(networkMotionRef.current, { network: stage / 4, stage, visible: portal > .1 && visible })
       networkSettingsRef.current = settingsAtRest(particleValue)
       // During the wave handoff the playhead is parked at facet one for
@@ -235,10 +237,10 @@ export default function PhysicsBehaviorSection({
           // Explicit copy timings, independent of the particle transition duration.
           const textStart = target === 7 ? .5 : target === 5 && copyDeparture > 5 ? .8 : .7
           const textDuration = 1.2
-          const progress = changing ? clamp01(((tween?.time() ?? 0) - textStart) / textDuration) : 1
+          const progress = nativeScroll ? nativeRange(1 - Math.abs(value - (i + 5)) / .65, 0, 1) : changing ? clamp01(((tween?.time() ?? 0) - textStart) / textDuration) : 1
           copy.style.transform = 'translate3d(-50%,0,0)'
           copy.dataset.active=String(copyChapter===i+1)
-          copy.style.setProperty('--copy-opacity', copyChapter===i+1 ? '1' : '0')
+          copy.style.setProperty('--copy-opacity', copyChapter===i+1 ? String(nativeScroll ? progress : 1) : '0')
           const words = copy.querySelectorAll('.network-copy-word')
           words.forEach((word, index) => {
             const p = smootherstep(clamp01((progress - index / Math.max(1, words.length - 1) * .3) / .7))
@@ -265,6 +267,37 @@ export default function PhysicsBehaviorSection({
         stateThree: crystalHandoff ? 0 : states[2], stateFour: crystalHandoff ? 0 : states[3],
         cleanFrame: crystalHandoff ? 0 : portal, portal: crystalHandoff ? 0 : portal,
       })
+    }
+    if (nativeScroll) {
+      // Geometry and visual math above stay authored; native scroll owns only
+      // their playhead. No wheel/touch/key interception is installed below.
+      const update = () => {
+        const h = Math.max(1, panel.clientHeight)
+        const span = Math.max(1, section.offsetHeight - h)
+        const distance = nativeClamp((window.scrollY - top()) / span) * CHAPTER_SCROLL_SPAN
+        playhead.value = chapterValue(distance)
+        target = Math.max(1, Math.min(7, Math.round(playhead.value)))
+        locked = false
+        render()
+      }
+      const scrollToStep = (step) => {
+        const span = Math.max(1, section.offsetHeight - panel.clientHeight)
+        window.scrollTo({ top: top() + Math.max(0, Math.min(7, step)) / CHAPTER_SCROLL_SPAN * span,
+          behavior: reduced ? 'instant' : 'smooth' })
+      }
+      glideToRestRef.current = scrollToStep
+      const navigateNative = event => {
+        if (event.detail?.destination === '#applications') {
+          document.getElementById('applications')?.scrollIntoView({ behavior: reduced ? 'instant' : 'smooth' })
+        } else scrollToStep(event.detail?.step === 5 ? 5 : 0)
+      }
+      window.addEventListener('42ai-navigate-physics', navigateNative)
+      const stop = observeNativeScroll(update, [section, panel])
+      return () => {
+        stop(); liquid.remove()
+        glideToRestRef.current = () => {}
+        window.removeEventListener('42ai-navigate-physics', navigateNative)
+      }
     }
     const go = (index) => {
       if (suspended || locked || index < 1 || index > 7) return
@@ -643,7 +676,7 @@ export default function PhysicsBehaviorSection({
       window.removeEventListener(WORLD_MODEL_RETURN_EVENT, returned)
       window.removeEventListener(WORLD_MODEL_ABSORBED_EVENT, arrived)
     }
-  }, [])
+  }, [nativeScroll])
 
   return (
     <section

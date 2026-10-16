@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { createNativeHeroTransition } from '../NativeScroll/hero.js'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { BLOCK24_RETURN_EVENT } from '../Block24Section/block24Layout.js'
 import { HERO_PIN_VIEWPORTS, smootherstep } from './scrollShrink.js'
@@ -26,7 +27,8 @@ export function easeInOutCubic(t) {
 // v4: a wheel packet after this long a pause starts a new gesture.
 const FRESH_GESTURE_GAP = 250
 
-export function createHeroTransition({ heroEl, onProgress }) {
+export function createHeroTransition({ heroEl, onProgress, nativeScroll = false }) {
+  if (nativeScroll) return createNativeHeroTransition(heroEl, onProgress)
   const progress = { current: 0 }
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const inertia = {

@@ -1,3 +1,4 @@
+import { nativeScrollState } from '../NativeScroll/state.js'
 /**
  * Pure math shared by both places the crystal lives — the vanilla-Three
  * placeholder (mountHeroScene.js) and the tuned R3F shader
@@ -113,7 +114,7 @@ export const CRYSTAL_EXTRA_SPIN = Math.PI * 3
 export const HERO_PIN_VIEWPORTS = 1
 
 export function crystalTravelRangePx() {
-  return window.innerHeight * HERO_PIN_VIEWPORTS
+  return (nativeScrollState.heroRange || window.innerHeight) * HERO_PIN_VIEWPORTS
 }
 
 export const CRYSTAL_DESCEND_START_FRACTION = 0.14

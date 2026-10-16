@@ -1,3 +1,4 @@
+import { createNativeCards } from '../NativeScroll/cards.js'
 import ScrambleText from '../Scramble/ScrambleText.jsx'
 import AnimatedHeading from '../AnimatedHeading.jsx'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -150,6 +151,7 @@ export default function Block24Section({
   // wait on anything), but the hero page passes its own `heroReady` so this
   // section's off-screen photo prefetching doesn't compete with the hero's
   // still-loading portraits over the browser's shared connection limit.
+  nativeScroll = false,
   heroReady = true,
   onImagesReady,
 }) {
@@ -178,6 +180,9 @@ export default function Block24Section({
   useEffect(() => {
     const section = sectionRef.current
     if (!section) return undefined
+    if (nativeScroll) return createNativeCards({ section, anchor: onCrystalAnchorRef,
+      visibility: onSectionVisibilityChangeRef, entrance: entranceRef,
+      setVisible: setIsVisible, setExiting: setIsExiting, setReady: setContentReady })
 
     let pinProgress = 0
     let handoffOn = false
@@ -895,7 +900,7 @@ export default function Block24Section({
       pinTrigger.kill()
       onSectionVisibilityChangeRef.current?.(false)
     }
-  }, [])
+  }, [nativeScroll])
 
   // v4: decode every slide photo ahead of time, so the first card swap
   // never waits on a fresh decode while the current photo is hidden.
