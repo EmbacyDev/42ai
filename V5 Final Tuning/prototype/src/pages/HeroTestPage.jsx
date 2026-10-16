@@ -76,6 +76,7 @@ export default function HeroTestPage({ optimizedCrystal = false }) {
         }}
       />
       <PhysicsBehaviorSection
+        optimizedRendering={optimizedCrystal}
         onCrystalAnchor={(x, y, meta) => {
           sectionAnchorsRef.current.fourth = { x, y, ...meta }
         }}

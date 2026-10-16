@@ -3,7 +3,7 @@
 Local branch: `codex/v5o-gpu`. No deployment or push is needed to compare versions.
 
 - `/v1`: original V5 rendering.
-- `/5o`: identical page/assets, with two crystal rendering optimizations.
+- `/5o`: identical page/assets, with crystal and particle-scene rendering optimizations.
 
 5o keeps the crystal's position/opacity controller running so scrolling back,
 anchor navigation and animated hand-offs can wake the crystal. Three.js frame
@@ -62,3 +62,14 @@ identity of every frame of the animated website.
 `npm run test:rendering`, `npm run build`, and `git diff --check` passed.
 Responsive layout, scroll capture, particle rendering, and cold-load shader
 compilation are outside this version's changes and may still cause stutters.
+
+
+## Handoff documentation
+
+- [Performance research](docs/5o/01-performance-research.md) (Russian): methods,
+  measured results, evidence limits and remaining bottlenecks.
+- [Optimization plan and implementation status](docs/5o/02-optimization-plan.md)
+  (Russian): files, verification instructions and work for the next developer.
+
+Particle-scene changes are also gated to `/5o`. Run `/tests/particles.html` on
+Vite dev for deterministic image comparisons and the separate ABBA benchmark.
