@@ -1,8 +1,9 @@
 {
   "version": "5o",
-  "stage": "native-scroll-local",
-  "source_commit": "bfc68be",
+  "stage": "native-scroll",
+  "release": "5o-native-scroll-alpha-20261016",
+  "source_commit": "297692d",
   "scroll_mode": "native-scroll",
-  "published_scroll_changes": false,
-  "published_main": "0c88a83"
+  "published_scroll_changes": true,
+  "unread_text_opacity": 0.35
 }

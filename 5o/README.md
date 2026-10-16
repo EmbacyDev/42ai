@@ -19,8 +19,8 @@ Dashboard build triggers have to be verified separately.
 The release marker is `/5o-release.json`.
 
 Research and implementation handoff: `prototype/docs/5o/`.
-The release snapshot contains GPU/particle changes only. Native scroll work comes
-after this release and must stay local until separately approved.
+The current release includes GPU/particle optimizations and native scroll.
+Publication of the native-scroll follow-up was authorized on 2026-10-16.
 
 ## Verified build configuration before release
 
@@ -40,7 +40,9 @@ The GPU/particle release was deployed successfully from main `0c88a83` on
 The root `5o/prototype` is saved in Workers Builds. Non-production branch builds
 were disabled in this Worker's configuration.
 
-Current local branch `codex/v5o-native-scroll` adds a native-scroll candidate:
+The native-scroll release was prepared on `codex/v5o-native-scroll`:
 `http://127.0.0.1:5190/5o`; same rendering with old scroll: `/5o-steps`.
-This candidate and its updated documentation have not been pushed or deployed.
-Do not merge/push it as part of the already completed GPU release.
+The user authorized publishing this follow-up to main and the same Worker.
+Unread world-model text uses the same black ink at 35% opacity, filling to opaque
+black with scroll. Release marker: `5o-native-scroll-alpha-20261016`.
+The configured main auto-build is the publication path; check its result after push.

@@ -40,7 +40,7 @@
 .native-scroll-page .world-model-section__line {
   display: block; grid-area: auto; white-space: normal;
   transform: none !important; opacity: 1; filter: none !important;
-  background: linear-gradient(90deg, #121212 0% var(--native-line-fill, 0%), #899993 var(--native-line-fill, 0%) 100%);
+  background: linear-gradient(90deg, #121212 0% var(--native-line-fill, 0%), rgb(18 18 18 / 35%) var(--native-line-fill, 0%) 100%);
   background-clip: text; -webkit-background-clip: text;
   color: transparent; -webkit-text-fill-color: transparent;
   will-change: auto;

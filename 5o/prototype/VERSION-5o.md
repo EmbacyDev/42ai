@@ -1,7 +1,8 @@
-# 5o — GPU optimizations and local native scroll
+# 5o — GPU optimizations and native scroll
 
-Published main snapshot: `0c88a83` (GPU/particles, original scroll).
-Local follow-up branch: `codex/v5o-native-scroll`; not pushed or deployed.
+Previous published snapshot: `0c88a83` (GPU/particles, original scroll).
+Native-scroll release: `5o-native-scroll-alpha-20261016`, publication authorized
+on 2026-10-16. Prepared on `codex/v5o-native-scroll` for main auto-deployment.
 
 - `/v1`: original V5 rendering.
 - `/5o`: optimized rendering plus the local native-scroll timeline.
@@ -97,8 +98,9 @@ different from the published timed transitions.
 Chrome inspection: nonpassive window wheel/touchmove listeners 4/2 → 0/0.
 Two long native wheel gestures: zero cancelled inputs, zero window.scrollTo writes.
 These are input-ownership checks, not an FPS or GPU-time benchmark.
-Real iPad Safari, full responsive QA and final cross-scene visual acceptance
-remain required before publishing this follow-up.
+Physical iPad Safari testing remains outstanding; subsequent Chrome desktop
+and tablet viewport checks are recorded below. Publication was authorized
+with this validation limit documented.
 
 
 ## Local scroll refinement
@@ -106,11 +108,11 @@ remain required before publishing this follow-up.
 Cards now enter with their viewport and leave with lift/fade; the selected
 industry has a synchronized autoplay ring. Fixed handoff surfaces crossfade
 without scrolling rectangular edges. The two world-model paragraphs fill
-from grey to black line by line, then travel/fade out. The glass-to-particle
+from 35%-opaque black to opaque black line by line, then travel/fade out. The glass-to-particle
 transition has more scroll distance. Native poses avoid a second spring
 and caption fade, including the fast reverse-scroll oversized flash.
 
 Tablet composition checked in Chrome at 1024×1366, 768×1024 and 1024×768.
-Physical iPad Safari/touch/GPU testing remains outstanding. Native changes
-are still local to `codex/v5o-native-scroll`; production main remains `0c88a83`.
+Physical iPad Safari/touch/GPU testing remains outstanding. The user authorized publishing these native changes to the target Worker
+on 2026-10-16. The release marker identifies the updated version.
 Current production preview: `http://127.0.0.1:5191/5o`.
