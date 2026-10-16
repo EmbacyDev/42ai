@@ -1,0 +1,25 @@
+import { projectDesignPoint } from './placement.js'
+import { sceneConfig } from './sceneConfig.js'
+
+/**
+ * Places the headline on the same projection as the portrait camera.
+ * Called from a layout effect so the first preloader frame already has
+ * the final size — applying it after paint made the type jump.
+ */
+export function layoutHeroCopy(contentEl, width, height) {
+  if (!contentEl || !width || !height) return
+  if (width <= 980) {
+    contentEl.style.top = `${Math.max(460, height - 334)}px`
+    contentEl.style.width = `${width - (width > 600 ? 80 : 40)}px`
+    contentEl.style.setProperty('--hero-copy-scale', '1')
+    contentEl.style.transform = 'translateX(-50%)'
+    return
+  }
+  const { designTop, designWidth } = sceneConfig.copy
+  const top = projectDesignPoint(sceneConfig.design.width / 2, designTop, width, height).y
+  const scale = 1.1
+  contentEl.style.setProperty('--hero-copy-scale', String(scale))
+  contentEl.style.top = `${top}px`
+  contentEl.style.width = `${designWidth}px`
+  contentEl.style.transform = `translateX(-50%) scale(${scale})`
+}

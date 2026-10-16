@@ -149,18 +149,11 @@ function compile(gl, type, source) {
   return shader
 }
 
-export default function NetworkLightShader({ motionRef, settingsRef, optimizedRendering = false }) {
+export default function NetworkLightShader({ motionRef, settingsRef }) {
   const canvasRef = useRef(null)
 
   useEffect(() => {
-    const renderer = createNetworkLightRenderer(canvasRef.current, motionRef, settingsRef, optimizedRendering)
-    return renderer?.dispose
-  }, [motionRef, settingsRef, optimizedRendering])
-
-  return <canvas ref={canvasRef} className="physics-behavior-section__network-light" aria-hidden="true" />
-}
-
-export function createNetworkLightRenderer(canvas, motionRef, settingsRef, optimized = false, { automatic = true } = {}) {
+    const canvas = canvasRef.current
     const gl = canvas?.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' })
     if (!gl) return undefined
     const vertex = compile(gl, gl.VERTEX_SHADER, VERTEX)
@@ -189,21 +182,26 @@ export function createNetworkLightRenderer(canvas, motionRef, settingsRef, optim
     let previous = null
     const uniforms = Object.fromEntries(["paletteBlue","paletteMint","paletteViolet","noiseScale","warpStrength","brightness","saturation","shaderRays","fogAmount","glowAmount","grainAmount"].map(k=>[k,gl.getUniformLocation(program,k)]))
 
-    let lastInputs = null
     let lastPaint=-Infinity
     const draw = (now) => {
-      frame = automatic && onScreen ? window.requestAnimationFrame(draw) : 0
+      frame = onScreen ? window.requestAnimationFrame(draw) : 0
       if(!onScreen)return
-      if(motionRef.current.visible===false || (optimized && document.hidden)){previous=now;return}
+      if(motionRef.current.visible===false){previous=now;return}
       if(now-lastPaint<1000/30-1)return
       lastPaint=now
       const config = settingsRef.current
       const camera=cameraCentre(motionRef,config,now)
+      gl.uniform2f(vanishingPoint,camera.x,camera.y)
+      gl.uniform2f(cameraOrbit,camera.orbitX,-camera.orbitY)
       const dt = previous===null ? 0 : Math.min(.05,(now-previous)/1000)
       previous=now
       if(motionRef.current.visible===false)return
-      if(!config.shader){lastInputs=null;gl.clear(gl.COLOR_BUFFER_BIT);return}
+      if(!config.shader){gl.clear(gl.COLOR_BUFFER_BIT);return}
       if(!config.paused) elapsed += dt * config.speed * config.shaderSpeed
+      for(const [uniform,key] of [['paletteBlue','backgroundBlue'],['paletteMint','backgroundMint'],['paletteViolet','backgroundViolet']]) {
+        const hex=config[key];gl.uniform3f(uniforms[uniform],...[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255))
+      }
+      for(const [uniform,key] of [['noiseScale','noiseScale'],['warpStrength','warp'],['brightness','brightness'],['saturation','saturation'],['shaderRays','shaderRays'],['fogAmount','fog'],['glowAmount','glow'],['grainAmount','grain']])gl.uniform1f(uniforms[uniform],config[key])
       const rect = canvas.getBoundingClientRect()
       const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
       const width = Math.max(1, Math.round(rect.width * dpr))
@@ -212,24 +210,6 @@ export function createNetworkLightRenderer(canvas, motionRef, settingsRef, optim
         canvas.width = width
         canvas.height = height
       }
-      if (optimized) {
-        // preserveDrawingBuffer keeps the last image. Repaint only when an
-        // actual shader input changes (including camera, transition, size and
-        // time), never merely because another animation requested a frame.
-        const inputs = [width, height, camera.x, camera.y, camera.orbitX, camera.orbitY,
-          reduced ? 0 : elapsed, Math.min(2.5 / 4, motionRef.current?.network ?? 0),
-          config.backgroundBlue, config.backgroundMint, config.backgroundViolet,
-          config.noiseScale, config.warp, config.brightness, config.saturation,
-          config.shaderRays, config.fog, config.glow, config.grain]
-        if (lastInputs && inputs.every((value, index) => value === lastInputs[index])) return
-        lastInputs = inputs
-      }
-      gl.uniform2f(vanishingPoint,camera.x,camera.y)
-      gl.uniform2f(cameraOrbit,camera.orbitX,-camera.orbitY)
-      for(const [uniform,key] of [['paletteBlue','backgroundBlue'],['paletteMint','backgroundMint'],['paletteViolet','backgroundViolet']]) {
-        const hex=config[key];gl.uniform3f(uniforms[uniform],...[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255))
-      }
-      for(const [uniform,key] of [['noiseScale','noiseScale'],['warpStrength','warp'],['brightness','brightness'],['saturation','saturation'],['shaderRays','shaderRays'],['fogAmount','fog'],['glowAmount','glow'],['grainAmount','grain']])gl.uniform1f(uniforms[uniform],config[key])
       gl.viewport(0, 0, width, height)
       gl.uniform2f(resolution, width, height)
       gl.uniform1f(time, reduced ? 0 : elapsed)
@@ -240,13 +220,13 @@ export function createNetworkLightRenderer(canvas, motionRef, settingsRef, optim
     // v4: only draws while the canvas is on screen. It used to run (and
     // measure its own rect) every frame from page load, costing frames on
     // every other screen.
-    let onScreen = !automatic
+    let onScreen = false
     const visibility = new IntersectionObserver(([entry]) => {
       onScreen = entry.isIntersecting
       if (onScreen && !frame) frame = window.requestAnimationFrame(draw)
     })
-    if (automatic) visibility.observe(canvas)
-    const dispose = () => {
+    visibility.observe(canvas)
+    return () => {
       visibility.disconnect()
       window.cancelAnimationFrame(frame)
       gl.deleteBuffer(buffer)
@@ -254,5 +234,7 @@ export function createNetworkLightRenderer(canvas, motionRef, settingsRef, optim
       gl.deleteShader(vertex)
       gl.deleteShader(fragment)
     }
-    return { render: draw, dispose, gl }
+  }, [motionRef])
+
+  return <canvas ref={canvasRef} className="physics-behavior-section__network-light" aria-hidden="true" />
 }

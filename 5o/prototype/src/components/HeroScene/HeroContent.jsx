@@ -1,0 +1,21 @@
+import AnimatedHeading from '../AnimatedHeading.jsx'
+import RequestDemoButton from '../RequestDemoButton/RequestDemoButton.jsx'
+
+export default function HeroContent({ headingReady = true }) {
+  return (
+    <div className="hero-content">
+      <AnimatedHeading blurPx={10} delayMs={350} enabled={headingReady} reveal="characters" as="h1" className="hero-content__title">
+        Behavioural intelligence
+        <br />
+        for unpredictable world
+      </AnimatedHeading>
+      <div className="hero-content__reveal">
+        <p className="hero-content__text">
+          Access the world’s first Behavioral World Model that predicts humans
+          and agents’ behaviors in volatile, novel, and unprecedented scenarios.
+        </p>
+        <RequestDemoButton className="hero-content__cta" widen={-8.667} fit="stretch" preserveCase />
+      </div>
+    </div>
+  )
+}

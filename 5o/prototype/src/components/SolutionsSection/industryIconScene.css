@@ -1,0 +1,154 @@
+.industry-icon-scene {
+  position: absolute;
+  inset: 0;
+  perspective: 900px;
+  perspective-origin: 50% 48%;
+  isolation: isolate;
+}
+
+.industry-icon__object,
+.industry-icon__idle,
+.industry-icon__tilt,
+.industry-icon__image,
+.industry-icon__light-mask {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.industry-icon__object {
+  /* GSAP owns transform/translate. Keep optical alignment in layout instead. */
+  margin-top: var(--icon-optical-y, 0px);
+  inset: 10%;
+  width: 80%;
+  height: 80%;
+  visibility: hidden;
+  opacity: 0;
+  transform-origin: 50% 55%;
+  pointer-events: none;
+}
+
+.industry-icon__object[data-active="true"] { z-index: 1; }
+/* Flatten the PNG/light stack once; nested 3D surfaces plus alpha masks
+   otherwise require repeated offscreen compositing during pointer movement. */
+.industry-icon__tilt { transform-style: flat; }
+
+.industry-icon__image {
+  display: block;
+  object-fit: contain;
+  user-select: none;
+}
+
+.industry-icon__image {
+  /* Keep the visible PNG free of filters and extra resampling layers. */
+  z-index: 1;
+}
+
+.industry-icon__light-mask {
+  contain: paint;
+  z-index: 2;
+  overflow: hidden;
+  -webkit-mask-image: var(--icon-mask);
+  mask-image: var(--icon-mask);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  mask-mode: alpha;
+}
+
+.industry-icon__sweep {
+  position: absolute;
+  inset: -20% 0;
+  opacity: 0;
+  background: linear-gradient(115deg, transparent 32%, rgb(255 255 255 / 25%) 43%, white 50%, rgb(255 255 255 / 25%) 57%, transparent 68%);
+  transform: translateX(-120%);
+}
+
+.industry-icon__light-position {
+  position: absolute;
+  inset: 0;
+}
+
+.industry-icon__reflection {
+  position: absolute;
+  inset: -25%;
+  opacity: 0.05;
+  background: radial-gradient(ellipse 28% 58% at 32% 30%,
+    rgb(245 247 248 / 60%) 0%, rgb(245 247 248 / 30%) 38%, transparent 74%);
+}
+
+/* Each PNG supplies its floor height; the shadow stays outside idle/tilt. */
+.industry-icon__contact {
+  position: absolute;
+  --contact-center: 53%;
+  --contact-width: 65%;
+  left: calc(var(--contact-center) - var(--contact-width) / 2);
+  top: 73%;
+  width: var(--contact-width);
+  height: 6%;
+  pointer-events: none;
+}
+
+.industry-icon__contact-soft {
+  width: 100%;
+  height: 100%;
+  opacity: 0.11;
+  background:
+    radial-gradient(ellipse 35% 18% at 48% 42%, rgb(25 29 32 / 65%), transparent 90%),
+    radial-gradient(ellipse at 56% 55%, rgb(25 29 32 / 55%) 0%, rgb(25 29 32 / 20%) 35%, transparent 72%);
+}
+
+.industry-icon__surface-light {
+  position: absolute;
+  inset: 0;
+}
+
+.industry-icon__idle {
+  transform-origin: center;
+  transition: transform .45s cubic-bezier(.22, 1, .36, 1);
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .solutions-section__panel:hover .industry-icon__object[data-active="true"] .industry-icon__idle {
+    transform: scale(1.035);
+  }
+  .solutions-section__panel:hover .industry-icon__object[data-active="true"] .industry-icon__hover-light {
+    opacity: .65;
+  }
+}
+
+.industry-icon__surface-light {
+  background:
+    radial-gradient(ellipse 34% 55% at 28% 28%, rgb(255 255 255 / 7%), transparent 85%),
+    radial-gradient(ellipse 45% 20% at 53% 22%, rgb(255 255 255 / 5.5%), transparent 90%),
+    linear-gradient(135deg, transparent 32%, rgb(17 29 36 / 4.9%) 90%);
+}
+
+.industry-icon__hover-light {
+  position: absolute;
+  inset: -15%;
+  opacity: 0;
+  transition: opacity .22s ease-out;
+  background:
+    radial-gradient(ellipse 27% 18% at 35% 31%, rgb(245 247 248 / 45%), transparent 85%),
+    radial-gradient(ellipse 19% 29% at 63% 59%, rgb(245 247 248 / 30%), transparent 88%),
+    radial-gradient(ellipse 16% 11% at 43% 36%, rgb(245 247 248 / 55%), transparent 85%),
+    radial-gradient(ellipse 13% 19% at 61% 48%, rgb(245 247 248 / 40%), transparent 90%),
+    radial-gradient(ellipse 21% 9% at 38% 62%, rgb(245 247 248 / 30%), transparent 88%),
+    radial-gradient(ellipse 11% 22% at 29% 46%, rgb(245 247 248 / 40%), transparent 90%),
+    radial-gradient(ellipse 24% 10% at 58% 61%, rgb(245 247 248 / 30%), transparent 90%);
+}
+
+.industry-icon__object[data-active="true"] .industry-icon__hover-light {
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .industry-icon__sweep,
+  .industry-icon__hover-light,
+  .industry-icon__light-position { display: none; }
+}

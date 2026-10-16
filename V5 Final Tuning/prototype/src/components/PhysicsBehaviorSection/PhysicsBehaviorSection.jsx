@@ -32,7 +32,6 @@ const PORTAL_DOTS = [
  * the intro and into the block-three/block-two hand-off.
  */
 export default function PhysicsBehaviorSection({
-  optimizedRendering = false,
   onCrystalAnchor,
   onSectionVisibilityChange,
 }) {
@@ -727,7 +726,7 @@ export default function PhysicsBehaviorSection({
           ))}
         </div>
         <div className="physics-behavior-section__network" aria-hidden="true">
-          {networkPrepared&&<Suspense fallback={null}><NetworkScene optimizedRendering={optimizedRendering} motionRef={networkMotionRef} settingsRef={networkSettingsRef}/></Suspense>}
+          {networkPrepared&&<Suspense fallback={null}><NetworkScene motionRef={networkMotionRef} settingsRef={networkSettingsRef}/></Suspense>}
           {toolScenes.map((config,i)=><p key={i} className={`scene-copy physics-behavior-section__network-copy physics-behavior-section__network-copy--${['one','two','three'][i]}`} style={toolCopyStyle(config)} data-active="false" aria-hidden="true">{config.textValue.split(/\s+/).map((word, index)=><span key={index} className="network-copy-word" style={{display:"inline-block",whiteSpace:"pre"}}>{word+" "}</span>)}</p>)}
           <div className="physics-behavior-section__network-tabs" role="tablist" aria-label="World model stages">
             <span className="network-step-indicator" aria-hidden="true" style={{transform:`translate3d(${(networkChapter-1)*34.434783}px,0,0)`}}></span>

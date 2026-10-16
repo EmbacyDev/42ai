@@ -1,8 +1,6 @@
 import { useEffect, useRef } from 'react'
 import {cameraCentre} from './networkCamera.js'
 import { buildShards } from '../../crystal/shards.js'
-import { projectField } from './rendering/projectField.js'
-import { projectTunnelPoint } from './rendering/projectTunnelPoint.js'
 
 const TAU = Math.PI * 2
 const clamp01 = (value) => Math.min(1, Math.max(0, value))
@@ -284,23 +282,11 @@ function currentPosition(point, phase) {
   return [x, y, z]
 }
 
-export default function BehaviorNetworkTransition({ motionRef, settingsRef, optimizedRendering = false }) {
+export default function BehaviorNetworkTransition({ motionRef, settingsRef }) {
   const canvasRef = useRef(null)
 
   useEffect(() => {
-    const renderer = createNetworkRenderer(canvasRef.current, motionRef, settingsRef, optimizedRendering)
-    return renderer?.dispose
-  }, [motionRef, settingsRef, optimizedRendering])
-
-  return <canvas ref={canvasRef} className="physics-behavior-section__network-canvas" aria-hidden="true" />
-}
-
-function pointVisible(point, reveal) {
-  return reveal >= point.reveal
-}
-
-// Manual mode drives the real renderer with a deterministic clock in browser tests.
-export function createNetworkRenderer(canvas, motionRef, settingsRef, optimized = false, { automatic = true } = {}) {
+    const canvas = canvasRef.current
     if (!canvas) return undefined
     const frontContext = canvas.getContext('2d', { alpha: true })
     let context = frontContext
@@ -312,8 +298,6 @@ export function createNetworkRenderer(canvas, motionRef, settingsRef, optimized 
       return {canvas:buffer,context:i===3?depthContext:buffer.getContext('2d'),strength:(i+1)/4}
     })
     const softContext = softCanvas.getContext('2d')
-    const projectionPool = []
-    const tunnelProjection = [0, 0, 0]
     let depthScale = .5
     let copyBounds=null,copyBoundsKey=''
     const highlightedWords=new Map()
@@ -365,18 +349,7 @@ export function createNetworkRenderer(canvas, motionRef, settingsRef, optimized 
       const softness = smooth(outside/6)
       const layer = config.volumeBlur && config.volumeBlurAmount > 0 && depth >= 0 && softness > .03
         ? blurLayers[Math.min(3,Math.floor(softness*4))] : null
-      if (layer && !layer.used) {
-        if (optimized) {
-          // An unused depth bucket has no contribution; prepare it on first use.
-          if (layer.canvas.width !== depthCanvas.width || layer.canvas.height !== depthCanvas.height) {
-            layer.canvas.width = depthCanvas.width; layer.canvas.height = depthCanvas.height
-          }
-          layer.context.globalAlpha = 1
-          layer.context.setTransform(depthScale, 0, 0, depthScale, 0, 0)
-          layer.context.clearRect(0, 0, width, height)
-        }
-        layer.used = true
-      }
+      if(layer)layer.used=true
       context=layer?layer.context:frontContext
     }
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -461,7 +434,7 @@ export function createNetworkRenderer(canvas, motionRef, settingsRef, optimized 
     const render = (time) => {
       const frameTime=time
       // v4: stops while off screen (see the observer below).
-      frame = automatic && onScreen ? window.requestAnimationFrame(render) : 0
+      frame = onScreen ? window.requestAnimationFrame(render) : 0
       if (!onScreen) return
       if (document.hidden || motionRef.current.visible === false) { previousFrame = time; return }
       if (time - lastPaint < 1000 / 30 - 1) return
@@ -494,7 +467,7 @@ export function createNetworkRenderer(canvas, motionRef, settingsRef, optimized 
       context.filter = 'none'
       for(const layer of blurLayers){
         layer.used=false
-        if(optimized || !config.volumeBlur)continue
+        if(!config.volumeBlur)continue
         if(layer.canvas.width!==depthCanvas.width || layer.canvas.height!==depthCanvas.height){
           layer.canvas.width=depthCanvas.width;layer.canvas.height=depthCanvas.height
         }
@@ -610,18 +583,7 @@ export function createNetworkRenderer(canvas, motionRef, settingsRef, optimized 
         const turn = rotation + reformAngle
         const tc = Math.cos(turn)
         const ts = Math.sin(turn)
-      let projectionCount = Math.max(1560, stage > 2.5 ? config.mainFieldCount : config.fieldCount)
-      if (optimized && stage <= 2.5 && config.fieldBlend === 0 && config.fieldStartCount !== undefined) {
-        // Later points have exactly zero coverage; labels use the start count
-        // and relation paths reference only the first 1560 indices.
-        projectionCount = Math.min(projectionCount, Math.max(1560, config.fieldStartCount))
-      }
-      const projected = flight >= .999 ? [] : optimized ? projectField(FIELD,
-        projectionCount, projectionPool, {
-          fill: stage > 2.5 ? config.mainFieldFill : stage > 1.01 ? config.fieldFill : 0,
-          assembly, tilt: -reformAngle * .65 + assemblyShown * (.55 + (reduced ? 0 : Math.sin(time * .00018) * .16 * (1 - flight))),
-          tc, ts, cameraPush, width, height, unit, flight, cameraY: camera.y,
-        }) : FIELD.slice(0,Math.max(1560,stage>2.5?config.mainFieldCount:config.fieldCount)).map((point, index) => {
+      const projected = flight >= .999 ? [] : FIELD.slice(0,Math.max(1560,stage>2.5?config.mainFieldCount:config.fieldCount)).map((point, index) => {
         const sample=Math.sin((index+1)*127.1+311.7)*43758.5453
         const radial=Math.cbrt(sample-Math.floor(sample))
         const fill=stage>2.5?config.mainFieldFill:stage>1.01?config.fieldFill:0
@@ -968,11 +930,7 @@ export function createNetworkRenderer(canvas, motionRef, settingsRef, optimized 
             const source = galaxy.points[sourceIndex]
             // Extra samples fill the volume without allocating a large pool for every figure.
             const point = sampleCount <= galaxy.points.length ? source : source.map((v,axis)=>axis<3?v + Math.sin((sampleIndex+1)*127.1+(axis+1)*311.7)*.012:v)
-            const [x, y, depthScale] = optimized
-              ? projectTunnelPoint(point, galaxy.kind === 'chaos' ? 0 : config.shapeFill,
-                cy0, sy0, ct, stt, depth, figureSize, vanishingX, vanishingY,
-                worldX, worldY, tunnelUnit, tunnelProjection)
-              : project(point)
+            const [x, y, depthScale] = project(point)
             if (x < -10 || x > width + 10 || y < -10 || y > height + 10) continue
             const shade = point[3]
             const dot = config.particleSize * Math.max(.8, scale * (.45 + shade * .5) * depthScale)
@@ -1018,18 +976,24 @@ export function createNetworkRenderer(canvas, motionRef, settingsRef, optimized 
     const observer = new ResizeObserver(resize)
     observer.observe(canvas)
     resize()
-    let onScreen = !automatic
+    let onScreen = false
     const visibility = new IntersectionObserver(([entry]) => {
       onScreen = entry.isIntersecting
       if (onScreen && !frame) frame = window.requestAnimationFrame(render)
     })
-    if (automatic) visibility.observe(canvas)
-    const dispose = () => {
+    visibility.observe(canvas)
+    return () => {
       window.removeEventListener('pointermove', onPointerMove)
       document.documentElement.removeEventListener('pointerleave', onPointerLeave)
       visibility.disconnect()
       observer.disconnect()
       window.cancelAnimationFrame(frame)
     }
-    return { render, resize, dispose }
+  }, [motionRef])
+
+  return <canvas ref={canvasRef} className="physics-behavior-section__network-canvas" aria-hidden="true" />
+}
+
+function pointVisible(point, reveal) {
+  return reveal >= point.reveal
 }

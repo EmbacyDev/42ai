@@ -10,7 +10,7 @@ import { DEFAULT_CRYSTAL_CONFIG } from '../crystal/defaultCrystalConfig.js'
 import { resolveHeroBackgroundColor } from '../components/HeroScene/heroBackground.js'
 import './figmaRefresh.css'
 
-export default function HeroTestPage({ optimizedCrystal = false }) {
+export default function HeroTestPage() {
   const [heroAssetsLoaded, setHeroAssetsReady] = useState(false)
   const [crystalReady, setCrystalReady] = useState(false)
   const [staticImagesReady, setStaticImagesReady] = useState(false)
@@ -76,7 +76,6 @@ export default function HeroTestPage({ optimizedCrystal = false }) {
         }}
       />
       <PhysicsBehaviorSection
-        optimizedRendering={optimizedCrystal}
         onCrystalAnchor={(x, y, meta) => {
           sectionAnchorsRef.current.fourth = { x, y, ...meta }
         }}
@@ -85,7 +84,6 @@ export default function HeroTestPage({ optimizedCrystal = false }) {
       {/* The page's own crystal. Its look is the baked tab 01 material;
           nothing on the URL can swap it. */}
       <PageCrystal
-        optimizedRendering={optimizedCrystal}
         config={tunedCrystalConfig}
         introReady={crystalReady}
         visible={crystalReady}

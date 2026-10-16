@@ -1,0 +1,136 @@
+# 5o: план оптимизации и состояние реализации
+
+Обновлено: 16 октября 2026. Рабочая ветка `codex/v5o-gpu`.
+Цель: убрать лишнюю работу CPU/GPU, сохранив внешний вид и поведение.
+Публикация отдельно по указанию владельца; сейчас только локальная работа.
+
+## Как продолжить коллегам
+
+Открыть `5o/prototype`, выполнить `npm ci`, затем:
+
+```sh
+npm run test:rendering
+npm run build
+npm run preview -- --host 127.0.0.1 --port 5185 --strictPort
+```
+
+Сравнение: http://127.0.0.1:5185/v1 и http://127.0.0.1:5185/5o.
+Для GPU fixture запустить `npm run dev` и открыть `/tests/rendering.html`
+на показанном Vite адресе. Он должен вывести `pass: true`.
+Исследование, методику и числа см. `01-performance-research.md` рядом.
+
+## Выполнено: кристалл и Bloom
+
+Локальный коммит `514637e`, 11 файлов, без пуша/деплоя.
+
+- `src/App.jsx`: отдельный маршрут `/5o`; `/v1` сохраняет исходный режим.
+- `src/pages/HeroTestPage.jsx`: флаг `optimizedCrystal`.
+- `src/crystal/PageCrystal.jsx`: переключение режима Canvas и Bloom.
+- `src/crystal/rendering/CrystalFrameDriver.jsx`: R3F `frameloop="never"`,
+  ручной advance только при положительной итоговой opacity или прогреве.
+  CPU-контроллер положения/opacity продолжает работать, чтобы появление кристалла,
+  якоря и обратный скролл могли разбудить GPU. Останавливается весь R3F-кадр,
+  включая transmission captures, а не только последний composer.render.
+  В установленной версии R3F advance принимает прошедшие секунды. Delta ограничена
+  на пробуждении; общие global effects других Canvas повторно не запускаются.
+- `src/crystal/rendering/ActiveBloomEffect.js`: при intensity 0 пропускает
+  luminance/blur update. Composer, HDR targets, MSAA и финальный composite
+  сохранены. Положительная вспышка выполняет исходный Bloom update.
+- `ActiveBloom.jsx`: memoized constructor args сохраняют выделенные буферы.
+- `tests/active-bloom.test.js`: переход 0 → pulse → 0 и сохранение буферов.
+- `tests/rendering.browser.js`, `tests/rendering.html`: настоящий GPU pixel test.
+
+Проверено: Node test, production build, diff whitespace; визуальная проверка
+hero/граней/перехода/возврата; точное совпадение Bloom на GPU fixture.
+Предупреждение сборки о большом JS chunk существовало и остаётся.
+
+## Следующий этап: частицы Inside our world model
+
+Статус: реализованы и проверены локально; описание и результаты — ниже.
+
+1. Разобрать `BehaviorNetworkTransition.jsx`: число точек, проекции/сортировку,
+   Canvas2D paths/gradients/text, буферы размытия, DPR, условия работы вне экрана.
+   Отдельно учитывать `NetworkLightShader.jsx` и `ForegroundAtmosphere.jsx`.
+2. Снять baseline именно текущей 5o (с уже исправленным кристаллом), все три шага
+   частиц и переходы. Записать viewport/DPR, число операций, CPU frame cost.
+3. Сначала убирать повторные вычисления/аллокации/идентичную отрисовку:
+   кэширование, повторное использование буферов и подготовленных ресурсов,
+   остановка невидимых слоёв. Не уменьшать число частиц, DPR, качество blur или
+   частоту анимации без доказательства сохранения визуала.
+4. Ограничить изменения флагом 5o или сохранить возможность честного baseline.
+5. Сравнить одинаковые состояния до/после, не запускать обе анимации одновременно.
+   Проверить три шага, переходы в обе стороны, текст, resize и выход из секции.
+6. Дописать фактические результаты и ограничения в оба документа, собрать и
+   сохранить отдельный локальный коммит. Не пушить и не деплоить.
+
+## Открытая очередь после частиц
+
+- Первый вход: shader compilation, загрузка медиа и выделение GPU-ресурсов.
+- Непрерывный скролл: длинные main-thread задачи и back-pressure GPU;
+  проверить scroll/swipe interception и фиксацию положения через JS.
+- iPad и мобильная адаптация: отдельная проверка жестов, viewport и наложений.
+- Общий фон и световые Canvas: измерить отдельно после устранения лишней работы.
+
+## Что сохранить при передаче
+
+Проверять `git status` перед staging. Не добавлять чужие untracked файлы
+`Group 2131330171.png`, корневые `dist/`, `node_modules/`, `video/`.
+Не очищать пользовательский stash. Большие traces не коммитить автоматически.
+Документы в `docs/5o/` должны входить в локальные коммиты реализации и будущий push.
+
+
+## Выполнено: частицы и фон их сцены
+
+Все изменения включены только флагом `optimizedRendering` из `/5o`:
+`HeroTestPage` → `PhysicsBehaviorSection` → `NetworkScene` → оба renderer.
+Маршрут `/v1` использует прежние алгоритмы частиц/фона.
+
+- `rendering/projectField.js`: повторное использование записей проекции,
+  seeded радиусов, общая тригонометрия один раз на кадр.
+- `BehaviorNetworkTransition.jsx`: на первом шаге исключена подготовка 1800 точек
+  с нулевой видимостью; depth buffers готовятся только при использовании.
+- `rendering/projectTunnelPoint.js`: скалярная проекция без двух временных
+  массивов на каждый sample туннеля; один переиспользуемый output.
+- `NetworkLightShader.jsx`: пропуск повторной отрисовки при неизменности всех
+  shader inputs; пауза в скрытой вкладке. Первый движущийся фон не упрощён.
+- Из обоих React effects выделены createNetworkRenderer/createNetworkLightRenderer.
+  Обычная страница использует исходный rAF/IntersectionObserver lifecycle;
+  тест задаёт `automatic:false` и управляет часами через render(time).
+- `tests/particles.html`, `tests/particles.browser.js`: реальный Canvas2D/WebGL
+  pixel regression и отдельный benchmark без pixel readback, последовательный ABBA.
+
+Не менялись palette, число видимых частиц, размер/DPR, blur strength, линии,
+тип геометрии или исходный лимит 30 FPS. Проверка 224 кадров / 20 checkpoints:
+полное совпадение RGBA обоих слоёв, включая переходы, cursor, palette и resize.
+Числа и ограничения см. исследование рядом.
+
+После этого этапа остаётся стоимость самих сотен тысяч Canvas2D-команд,
+синхронизация CPU/GPU, холодный вход, жесты и адаптив. Более глубокое изменение
+рендера (например, instanced WebGL) требует отдельной оценки качества и замеров;
+не подменять его простым снижением детализации без согласования визуала.
+
+
+Финальная валидация этапа: production build и Node Bloom test проходят;
+`git diff --check` чистый. На реальной production-странице проверены все три
+главы частиц, переходы и отсутствие ошибок приложения. Стабильный фон третьей
+главы: 0 GPU draws за 5 секунд при продолжающейся анимации частиц.
+Сравнение времени пока не позволяет надёжно заявить end-to-end FPS gain:
+в исследовании сохранены все четыре значения ABBA и оговорка о дрейфе.
+
+
+Version isolation: copied to `5o/prototype` before publication; the original
+`V5 Final Tuning` source is restored to commit f99732f for colleague compatibility.
+
+
+## Подготовка публикации в main
+
+5o вынесена в `5o/prototype`, включая оба документа, тесты и assets.
+`V5 Final Tuning` возвращена к состоянию origin/main f99732f; это можно проверить
+через `git diff f99732f -- "V5 Final Tuning"`. Изменения скролла в этот релиз
+не входят. Цель публикации — только Worker `42ai-build` в аккаунте Welcome@embacy.io.
+В Cloudflare Builds проверены сохранённые root `5o/prototype`, production branch
+`main`, build `npm run build`, deploy `npx wrangler deploy`. Корень `/` ранее
+приводил к неуспешным сборкам.
+
+Попытка поручить Claude Code отдельный аудит холодной загрузки не выполнилась:
+интеграция вернула истёкшую OAuth-сессию. Файлов аудита от Claude не создано.
