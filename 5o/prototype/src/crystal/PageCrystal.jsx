@@ -396,6 +396,7 @@ function TravellingCrystal({
   pulseProgress,
   spinBlendRef,
   nativeScroll = false,
+  refinedVisuals = nativeScroll,
   manualFrames = false,
   poseUpdateRef,
   children,
@@ -473,8 +474,8 @@ function TravellingCrystal({
     const vw = size.width
     const vh = size.height
     const scrollY = window.scrollY
-    const portraitThesis = nativeScroll && vw <= 1100 && vh > vw
-    const landscapeThesis = nativeScroll && vw > 980 && vw <= 1100 && vh < vw
+    const portraitThesis = refinedVisuals && vw <= 1100 && vh > vw
+    const landscapeThesis = refinedVisuals && vw > 980 && vw <= 1100 && vh < vw
     const travelRange = crystalTravelRangePx()
     const blend = crystalHeroBlend(scrollY)
 
@@ -1117,6 +1118,7 @@ export default function PageCrystal({
   cardHoverRef,
   onReady = () => {},
   nativeScroll = false,
+  refinedVisuals = nativeScroll,
   optimizedRendering = false,
 }) {
   const shellRef = useRef(null)
@@ -1253,6 +1255,7 @@ export default function PageCrystal({
             pulseProgress={pulseProgress}
             spinBlendRef={spinBlendRef}
             nativeScroll={nativeScroll}
+            refinedVisuals={refinedVisuals}
             manualFrames={optimizedRendering}
             poseUpdateRef={poseUpdateRef}
           >

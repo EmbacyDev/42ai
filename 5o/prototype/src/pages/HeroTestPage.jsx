@@ -15,7 +15,14 @@ function ScrollTrack({ enabled, name, id, children }) {
   return enabled ? <div id={id} className={name}>{children}</div> : children
 }
 
-export default function HeroTestPage({ optimizedCrystal = false, nativeScroll = false }) {
+export default function HeroTestPage({ optimizedCrystal = false, nativeScroll = false, swipeVariant = false }) {
+  const refinedVisuals = nativeScroll || swipeVariant
+  useEffect(() => {
+    if (!swipeVariant) return
+    const previousTitle = document.title
+    document.title = '42AI — 5osw'
+    return () => { document.title = previousTitle }
+  }, [swipeVariant])
   useEffect(() => {
     if (!nativeScroll) return
     let cancelled = false, frame = 0
@@ -66,7 +73,7 @@ export default function HeroTestPage({ optimizedCrystal = false, nativeScroll = 
   // and to the carousel's own idle motion) for that.
   const sectionAnchorsRef = useRef({ second: null, third: null, fourth: null })
   return (
-    <ScrollTrack enabled={nativeScroll} name="native-scroll-page" id="top">
+    <ScrollTrack enabled={refinedVisuals} name={`refined-visuals-page${nativeScroll ? ' native-scroll-page' : ' swipe-scroll-page'}`} id="top">
       <SiteHeader ready={true} />
       <ScrollTrack enabled={nativeScroll} name="native-hero-track">
       <HeroScene
@@ -84,6 +91,7 @@ export default function HeroTestPage({ optimizedCrystal = false, nativeScroll = 
       <ScrollTrack enabled={nativeScroll} name="native-cards-track">
       <Block24Section
         nativeScroll={nativeScroll}
+        autoplayProgress={refinedVisuals}
         backgroundColor={heroBackgroundColor}
         // v4: block two's photos and rail textures start loading as soon as
         // the hero's own photos are in (the loading screen is up until then),
@@ -116,6 +124,7 @@ export default function HeroTestPage({ optimizedCrystal = false, nativeScroll = 
           nothing on the URL can swap it. */}
       <PageCrystal
         nativeScroll={nativeScroll}
+        refinedVisuals={refinedVisuals}
         optimizedRendering={optimizedCrystal}
         config={tunedCrystalConfig}
         introReady={crystalReady}

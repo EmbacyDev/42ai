@@ -159,6 +159,7 @@ export default function Block24Section({
   // section's off-screen photo prefetching doesn't compete with the hero's
   // still-loading portraits over the browser's shared connection limit.
   nativeScroll = false,
+  autoplayProgress = nativeScroll,
   heroReady = true,
   onImagesReady,
 }) {
@@ -1090,7 +1091,7 @@ export default function Block24Section({
     const delay = lastAdvanceAtRef.current === 0
       ? INITIAL_AUTOPLAY_DELAY
       : AUTOPLAY_DELAY
-    const rings = nativeScroll ? [...sectionRef.current.querySelectorAll('.autoplay-ring__progress')] : []
+    const rings = autoplayProgress ? [...sectionRef.current.querySelectorAll('.autoplay-ring__progress')] : []
     // The exact same clock owns the visible ring and the next-card timeout.
     // No React updates or permanent animation-frame loop are needed.
     const animations = rings.map(ring => ring.animate(
@@ -1099,7 +1100,7 @@ export default function Block24Section({
     ))
     const timeout = window.setTimeout(() => moveBy(1, true), delay)
     return () => { window.clearTimeout(timeout); animations.forEach(animation => animation.cancel()) }
-  }, [activeIndex, contentReady, flight, isExiting, isVisible, nativeScroll])
+  }, [activeIndex, contentReady, flight, isExiting, isVisible, autoplayProgress])
 
   return (
     <section
@@ -1123,7 +1124,7 @@ export default function Block24Section({
             <button key={slide.id} type="button" role="tab" aria-selected={activeIndex === index}
               disabled={isExiting || !contentReady || Boolean(flight)}
               onClick={() => selectSlide(index, false, index >= activeIndex ? 'next' : 'previous')}>
-              {nativeScroll && activeIndex === index && <AutoplayRing />}
+              {autoplayProgress && activeIndex === index && <AutoplayRing />}
               <ScrambleText text={slide.tab} />
             </button>
           ))}
@@ -1156,7 +1157,7 @@ export default function Block24Section({
                   )
                 }}
               >
-                {nativeScroll && isActiveVirtual && <AutoplayRing />}
+                {autoplayProgress && isActiveVirtual && <AutoplayRing />}
                 {slide.tab}
               </button>
               )

@@ -1,0 +1,9 @@
+{
+  "version": "5osw",
+  "stage": "local-swipe-variant",
+  "base_commit": "b7c8906",
+  "scroll_mode": "original-stepped",
+  "optimized_rendering": true,
+  "autoplay_progress": true,
+  "tablet_composition_fixes": true
+}
