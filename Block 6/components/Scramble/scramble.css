@@ -1,0 +1,15 @@
+.scramble { display: inline-grid; }
+.scramble__sizer, .scramble__live { grid-area: 1 / 1; white-space: pre; }
+.scramble__sizer { visibility: hidden; }
+.scramble__glyph { display: inline-block; }
+:is(a, button):is(:hover, :focus-visible) .scramble__glyph,
+.scramble--active .scramble__glyph {
+  animation: hover-letter-reveal 560ms cubic-bezier(.22, 1, .36, 1) var(--reveal-delay) both;
+}
+@keyframes hover-letter-reveal {
+  from { opacity: 0; filter: blur(5px); transform: translateY(3px) scale(.96); }
+  to { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scramble__glyph { animation: none !important; }
+}

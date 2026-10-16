@@ -1,0 +1,78 @@
+.request-demo {
+  /* Figma 450:4414: every page button is the 165x44 component at 0.909 —
+     150x40, 20px side padding, Geist Mono 13.636px with 5% tracking. */
+  --demo-width: 150px;
+  --demo-hover-width: 162.7px;
+  --demo-height: 40px;
+  --demo-shape-width: 154px;
+  font-size: 13.636px;
+  letter-spacing: 0.682px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--demo-width);
+  height: var(--demo-height);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  text-decoration: none;
+  overflow: visible;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.request-demo--hot,
+.request-demo:hover,
+.request-demo:focus-visible {
+  width: var(--demo-hover-width);
+  transition-delay: 100ms;
+}
+
+.request-demo--compact {
+  --demo-width: 128px;
+  --demo-hover-width: 139px;
+  --demo-height: 34px;
+  --demo-shape-width: 131.4px;
+}
+
+.request-demo__shape {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  overflow: visible;
+  width: var(--demo-shape-width);
+  height: var(--demo-height);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.request-demo__label {
+  position: relative;
+  top: -1px;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .request-demo {
+    transition-duration: 0.01ms;
+    transition-delay: 0ms;
+  }
+}
+
+/* Preserve visible text during the stagger, then fade out before revealing.
+   The tag animation intentionally remains unchanged. */
+.request-demo:is(:hover, :focus-visible) .scramble .scramble__glyph,
+.request-demo .scramble.scramble--active .scramble__glyph {
+  animation-name: button-letter-reveal;
+  animation-duration: 680ms;
+  animation-timing-function: linear;
+}
+
+@keyframes button-letter-reveal {
+  0% { opacity: 1; filter: blur(0); transform: translateY(0); animation-timing-function: ease-in-out; }
+  30% { opacity: 0; filter: blur(3px); transform: translateY(0); }
+  31% { opacity: 0; filter: blur(3px); transform: translateY(2px); animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  100% { opacity: 1; filter: blur(0); transform: translateY(0); }
+}

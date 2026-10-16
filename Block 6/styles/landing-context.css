@@ -1,0 +1,46 @@
+/* Page-level rules from the prototype that change this block.
+   In V5 Final Tuning they live in src/pages/figmaRefresh.css and
+   src/index.css, and they load after the section stylesheet. */
+
+.solutions-section,
+.solutions-section *,
+.solutions-section *::before,
+.solutions-section *::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --color-ink: #121212;
+  --color-grey: #7c8083;
+  --color-surface: #f0f1f2;
+  --font-heading: "Public Sans", sans-serif;
+  --font-body: "42dot Sans", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --site-type-scale: 1.1;
+  --site-button-scale: 1.05;
+}
+
+@media (max-width: 980px) {
+  :root { --site-type-scale: 1; }
+}
+
+.request-demo:not(.site-header__cta):not(.hero-content__cta) {
+  transform: scale(1.05);
+  transform-origin: center;
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: .15px;
+  text-transform: none;
+}
+
+.request-demo:not(.site-header__cta):not(.hero-content__cta) {
+  transform: scale(var(--site-button-scale));
+  font-size: 15px;
+  letter-spacing: .15px;
+}
+
+@media (min-width: 981px) {
+  .solutions-section__title { line-height: 1.1; }
+}
