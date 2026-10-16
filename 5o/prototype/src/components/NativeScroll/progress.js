@@ -1,14 +1,18 @@
 export const clamp01 = value => Math.max(0, Math.min(1, value))
 export const smooth = value => { const t=clamp01(value); return t*t*t*(t*(t*6-15)+10) }
 export const range = (value,start,end) => smooth((value-start)/(end-start))
-export const CHAPTER_SCROLL_SPAN = 7.32 // Includes a reading interval for the final pose.
+// More distance for the glass-to-particle handoff; all poses stay reversible.
+export const CHAPTER_STOPS = [0, 1, 2, 3, 4, 5.65, 6.65, 7.65]
+export const CHAPTER_SCROLL_SPAN = CHAPTER_STOPS.at(-1) + .4
+export const chapterPosition = step => CHAPTER_STOPS[Math.max(0, Math.min(7, step))]
 
-// A reading interval and a reversible transition for each authored pose.
-// The browser keeps scrolling during a reading interval; no gesture is held.
-export function chapterValue(distance, max=7) {
-  const p=Math.max(0,Math.min(max,distance))
-  const chapter=Math.floor(p)
-  return Math.min(max,chapter+range(p-chapter,.32,1))
+export function chapterValue(distance) {
+  if (distance <= 0) return 0
+  for (let chapter = 0; chapter < 7; chapter++) {
+    const start = CHAPTER_STOPS[chapter], end = CHAPTER_STOPS[chapter + 1]
+    if (distance < end) return chapter + range((distance - start) / (end - start), .32, 1)
+  }
+  return 7
 }
 
 // One passive page listener, one scheduled update for a burst of scroll events.

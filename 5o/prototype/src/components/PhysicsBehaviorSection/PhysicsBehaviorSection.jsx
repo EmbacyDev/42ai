@@ -1,4 +1,4 @@
-import { observeNativeScroll, chapterValue, CHAPTER_SCROLL_SPAN, clamp01 as nativeClamp, range as nativeRange } from '../NativeScroll/progress.js'
+import { observeNativeScroll, chapterValue, chapterPosition, CHAPTER_SCROLL_SPAN, clamp01 as nativeClamp, range as nativeRange } from '../NativeScroll/progress.js'
 import AnimatedHeading from '../AnimatedHeading.jsx'
 import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import gsap from 'gsap'
@@ -160,6 +160,10 @@ export default function PhysicsBehaviorSection({
         set('state-' + name, states[i])
         set('state-' + name + '-copy', copy * reveal * (1 - portal))
         const node = copyNodes[i]
+        if (nativeScroll && node) {
+          node.style.opacity = String(copy * reveal * (1 - portal))
+          node.style.transform = `translateY(${18 * (1 - copy)}px)`
+        }
         const visible = copy * reveal * (1 - portal) > .12
         if (node && visible !== node.classList.contains('is-copy-visible')) {
           if (visible) {
@@ -186,7 +190,7 @@ export default function PhysicsBehaviorSection({
       const flood = clamp01(floodTravel)
       // Leaves earlier, so block five's field and points are already there
       // under it instead of an empty background.
-      const liquidOn = portal > .3 ? 1 - smootherstep(clamp01((portal - .68) / .22)) : 0
+      const liquidOn = portal > .3 ? 1 - (nativeScroll ? nativeRange(portal, .7, .99) : smootherstep(clamp01((portal - .68) / .22))) : 0
       liquid.style.display = liquidOn > .001 ? '' : 'none'
       const gemR = Math.max(20, crystalScreen.r || 80)
       const coverR = Math.hypot(window.innerWidth, window.innerHeight) / 0.866 * 0.62
@@ -220,7 +224,7 @@ export default function PhysicsBehaviorSection({
       set('portal-blur', (1 - portal) * 18 + 'px')
       set('network', stage / 4)
       // The card forms out of the light only after the glass has faded.
-      set('network-intro', smootherstep(clamp01((portal - .38) / .4)))
+      set('network-intro', nativeScroll ? nativeRange(portal, .18, .94) : smootherstep(clamp01((portal - .38) / .4)))
       section.dataset.released = portal >= .995 ? 'true' : 'false'
       section.dataset.darkCard = portal >= .48 ? 'true' : 'false'
       const navigationChapter = locked && target >= 5 ? Math.min(3, target - 4) : chapter
@@ -273,6 +277,9 @@ export default function PhysicsBehaviorSection({
       // their playhead. No wheel/touch/key interception is installed below.
       const update = () => {
         const h = Math.max(1, panel.clientHeight)
+        const rect = section.getBoundingClientRect()
+        section.classList.toggle('native-physics-cover', rect.top < h && rect.bottom > h)
+        section.style.setProperty('--native-physics-opacity', String(nativeRange(-rect.top / h, -1, -.15)))
         const span = Math.max(1, section.offsetHeight - h)
         const distance = nativeClamp((window.scrollY - top()) / span) * CHAPTER_SCROLL_SPAN
         playhead.value = chapterValue(distance)
@@ -282,7 +289,7 @@ export default function PhysicsBehaviorSection({
       }
       const scrollToStep = (step) => {
         const span = Math.max(1, section.offsetHeight - panel.clientHeight)
-        window.scrollTo({ top: top() + Math.max(0, Math.min(7, step)) / CHAPTER_SCROLL_SPAN * span,
+        window.scrollTo({ top: top() + chapterPosition(step) / CHAPTER_SCROLL_SPAN * span,
           behavior: reduced ? 'instant' : 'smooth' })
       }
       glideToRestRef.current = scrollToStep

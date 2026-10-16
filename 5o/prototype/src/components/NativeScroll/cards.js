@@ -9,18 +9,19 @@ export function createNativeCards({section,anchor,visibility,entrance,setVisible
     const rect=section.getBoundingClientRect()
     const top=track.getBoundingClientRect().top+window.scrollY
     const local=(window.scrollY-top)/h
-    const enter=range(local,-.35,0)
-    const handoff=range(local,1.1,1.95)
-    const exit=range(local,1.05,1.5)
+    const enter=range(local,-.9,.12)
+    const handoff=range(local,1.65,2.75)
+    const exit=range(local,1.6,2.55)
     const layout=applyBlock24Layout(section)
-    entrance.current.value=enter
+    // The panel itself enters with the page. Avoid a second staggered reveal.
+    entrance.current.value=1
     section.style.setProperty('--block24-enter-content',String(enter))
     section.style.setProperty('--block24-exit-content',String(exit))
     section.style.setProperty('--block24-exit-glass','0')
-    section.style.setProperty('--block24-exit-scroll','0')
-    const nextShown=rect.top<h&&rect.bottom>0&&enter>.01
+    section.style.setProperty('--block24-exit-scroll',String(exit * .16))
+    const nextShown=rect.top<h&&rect.bottom>0&&enter>.01&&exit<.999
     const nextLeaving=exit>.01
-    const nextReady=enter>=.99
+    const nextReady=local>=0 && exit<.99
     if(shown!==nextShown){shown=nextShown;setVisible(shown);visibility.current?.(shown)}
     if(leaving!==nextLeaving){leaving=nextLeaving;setExiting(leaving)}
     if(ready!==nextReady){ready=nextReady;setReady(ready)}

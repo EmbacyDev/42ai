@@ -6,6 +6,7 @@ import { labels as defaultLabels } from './labels.js'
 import { mountHeroScene } from './mountHeroScene.js'
 import { layoutHeroCopy } from './heroCopyLayout.js'
 import { createHeroTransition } from './heroTransition.js'
+import { range as nativeRange } from '../NativeScroll/progress.js'
 import { fadeProgress, backgroundWashProgress } from './scrollShrink.js'
 import { DEFAULT_CRYSTAL_CONFIG } from '../../crystal/defaultCrystalConfig.js'
 import './heroScene.css'
@@ -114,7 +115,7 @@ export default function HeroScene({
       const fade = fadeProgress(transitionProgress)
       contentEl.style.opacity = String(1 - fade)
       const gone = transitionProgress >= 0.99
-      root.style.opacity = gone ? '0' : '1'
+      root.style.opacity = nativeScroll ? String(1 - nativeRange(transitionProgress, .12, .85)) : gone ? '0' : '1'
       root.style.visibility = gone ? 'hidden' : 'visible'
       root.style.pointerEvents = gone ? 'none' : ''
       canvas.style.display = gone ? 'none' : ''

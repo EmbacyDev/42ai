@@ -134,6 +134,13 @@ const SLIDES = [
   }
 ]
 
+function AutoplayRing() {
+  return <svg className="autoplay-ring" viewBox="0 0 20 20" aria-hidden="true">
+    <circle className="autoplay-ring__track" cx="10" cy="10" r="7.5" />
+    <circle className="autoplay-ring__progress" cx="10" cy="10" r="7.5" pathLength="1" />
+  </svg>
+}
+
 const TAB_ROW_HEIGHT = 15 * 1.15 + 14
 
 /**
@@ -1010,12 +1017,19 @@ export default function Block24Section({
   // axis, gliding to it as the slides advance.
   useEffect(() => {
     const strip = tabletTabsRef.current
-    const tab = strip?.children[activeIndex]
-    if (!strip || !tab || strip.offsetParent === null) return
-    strip.scrollTo({
-      left: tab.offsetLeft + tab.offsetWidth / 2 - strip.clientWidth / 2,
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-    })
+    if (!strip) return
+    const center = () => {
+      const tab = strip.children[activeIndex]
+      if (!tab || strip.offsetParent === null) return
+      strip.scrollTo({
+        left: tab.offsetLeft + tab.offsetWidth / 2 - strip.clientWidth / 2,
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      })
+    }
+    center()
+    const resize = new ResizeObserver(center)
+    resize.observe(strip)
+    return () => resize.disconnect()
   }, [activeIndex])
 
   useLayoutEffect(() => {
@@ -1076,9 +1090,16 @@ export default function Block24Section({
     const delay = lastAdvanceAtRef.current === 0
       ? INITIAL_AUTOPLAY_DELAY
       : AUTOPLAY_DELAY
+    const rings = nativeScroll ? [...sectionRef.current.querySelectorAll('.autoplay-ring__progress')] : []
+    // The exact same clock owns the visible ring and the next-card timeout.
+    // No React updates or permanent animation-frame loop are needed.
+    const animations = rings.map(ring => ring.animate(
+      [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }],
+      { duration: delay, easing: 'linear', fill: 'forwards' },
+    ))
     const timeout = window.setTimeout(() => moveBy(1, true), delay)
-    return () => window.clearTimeout(timeout)
-  }, [activeIndex, contentReady, flight, isExiting, isVisible])
+    return () => { window.clearTimeout(timeout); animations.forEach(animation => animation.cancel()) }
+  }, [activeIndex, contentReady, flight, isExiting, isVisible, nativeScroll])
 
   return (
     <section
@@ -1102,6 +1123,7 @@ export default function Block24Section({
             <button key={slide.id} type="button" role="tab" aria-selected={activeIndex === index}
               disabled={isExiting || !contentReady || Boolean(flight)}
               onClick={() => selectSlide(index, false, index >= activeIndex ? 'next' : 'previous')}>
+              {nativeScroll && activeIndex === index && <AutoplayRing />}
               <ScrambleText text={slide.tab} />
             </button>
           ))}
@@ -1134,6 +1156,7 @@ export default function Block24Section({
                   )
                 }}
               >
+                {nativeScroll && isActiveVirtual && <AutoplayRing />}
                 {slide.tab}
               </button>
               )
@@ -1161,7 +1184,7 @@ export default function Block24Section({
           activeIndex={activeIndex}
           flight={flight}
           ready={heroReady}
-          visible={isVisible && !isExiting}
+          visible={isVisible && (nativeScroll || !isExiting)}
           entranceRef={entranceRef}
         />
 

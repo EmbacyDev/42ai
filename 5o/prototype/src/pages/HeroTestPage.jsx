@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import HeroScene from '../components/HeroScene'
 import SiteHeader from '../components/SiteHeader'
 import Block24Section from '../components/Block24Section'
@@ -11,11 +11,28 @@ import { resolveHeroBackgroundColor } from '../components/HeroScene/heroBackgrou
 import './figmaRefresh.css'
 import '../components/NativeScroll/nativeScroll.css'
 
-function ScrollTrack({ enabled, name, children }) {
-  return enabled ? <div className={name}>{children}</div> : children
+function ScrollTrack({ enabled, name, id, children }) {
+  return enabled ? <div id={id} className={name}>{children}</div> : children
 }
 
 export default function HeroTestPage({ optimizedCrystal = false, nativeScroll = false }) {
+  useEffect(() => {
+    if (!nativeScroll) return
+    let cancelled = false, frame = 0
+    const restoreHash = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        if (cancelled || !window.location.hash) return
+        const id = window.location.hash.slice(1)
+        const target = document.getElementById(id)
+        if (id === 'top') window.scrollTo({ top: 0, behavior: 'instant' })
+        else target?.scrollIntoView({ behavior: 'instant' })
+      })
+    }
+    document.fonts.ready.then(() => { if (!cancelled) restoreHash() })
+    window.addEventListener('hashchange', restoreHash)
+    return () => { cancelled = true; cancelAnimationFrame(frame); window.removeEventListener('hashchange', restoreHash) }
+  }, [nativeScroll])
   const [heroAssetsLoaded, setHeroAssetsReady] = useState(false)
   const [crystalReady, setCrystalReady] = useState(false)
   const [staticImagesReady, setStaticImagesReady] = useState(false)
@@ -49,7 +66,7 @@ export default function HeroTestPage({ optimizedCrystal = false, nativeScroll = 
   // and to the carousel's own idle motion) for that.
   const sectionAnchorsRef = useRef({ second: null, third: null, fourth: null })
   return (
-    <ScrollTrack enabled={nativeScroll} name="native-scroll-page">
+    <ScrollTrack enabled={nativeScroll} name="native-scroll-page" id="top">
       <SiteHeader ready={true} />
       <ScrollTrack enabled={nativeScroll} name="native-hero-track">
       <HeroScene

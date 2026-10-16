@@ -99,3 +99,18 @@ Two long native wheel gestures: zero cancelled inputs, zero window.scrollTo writ
 These are input-ownership checks, not an FPS or GPU-time benchmark.
 Real iPad Safari, full responsive QA and final cross-scene visual acceptance
 remain required before publishing this follow-up.
+
+
+## Local scroll refinement
+
+Cards now enter with their viewport and leave with lift/fade; the selected
+industry has a synchronized autoplay ring. Fixed handoff surfaces crossfade
+without scrolling rectangular edges. The two world-model paragraphs fill
+from grey to black line by line, then travel/fade out. The glass-to-particle
+transition has more scroll distance. Native poses avoid a second spring
+and caption fade, including the fast reverse-scroll oversized flash.
+
+Tablet composition checked in Chrome at 1024×1366, 768×1024 and 1024×768.
+Physical iPad Safari/touch/GPU testing remains outstanding. Native changes
+are still local to `codex/v5o-native-scroll`; production main remains `0c88a83`.
+Current production preview: `http://127.0.0.1:5191/5o`.

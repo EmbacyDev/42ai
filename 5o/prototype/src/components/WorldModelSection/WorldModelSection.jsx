@@ -1110,11 +1110,9 @@ export default function WorldModelSection({
       const mask = section.querySelector('.world-model-mask')
       const maskHome = mask?.parentNode
       if (mask) document.body.appendChild(mask)
-      let opening = 0, maskRadius = 40, previousEnter = 0, metricsKey = '', lastPresentation = ''
-      const wordEntries = [headLines, tailLines].flatMap((lines, tail) => {
-        const words = lines.flatMap(line => [...line.querySelectorAll('.world-model-section__word')])
-        return words.map((word, index) => ({ word, tail, delay: index / Math.max(1, words.length) * .3 }))
-      })
+      let opening = 0, maskRadius = 40, previousEnter = 0, lastPresentation = ''
+      const nativeLines = [headLines, tailLines]
+      const blocks = [...section.querySelectorAll('.world-model-section__copy-block')]
       const update = () => {
         const rect = section.getBoundingClientRect()
         const h = Math.max(1, panel.clientHeight), w = panel.clientWidth
@@ -1123,7 +1121,7 @@ export default function WorldModelSection({
         const roll = nativeRange(local, 1, 2)
         const wave = nativeRange(local, 3.4, 5)
         const active = rect.top < h && rect.bottom > 0
-        const presentation = [enter, roll, wave, w, h, active].join(':')
+        const presentation = [Math.max(-1, Math.min(5, local)), w, h, active].join(':')
         if (lastPresentation === presentation) {
           scrollProgress = clamp01((h - rect.top) / Math.max(1, section.offsetHeight))
           updateAnchor()
@@ -1133,6 +1131,8 @@ export default function WorldModelSection({
         if (enter > 0 && previousEnter === 0) maskRadius = Math.max(12, crystalScreen.r || 40)
         previousEnter = enter
         opening = enter
+        section.classList.toggle('native-world-cover', active)
+        section.style.setProperty('--native-world-opacity', String(nativeRange(enter, .08, .55) * (1 - nativeRange(wave, .05, .42))))
         scrollProgress = clamp01((h - rect.top) / Math.max(1, section.offsetHeight))
         colourOpen = active && enter > .001 && wave < 1
         expansionValue = enter * (1 - nativeRange(wave, 0, .2))
@@ -1140,31 +1140,29 @@ export default function WorldModelSection({
         exitValue = wave
         dropRadius = Math.ceil(Math.hypot(w / 2, h / 2) / DROP_CORE_SHARE)
         section.style.setProperty('--drop-radius', `${dropRadius}px`)
-        if (metricsKey !== `${w}:${h}`) {
-          metricsKey = `${w}:${h}`
-          const typography = getComputedStyle(section.querySelector('.world-model-section__copy'))
-          cylinderPitchPx = parseFloat(typography.lineHeight) || 65
-          cylinderRadius = Math.hypot(w / 2, h / 2) * 1.14
-        }
-        wheelPosition = roll * TAIL_CENTER_SLOT
-        wheelVelocity = 0
-        drumFlat = 1 - Math.sin(Math.PI * roll)
-        copyProxy.value = nativeRange(enter, .68, 1)
+        copyProxy.value = nativeRange(enter, .65, 1)
         section.classList.toggle('world-model-section--open', colourOpen)
         document.documentElement.classList.toggle('on-world-model', colourOpen)
         section.style.setProperty('--world-copy-reveal', String(copyProxy.value))
-        section.style.setProperty('--world-copy-exit', String(wave))
+        section.style.setProperty('--world-copy-exit', '0')
         section.style.setProperty('--world-tail-enter', String(roll))
         section.style.setProperty('--world-exit', String(wave))
         applyColourField()
-        renderWheel()
-        // Reversible word entrance follows scroll, instead of starting a
-        // competing timer that can run ahead of a slow or reverse gesture.
-        wordEntries.forEach(({word, tail, delay}) => {
-          const reveal = nativeRange((tail ? nativeRange(roll, .3, 1) : copyProxy.value) * 1.3 - delay, 0, 1)
-          word.style.opacity = String(reveal)
-          word.style.transform = `translateY(${12 * (1 - reveal)}px)`
-          word.style.filter = `blur(${6 * (1 - reveal)}px)`
+        // Two readable paragraphs, each with a visible line-by-line scroll fill.
+        // The outgoing paragraph travels and fades before the light takes over.
+        const headExit = nativeRange(local, .95, 1.65)
+        const tailEnter = nativeRange(local, 1.25, 1.95)
+        const tailExit = nativeRange(local, 3.1, 3.8)
+        blocks.forEach((block, index) => {
+          const alpha = index ? tailEnter * (1 - tailExit) : copyProxy.value * (1 - headExit)
+          const travel = index ? (1 - tailEnter) * h * .2 - tailExit * h * .45 : -headExit * h * .35
+          block.style.opacity = String(alpha)
+          block.style.transform = `translate3d(-50%,calc(-50% + ${travel}px),0)`
+          const reading = index ? clamp01((local - 1.85) / 1.25) : clamp01(local / .95)
+          nativeLines[index].forEach((line, row) => {
+            const fill = clamp01(reading * nativeLines[index].length - row)
+            line.style.setProperty('--native-line-fill', `${fill * 100}%`)
+          })
         })
         const cover = Math.hypot(w, h) / 2 / .866 * 1.06
         const inMask = enter > 0 && enter < 1 && wave === 0

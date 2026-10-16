@@ -473,6 +473,8 @@ function TravellingCrystal({
     const vw = size.width
     const vh = size.height
     const scrollY = window.scrollY
+    const portraitThesis = nativeScroll && vw <= 1100 && vh > vw
+    const landscapeThesis = nativeScroll && vw > 980 && vw <= 1100 && vh < vw
     const travelRange = crystalTravelRangePx()
     const blend = crystalHeroBlend(scrollY)
 
@@ -590,6 +592,8 @@ function TravellingCrystal({
         x: introX + (focusedX - introX) * fourthFocus * fourthStateOne,
         y: poseY,
       }
+      if (portraitThesis) target.y += (vh * .43 - target.y) * fourthStateOne * fourthFocus
+      if (landscapeThesis) target.x += (vw * .45 - target.x) * fourthStateOne * fourthFocus
       // The clean frame holds the exact fourth-state pose while its labels
       // leave. Only the following beat moves the virtual camera into the
       // crystal, keeping the zoom centred on the rounded block-five panel.
@@ -624,11 +628,11 @@ function TravellingCrystal({
     if (fourthTarget && handoffReveal > 0) {
       fullScale = PHYSICS_HANDOFF_SCALE
         + (PHYSICS_TARGET_SCALE - PHYSICS_HANDOFF_SCALE) * fourthDescent
-      const focusedScale = vw < 900 ? PHYSICS_STATES_SCALE * 0.63 : PHYSICS_STATES_SCALE
+      const compactScale = portraitThesis ? Math.min(1, vw / vh * .95) : landscapeThesis ? .9 : vw < 900 ? .63 : 1
+      const focusedScale = PHYSICS_STATES_SCALE * compactScale
       fullScale += (focusedScale - fullScale) * fourthFocus
       if (vw > 980) fullScale *= 1 + 0.25 * (1 - fourthStateOne) * fourthFocus
       fullScale *= 1 - (1 - 1 / 1.2) * (1 - fourthStateOne) * fourthFocus
-      const compactScale = vw < 900 ? 0.63 : 1
       fullScale += (STATE_ONE_SCALE * compactScale - fullScale) * fourthStateOne * fourthFocus
       fullScale += (STATE_TWO_SCALE * compactScale - fullScale) * fourthStateTwo * fourthFocus
       fullScale += (STATE_THREE_SCALE * compactScale - fullScale) * fourthStateThree * fourthFocus
@@ -724,6 +728,18 @@ function TravellingCrystal({
         vTiltZ: 0,
       }
       visualRef.current = visual
+    } else if (nativeScroll) {
+      // The native timeline already eases the pose. A second spring lets the
+      // oversized hidden portal pose flash on a fast reverse scroll.
+      visual.x = targetX
+      visual.y = targetY
+      visual.scale = targetScale
+      visual.spin = targetSpin
+      visual.turnY = targetTurnY
+      visual.tiltX = targetTiltX
+      visual.tiltZ = targetTiltZ
+      visual.vx = visual.vy = visual.vScale = visual.vSpin = 0
+      visual.vTurnY = visual.vTiltX = visual.vTiltZ = 0
     } else if (toCenter > 0.002 && toCenter < 0.998 && !fourthJustAppeared && handoffReveal <= 0.004) {
       // The handoff tween already eases this destination. Follow it
       // directly so extra scroll ticks cannot re-scrub the flight.

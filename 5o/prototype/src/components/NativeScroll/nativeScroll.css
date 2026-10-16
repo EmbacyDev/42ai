@@ -12,3 +12,79 @@
 @media (prefers-reduced-motion: reduce) {
   .native-scroll-page *, .native-scroll-page *::before, .native-scroll-page *::after { scroll-behavior: auto !important; }
 }
+
+/* Native section tracks carry distance only. Viewport-sized visual surfaces
+   crossfade in place through the handoffs, so no panel edge rides up the page. */
+.native-scroll-page .world-model-section,
+.native-scroll-page .physics-behavior-section { background: transparent; }
+.native-world-cover .world-model-section__sticky,
+.native-physics-cover .physics-behavior-section__sticky { position: fixed; inset: 0; width: 100%; }
+.native-scroll-page .world-model-section__sticky { opacity: var(--native-world-opacity, 0); pointer-events: none; }
+.native-scroll-page .physics-behavior-section__sticky { opacity: var(--native-physics-opacity, 0); }
+.native-scroll-page .physics-behavior-section[data-dark-card="true"] .physics-behavior-section__sticky {
+  background: linear-gradient(180deg, #d4e7f8 0%, #edf6fd 52%, #ffffff 100%);
+}
+.native-scroll-page .physics-behavior-section__state { transition: none !important; }
+@media (min-width: 981px) and (max-width: 1100px) and (min-aspect-ratio: 1/1) {
+  .native-scroll-page .physics-behavior-section__state { left: 70%; right: auto; width: 28%; }
+  .native-scroll-page .physics-behavior-section__state p { font-size: 18px; }
+}
+.native-scroll-page .block24-section__stage {
+  opacity: calc(var(--block24-enter-content) * (1 - var(--block24-exit-content)));
+}
+.native-scroll-page .world-model-section__copy { top: 50%; width: calc(100% - 64px); }
+.native-scroll-page .world-model-section__drum { perspective: none; transform-style: flat; }
+.native-scroll-page .world-model-section__copy-block {
+  width: 100%; max-width: 1100px; display: block; transform-style: flat;
+}
+.native-scroll-page .world-model-section__line {
+  display: block; grid-area: auto; white-space: normal;
+  transform: none !important; opacity: 1; filter: none !important;
+  background: linear-gradient(90deg, #121212 0% var(--native-line-fill, 0%), #899993 var(--native-line-fill, 0%) 100%);
+  background-clip: text; -webkit-background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+  will-change: auto;
+}
+.native-scroll-page .world-model-section__word,
+.native-scroll-page .world-model-section__word .appear-char {
+  opacity: 1; transform: none; filter: none;
+  -webkit-text-fill-color: transparent;
+}
+.autoplay-ring { position: absolute; left: -26px; top: 50%; translate: 0 -50%; width: 18px; height: 18px; fill: none; stroke-width: 1.5; }
+.autoplay-ring__track { stroke: currentColor; opacity: .18; }
+.autoplay-ring__progress { stroke: currentColor; stroke-dasharray: 1; stroke-dashoffset: 1; transform: rotate(-90deg); transform-origin: center; }
+.native-scroll-page .block24-section__tablet-tabs button { position: relative; }
+.native-scroll-page .block24-section__tablet-tabs button:has(.autoplay-ring) { padding-left: 30px; }
+.native-scroll-page .block24-section__tablet-tabs .autoplay-ring { left: 6px; }
+@media (max-width: 1100px) {
+  .native-scroll-page .world-model-section__copy { font-size: clamp(27px, 4.1vw, 46px); letter-spacing: -.03em; }
+}
+@media (min-width: 981px) and (max-width: 1100px) and (max-aspect-ratio: 1/1) {
+  .native-scroll-page .hero-content { top: calc(50svh + 180px) !important; }
+}
+@media (min-width: 981px) and (max-width: 1100px) {
+  .native-scroll-page .block24-section__tabs { display: none; }
+  .native-scroll-page .block24-section__tablet-tabs {
+    position: absolute; display: flex; gap: 32px;
+    top: calc(max(92px, var(--block24-photo-top) - 140px) - var(--block24-origin-y));
+    left: calc(-1 * var(--block24-origin-x)); width: 100vw; padding: 0 40px;
+    box-sizing: border-box; overflow-x: auto; scrollbar-width: none; pointer-events: auto;
+  }
+  .native-scroll-page .block24-section__tablet-tabs::before,
+  .native-scroll-page .block24-section__tablet-tabs::after { content: ''; flex: 0 0 calc(50% - 120px); }
+  .native-scroll-page .block24-section__tablet-tabs button {
+    flex: none; border: 0; padding: 2px 0; background: none; color: #92979a;
+    font: 450 18px/1.3 'Public Sans', sans-serif; white-space: nowrap; cursor: pointer;
+  }
+  .native-scroll-page .block24-section__tablet-tabs button[aria-selected='true'] { color: #121212; }
+}
+@media (max-width: 1100px) and (max-aspect-ratio: 1/1) {
+  .native-scroll-page .physics-behavior-section__state-rail {
+    top: 14%; bottom: auto; left: 24px; width: calc(100% - 48px);
+    flex-direction: row; flex-wrap: wrap; justify-content: center; transform: none;
+  }
+  .native-scroll-page .physics-behavior-section__state {
+    top: 73%; left: 10%; right: auto; width: 80%; align-items: center; text-align: center;
+  }
+  .native-scroll-page .physics-behavior-section__state p { max-width: 560px; margin: 0 auto; font-size: 20px; }
+}
