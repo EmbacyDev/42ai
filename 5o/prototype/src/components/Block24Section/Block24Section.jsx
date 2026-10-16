@@ -1124,8 +1124,8 @@ export default function Block24Section({
             <button key={slide.id} type="button" role="tab" aria-selected={activeIndex === index}
               disabled={isExiting || !contentReady || Boolean(flight)}
               onClick={() => selectSlide(index, false, index >= activeIndex ? 'next' : 'previous')}>
-              {autoplayProgress && activeIndex === index && <AutoplayRing />}
               <ScrambleText text={slide.tab} />
+              {autoplayProgress && activeIndex === index && <AutoplayRing />}
             </button>
           ))}
         </div>
@@ -1157,8 +1157,8 @@ export default function Block24Section({
                   )
                 }}
               >
-                {autoplayProgress && isActiveVirtual && <AutoplayRing />}
                 {slide.tab}
+                {autoplayProgress && isActiveVirtual && <AutoplayRing />}
               </button>
               )
             })}
