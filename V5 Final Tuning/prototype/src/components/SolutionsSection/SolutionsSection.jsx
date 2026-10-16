@@ -3,6 +3,7 @@ import RequestDemoButton, {
   DEMO_REST_PATH,
   demoShapePathAt,
 } from '../RequestDemoButton/RequestDemoButton.jsx'
+import IndustryIconScene from './IndustryIconScene.jsx'
 import banksIcon from '../../../assets/icons/Banks.png'
 import brokersIcon from '../../../assets/icons/Brokers.png'
 import foundationalIcon from '../../../assets/icons/Foundational AI.png'
@@ -16,6 +17,11 @@ const SOLUTIONS = [
     id: 'banks',
     label: 'Banks',
     icon: banksIcon,
+    visualCenterY: 302 / 699,
+    contactTop: '68.7%',
+    contactWidth: '58%',
+    contactLeft: '48.6%',
+    dimensionalLight: true,
     rows: [
       'See the balance sheet before it moves.',
       'Predict deposits, withdrawals, draws and repayments.',
@@ -27,6 +33,11 @@ const SOLUTIONS = [
     id: 'hedge-funds',
     label: 'Hedge Funds',
     icon: hedgeFundsIcon,
+    visualCenterY: 312 / 699,
+    dimensionalLight: true,
+    contactTop: '70.2%',
+    contactWidth: '56%',
+    contactLeft: '52.1%',
     rows: [
       'Forecast trader flow before it reaches the market.',
       'Predict instrument, direction, timing and size.',
@@ -38,6 +49,12 @@ const SOLUTIONS = [
     id: 'brokers',
     label: 'Brokers',
     icon: brokersIcon,
+    visualCenterY: 319.5 / 706,
+    material: 'layered-glass',
+    dimensionalLight: true,
+    contactTop: '71.9%',
+    contactWidth: '58%',
+    contactLeft: '58.6%',
     rows: [
       'See the book before it forms.',
       'Predict Delta & Gamma before exposure forms.',
@@ -49,6 +66,11 @@ const SOLUTIONS = [
     id: 'physical-ai',
     label: 'Physical AI',
     icon: physicalIcon,
+    visualCenterY: 296 / 699,
+    dimensionalLight: true,
+    contactTop: '70.5%',
+    contactWidth: '48%',
+    contactLeft: '59%',
     rows: [
       'Train in simulated worlds of human interaction.',
       'Adapt actions in real time around people.',
@@ -60,6 +82,13 @@ const SOLUTIONS = [
     id: 'foundational-ai',
     label: 'Foundational AI',
     icon: foundationalIcon,
+    visualCenterY: 320.5 / 699,
+    material: 'layered-glass',
+    dimensionalLight: true,
+    contactTop: '76.8%',
+    contactWidth: '29%',
+    contactLeft: '48.5%',
+    lightStrength: 0.65,
     rows: [
       'Give AI a working model of the human.',
       'Predict how each person will react before the agent acts.',
@@ -71,6 +100,13 @@ const SOLUTIONS = [
     id: 'treasury',
     label: 'Treasury',
     icon: treasuryIcon,
+    visualCenterY: 312 / 699,
+    material: 'glass-metal',
+    dimensionalLight: true,
+    contactTop: '76.1%',
+    contactWidth: '51%',
+    contactLeft: '48.7%',
+    lightStrength: 0.55,
     rows: [
       'Churn, monetization and reward response.',
       'Adherence and care-plan response.',
@@ -208,6 +244,7 @@ export function TabIndicatorShape({ transitionKey, width, height }) {
  */
 export default function SolutionsSection() {
   const sectionRef = useRef(null)
+  const iconInteractionRef = useRef(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const [entryVisible, setEntryVisible] = useState(false)
   const [revealCycle, setRevealCycle] = useState(0)
@@ -362,16 +399,9 @@ export default function SolutionsSection() {
         </div>
       </div>
 
-      <div className="solutions-section__panel">
+      <div ref={iconInteractionRef} className="solutions-section__panel">
         <div className="solutions-section__icon-stage">
-          {SOLUTIONS.map((solution, index) => (
-            <img
-              key={solution.id}
-              className={`solutions-section__icon${index === activeIndex ? ' solutions-section__icon--active' : ''}`}
-              src={solution.icon}
-              alt=""
-            />
-          ))}
+          <IndustryIconScene items={SOLUTIONS} activeIndex={activeIndex} ready={entryVisible} interactionRef={iconInteractionRef} />
         </div>
         <div className="solutions-section__content-stage">
           {SOLUTIONS.map((solution, index) => {
